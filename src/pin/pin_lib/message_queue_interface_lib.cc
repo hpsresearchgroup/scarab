@@ -398,10 +398,20 @@ void Client::disconnect() {
 }
 
 void Client::connect_to_server() {
-  int32_t failure = connect(socket_fd, (struct sockaddr*)&socket_address,
-                            socket_address_length);
-  // unlink(socket_fd);
-  CHECK_FOR_FAILURE(failure < 0, "Connection to Server Failed");
+  constexpr int WAIT_PERIOD_IN_USECONDS = 100000;  // Retry after 100ms
+  constexpr int NUM_TRIALS              = 100;     // Total trail time = 10s
+
+  for(int i = 0; i < NUM_TRIALS; ++i) {
+    if(connect(socket_fd, (struct sockaddr*)&socket_address,
+               socket_address_length) == 0) {
+      return;
+    }
+
+    printf("Connected to Server failed. Trying again after %d ms",
+           WAIT_PERIOD_IN_USECONDS / 1000);
+    usleep(WAIT_PERIOD_IN_USECONDS);
+  }
+  CHECK_FOR_FAILURE(true, "Connection to Server Failed");
 }
 
 void Client::verify_server_connection() {
