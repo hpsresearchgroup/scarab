@@ -1,0 +1,32 @@
+2       OPEN    Trace frontend: no FPST input in the FUCOMPP instruction (and possibly others)
+8       OPEN    Tracing pintool: read.C doesn't work
+18      OPEN    Not modeling a limited number of multipliers and dividers
+20      OPEN    Param MEM_REQ_BUFFER_PREF_WATERMARK is based on free list count (is it OK?)
+21      OPEN    Mem ops that miss in dcache and can't get a mem req can saturate FUs
+22      OPEN    make valgrind fails with trace frontend (currently disabled)
+24      OPEN    McPAT interface ignores branch predictor parameters
+25      OPEN    Unrealistic frontend modeling in Scarab assumes ICACHE_CYCLES = 1.
+26      OPEN    The time unit of 1 femtosecond is hardcoded (should be param or define)
+27      OPEN    Min voltage is assumed to equal the power model's ref voltage; need a better value.
+28      OPEN    Replace fopen() calls with file_tag_fopen() for consistency
+29      OPEN    Return address prediction is forced to be perfect with trace frontend
+30      OPEN    DVFS, power intf, and perf pred assume L1 frequency for all cores
+31      OPEN    The size of some memory queues doesn't matter; remove relevant params.
+35      OPEN    op->state is never set to OS_DONE
+37      OPEN    UPDATE_BP_OFF_PATH is off. Verify that it works at turn it on.
+38      OPEN    Scarab cannot run /bin/ls using --exe
+39      OPEN    McPAT interface does not work for multicore (Milad has details)
+40      OPEN    Document DRAM input priority orders assumed by certain DRAM schedulers (TCM, ATLAS, batch)
+42      OPEN    A uop of "setbe (%edx, %ecx, 2)" inst. overflows max number of input deps (h264ref @80bc3e9)
+44      OPEN    fix DRAM refresh to issue one PRECHARGE command to all banks at once (Figure 41 in [Micron])
+46      OPEN    Incremental build seems to break when simply changing a stat or a param name
+47      OPEN    Ignoring scarab_power* files in get_stats() in scarab.pm may break power_intf
+48      OPEN    In collect_dram_scheduler_stats(), only MRS_MEM_NEW reqs are considered
+50      OPEN    cmp_cycle() etc. should be renamed, since, strictly speaking, they are not called every cycle
+51      OPEN    bp_conf.c:support for cmp model might not be included. Each core must have a bpc_data (used to be a FIXME in bp_conf.c)
+52      OPEN    vlp does not work for cmp model (multiple FIXMEs in the bp_dir_mech.c)
+53      OPEN    cache_lib.c: ALL ASSERTs have proc_id 0
+54      OPEN    it shouldn't be set here. It should be calculated based on branch instruction information. watch out Interrupt call also
+55      OPEN    param_paser.c: there might be issues using with cmp
+56      OPEN    pin_exec_driven_fe.c: look at sim.h, do we need to implement the operating modes? (simulation mode and fast forward mode).
+57      OPEN    pref_stream.c:04/17/03 BUG !!! ins_model.c

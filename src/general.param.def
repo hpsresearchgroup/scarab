@@ -1,0 +1,97 @@
+/* Copyright 2020 HPS/SAFARI Research Groups
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/* -*- Mode: c -*- */
+
+/* These ".param.def" files contain the various parameters that can be given to the
+   simulator.  NOTE: Don't screw around with the order of these macro fields without
+   fixing the etags regexps.
+
+   DEF_PARAM(  Option, Variable Name, Type, Function, Default Value, Const) 
+
+   Option -- The name of the parameter when given on the command line (eg. "--param_0").
+	   All parameters take an argument.  Thus, "--param_0=3" would be a valid
+	   specification.
+
+   Variable Name -- The name of the variable that will be created in 'parameters.c' and
+	    externed in 'parameters.h'.
+
+   Type -- The type of the variable that will be created in 'parameters.c' and externed
+	   in 'parameters.h'.
+
+   Function -- The name of the function declared in 'parameters.c' that will parse the
+	    text after the '='.
+
+   Default Value -- The default value that the variable created will have.  This must be
+	    the same type as the 'Type' field indicates (or be able to be cast to it).
+
+   Const -- Put the word "const" here if you want this parameter to be constant.  An
+	    error messsage will be printed if the user tries to set it with a command
+	    line option.
+
+*/
+
+                                                                                          
+DEF_PARAM( mode                         , SIM_MODE                  , int    , sim_mode  , 0        ,       )
+DEF_PARAM( model                        , SIM_MODEL                 , uns    , sim_model , 0        ,       )
+DEF_PARAM( frontend                     , FRONTEND                  , uns    , frontend, FE_PIN_EXEC_DRIVEN,  )
+DEF_PARAM( inst_limit                   , INST_LIMIT                , char * , string    , NULL     ,       )
+DEF_PARAM( sim_limit                    , SIM_LIMIT                 , char * , string    , "none"   ,       )
+DEF_PARAM( forward_progress_limit       , FORWARD_PROGRESS_LIMIT    , uns    , uns       , 100000000,       )
+DEF_PARAM( forward_progress_interval    , FORWARD_PROGRESS_INTERVAL , uns    , uns       , 10000    ,       )
+/* Fast forward in Instructions */                                                         
+DEF_PARAM( fast_forward                 , FAST_FORWARD              , uns64    , uns64   , 0        ,       )
+DEF_PARAM( fast_forward_until_addr      , FAST_FORWARD_UNTIL_ADDR   , uns      , uns     , 0        ,       )
+DEF_PARAM( warmup                       , WARMUP                    , uns64    , uns64   , 0        ,       )
+
+DEF_PARAM( heartbeat_interval           , HEARTBEAT_INTERVAL        , uns    , uns       , 1000000  ,       ) 
+DEF_PARAM( num_heartbeats               , NUM_HEARTBEATS            , uns    , uns       , 0        ,       ) 
+ 
+DEF_PARAM( file_tag                     , FILE_TAG                  , char * , string    , ""       ,       )
+DEF_PARAM( output_dir                   , OUTPUT_DIR                , char * , string    , "."      ,       )
+DEF_PARAM( status_file                  , STATUS_FILE               , char * , string    , NULL     ,       )
+DEF_PARAM( bindir                       , BINDIR                    , char * , string    , NULL     ,       )
+
+DEF_PARAM( dump_params                  , DUMP_PARAMS               , Flag   , Flag      , TRUE     ,       )
+DEF_PARAM( dump_stats                   , DUMP_STATS                , Flag   , Flag      , TRUE     ,       )
+DEF_PARAM( dump_trace                   , DUMP_TRACE                , Flag   , Flag      , FALSE    ,       )
+DEF_PARAM( clear_stats                  , CLEAR_STATS               , char * , string    , "never"  ,       )
+DEF_PARAM( stats_to_trace               , STATS_TO_TRACE            , char * , string    , NULL     ,       )
+DEF_PARAM( stat_trace_file              , STAT_TRACE_FILE           , char * , string    , "stats.trace",       )
+DEF_PARAM( stat_trace_interval          , STAT_TRACE_INTERVAL       , char * , string    , "i:100000",      )
+DEF_PARAM( pipeview                     , PIPEVIEW                  , Flag   , Flag      , FALSE    ,       )
+DEF_PARAM( pipeview_file                , PIPEVIEW_FILE             , char * , string    , "pipeview",      )
+DEF_PARAM( memview                      , MEMVIEW                   , Flag   , Flag      , FALSE,           )
+DEF_PARAM( memview_file                 , MEMVIEW_FILE              , char * , string    , "memview.out",   )
+DEF_PARAM( memview_start                , MEMVIEW_START             , char*  , string    , "never",         )
+ 
+DEF_PARAM( inst_hash_table_size         , INST_HASH_TABLE_SIZE      , uns    , uns       , 500021   , const )
+
+DEF_PARAM( stdout                       , STDOUT_FILE               , char * , string    , NULL     ,       )
+DEF_PARAM( stderr                       , STDERR_FILE               , char * , string    , NULL     ,       )
+DEF_PARAM( pin_exec_driven_fe_socket    , PIN_EXEC_DRIVEN_FE_SOCKET , char * , string    , "./pin_exec_driven_fe_socket.temp" ,       )
+ 
+DEF_PARAM( pid                          , PRINT_PID                 , Flag   , Flag      , FALSE    ,       )
+ 
+DEF_PARAM( use_unsure_free_lists        , USE_UNSURE_FREE_LISTS     , Flag   , Flag      , FALSE    ,       ) 
+
+DEF_PARAM( optimizer2_max_num_slaves    , OPTIMIZER2_MAX_NUM_SLAVES , uns    , uns       , 64       ,       )
+DEF_PARAM( optimizer2_perfect_memoryless, OPTIMIZER2_PERFECT_MEMORYLESS, Flag, Flag      , FALSE    ,       )

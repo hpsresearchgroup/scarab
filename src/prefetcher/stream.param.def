@@ -1,0 +1,107 @@
+/* Copyright 2020 HPS/SAFARI Research Groups
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/* -*- Mode: c -*- */
+
+/* These ".param.def" files contain the various parameters that can be given to the
+   simulator.  NOTE: Don't screw around with the order of these macro fields without
+   fixing the etags regexps.
+
+   DEF_PARAM(  Option, Variable Name, Type, Function, Default Value, Const) 
+
+   Option -- The name of the parameter when given on the command line (eg. "--param_0").
+	   All parameters take an argument.  Thus, "--param_0=3" would be a valid
+	   specification.
+
+   Variable Name -- The name of the variable that will be created in 'parameters.c' and
+	    externed in 'parameters.h'.
+
+   Type -- The type of the variable that will be created in 'parameters.c' and externed
+	   in 'parameters.h'.
+
+   Function -- The name of the function declared in 'parameters.c' that will parse the
+	    text after the '='.
+
+   Default Value -- The default value that the variable created will have.  This must be
+	    the same type as the 'Type' field indicates (or be able to be cast to it).
+
+   Const -- Put the word "const" here if you want this parameter to be constant.  An
+	    error messsage will be printed if the user tries to set it with a command
+	    line option.
+
+*/
+
+DEF_PARAM(pref_stream_on                    , PREF_STREAM_ON                 , Flag   , Flag      ,FALSE     ,      )
+// CMP separate prefetcher for each core
+DEF_PARAM(pref_stream_per_core_enable       , PREF_STREAM_PER_CORE_ENABLE    , Flag   , Flag      ,FALSE     ,      )
+
+// the number of stream buffer
+DEF_PARAM(stream_buffer_n                   , STREAM_BUFFER_N                , uns    , uns       ,16        ,      ) 
+     // how many prefetch is requested every miss 
+DEF_PARAM(stream_prefetch_n                 , STREAM_PREFETCH_N              , uns    , uns       ,2         ,      ) 
+     // the fist stream prefetch request 
+DEF_PARAM(stream_start_dis                  , STREAM_START_DIS               , uns    , uns       ,5         ,      ) 
+     // how far the stream prefetcher request the prefetcher
+DEF_PARAM(stream_length                     , STREAM_LENGTH                  , uns    , uns       ,16        ,      ) 
+     // when stream is at full distance, send prefetches in bursts of STREAM_FULL_N (to improve row buffer locality)
+DEF_PARAM(stream_full_n                     , STREAM_FULL_N                  , uns    , uns       ,1         ,      ) 
+DEF_PARAM(stream_train_length               , STREAM_TRAIN_LENGTH            , uns    , uns       ,16        ,      ) 
+DEF_PARAM(stream_train_num                  , STREAM_TRAIN_NUM               , uns    , uns       ,1        ,      ) 
+DEF_PARAM(pref_acc_use_cache                , PREF_ACC_USE_CACHE             , Flag   , Flag       ,FALSE   ,      ) 
+DEF_PARAM(stream_stall_on_queue_full        , STREAM_STALL_ON_QUEUE_FULL     , Flag   , Flag       ,FALSE   ,      ) 
+
+     // the number of prefetcher request every cycle 
+DEF_PARAM(pref_schedule_num                 , PREF_SCHEDULE_NUM              , uns    , uns       ,4         ,      ) // what is this exactly??? How many requests are examined to be sent???
+     // filter for training the same miss address 
+DEF_PARAM(train_filter_size                 , TRAIN_FILTER_SIZE              , uns    , uns       ,32        ,      ) 
+     // how many prefetching request can be buffered 
+DEF_PARAM(pref_req_q_size                   , PREF_REQ_Q_SIZE                , uns    , uns       ,64        ,      )
+DEF_PARAM(stream_create_on_dc_miss          , STREAM_CREATE_ON_DC_MISS       , Flag   , Flag      ,FALSE     ,      ) // Do we create a stream buffer on data cache miss?
+DEF_PARAM(stream_create_on_l1_miss          , STREAM_CREATE_ON_L1_MISS       , Flag   , Flag      ,TRUE      ,      ) // Do we create a stream buffer on L1 cache miss?
+DEF_PARAM(stream_train_on_wrongpath         , STREAM_TRAIN_ON_WRONGPATH      , Flag   , Flag      ,TRUE      ,      ) // Do we train the prefetcher with wrong-path ops?
+DEF_PARAM(stream_create_on_wrongpath        , STREAM_CREATE_ON_WRONGPATH     , Flag   , Flag      ,TRUE      ,      ) // Do we create a buffer on a wrong-path miss?
+DEF_PARAM(stream_pref_into_dcache           , STREAM_PREF_INTO_DCACHE        , Flag   , Flag      ,FALSE     ,      ) // Do we prefetch into data cache?
+
+DEF_PARAM(remove_redundant_stream           , REMOVE_REDUNDANT_STREAM        , Flag   , Flag      ,FALSE     ,      ) // remove redundat stream 
+
+
+
+     // DEF_PARAM(l2hit_stream_pref_on              , L2HIT_STREAM_PREF_ON           , Flag   , Flag      ,FALSE     ,      ) // l0 prefetcher request 
+DEF_PARAM(l2hit_stream_schedule_num         , L2HIT_STREAM_SCHEDULE_NUM      , uns    , uns       ,4         ,      )  // l0 prefetcher request number per cycle 
+
+DEF_PARAM(pref_req_queue_filter_on          , PREF_REQ_QUEUE_FILTER_ON       , Flag   , Flag      ,FALSE     ,      ) // TRUE: if demand hit the buffer then the req is cleared 
+DEF_PARAM(hw_pref_hit_train_stream          , HW_PREF_HIT_TRAIN_STREAM       , Flag   , Flag      ,FALSE     ,      )
+
+DEF_PARAM(l2hit_stream_buffer_n             , L2HIT_STREAM_BUFFER_N          , uns    , uns       ,32        ,      ) 
+DEF_PARAM(l2hit_stream_prefetch_n           , L2HIT_STREAM_PREFETCH_N        , uns    , uns       ,2         ,      ) 
+
+     // the fist stream prefetch request 
+DEF_PARAM(l2hit_stream_start_dis            , L2HIT_STREAM_START_DIS         , uns    , uns       ,2         ,      ) 
+     // how far the stream prefetcher request the prefetcher
+DEF_PARAM(l2hit_stream_length               , L2HIT_STREAM_LENGTH            , uns    , uns       ,8         ,      ) 
+
+DEF_PARAM(l2hit_pref_req_q_size             , L2HIT_PREF_REQ_Q_SIZE          , uns    , uns       ,128       ,      )
+DEF_PARAM(l2hit_l2access_req_q_size         , L2HIT_L2ACCESS_REQ_Q_SIZE      , uns    , uns       ,64        ,      )
+
+
+DEF_PARAM(pref_stream_accperstream          , PREF_STREAM_ACCPERSTREAM       , Flag    , Flag     ,FALSE     ,      )
+
+DEF_PARAM(pref_acc_distance_10              , PREF_ACC_DISTANCE_10           , uns    , uns       , 128     ,     ) 

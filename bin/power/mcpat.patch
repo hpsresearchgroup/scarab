@@ -1,0 +1,13 @@
+diff -ruN mcpat/processor.cc ../mcpat_v1.0/processor.cc
+--- mcpat/processor.cc	2013-09-03 14:56:02.000000000 -0500
++++ ../mcpat_v1.0/processor.cc	2019-02-21 13:14:39.358458138 -0600
+@@ -493,6 +493,8 @@
+     	cout <<endl;
+ 		cout <<"*****************************************************************************************"<<endl;
+ 		cout <<"Processor: "<<endl;
++        cout << indent_str << "Frequency (MHz) = " << XML->sys.core[0].clock_rate << endl;
++        cout << indent_str << "Voltage = " << g_tp.peri_global.Vdd << endl;
+ 		cout << indent_str << "Area = " << area.get_area()*1e-6<< " mm^2" << endl;
+ 		cout << indent_str << "Peak Power = " << power.readOp.dynamic +
+ 			(long_channel? power.readOp.longer_channel_leakage:power.readOp.leakage) + power.readOp.gate_leakage <<" W" << endl;
+Binary files mcpat/.processor.cc.swp and ../mcpat_v1.0/.processor.cc.swp differ

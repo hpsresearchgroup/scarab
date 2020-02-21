@@ -1,0 +1,157 @@
+/* Copyright 2020 HPS/SAFARI Research Groups
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/* -*- Mode: c -*- */
+
+/* These ".stat" files contain the various statistics that can be taken via STAT_EVENTs.
+   It's not a good idea to reorder these, since many calls are made like
+   STAT_EVENT(ICACHE_MISS + hit) which could update either.  All stats are printed both
+   as 'Interval' and 'Cumulative'.  'Interval' is measured during the current stat
+   interval, 'Cumulative' is over the entire run so far.
+
+   DEF_STAT( Name, Type, Ratio )
+
+   The 'Type' column is used to group statistics together and format the printouts
+   somewhat.  See the 'RATIO' type for a description of the 'Ratio Stat' column.
+   Possible 'Type' values are:
+
+	COUNT -- The count is what's important.  Just print the number of times it
+	occurred.  
+	
+	PER_CYCLE -- We care about how many times this occured per cycle, so divide by
+	the number of cycles.  (Ex. IPC)  The count is also printed.
+
+	PER_INST -- Same thing, but per instruction.
+
+	DIST -- This is a little bit complicated.  The first DIST type encountered
+	signals the beginning of a distribution.  The next DIST encountered marks the
+	end of the distribution (inclusive).  All of the stats in-between should be of
+	type COUNT.  All of the stats in a distribution are printed as a percentage of
+	the total.
+
+	RATIO -- This stat should be printed as a ratio.  The 'Ratio' argument
+	determines which other stat should be used.  The current stat is divided by that
+	specified in the 'Ratio Stat' column.  This column is ignored for all types but
+	RATIO.
+
+*/
+
+/* Sentinel stat to make stat resetting easier for DVFS */
+DEF_STAT(  POWER_STATS_BEGIN                  ,     COUNT, NO_RATIO )
+
+DEF_STAT(  POWER_TIME                         ,     COUNT, NO_RATIO )
+
+/* Chip power stats */
+DEF_STAT(  POWER_CYCLE                        ,     COUNT, NO_RATIO ) // chip cycle count
+DEF_STAT(  POWER_ITLB_ACCESS                  ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_DTLB_ACCESS                  ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_ICACHE_ACCESS                ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_ICACHE_MISS                  ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_BTB_READ                     ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_BTB_WRITE                    ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_ROB_READ                     ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_ROB_WRITE                    ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_RENAME_READ                  ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_RENAME_WRITE                 ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_FP_RENAME_READ               ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_FP_RENAME_WRITE              ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_FUNCTION_CALL                ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_INST_WINDOW_READ             ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_INST_WINDOW_WRITE            ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_INT_REGFILE_READ             ,     COUNT, NO_RATIO ) 
+DEF_STAT(  POWER_INT_REGFILE_WRITE            ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_IALU_ACCESS                  ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_CDB_IALU_ACCESS              ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MUL_ACCESS                   ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_CDB_MUL_ACCESS               ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_FP_INST_WINDOW_WRITE         ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_FP_INST_WINDOW_READ          ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_FP_REGFILE_READ              ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_FP_REGFILE_WRITE             ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_FPU_ACCESS                   ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_CDB_FPU_ACCESS               ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_DCACHE_READ_ACCESS           ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_DCACHE_WRITE_ACCESS          ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_DCACHE_READ_MISS             ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_DCACHE_WRITE_MISS            ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MLC_READ_ACCESS              ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MLC_WRITE_ACCESS             ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MLC_READ_MISS                ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MLC_WRITE_MISS               ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_LLC_READ_ACCESS              ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_LLC_WRITE_ACCESS             ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_LLC_READ_MISS                ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_LLC_WRITE_MISS               ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MEMORY_ACCESS                ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MEMORY_READ_ACCESS           ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MEMORY_WRITE_ACCESS          ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_INST_WINDOW_WAKEUP_ACCESS    ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_FP_INST_WINDOW_WAKEUP_ACCESS ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_L1DIREC_READ_ACCESS          ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_L1DIREC_WRITE_ACCESS         ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_L1DIREC_READ_MISS            ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_L1DIREC_WRITE_MISS           ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_L2DIREC_READ_ACCESS          ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_L2DIREC_WRITE_ACCESS         ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_L2DIREC_READ_MISS            ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_L2DIREC_WRITE_MISS           ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MEMORY_CTRL_ACCESS           ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MEMORY_CTRL_READ             ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_MEMORY_CTRL_WRITE            ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_OP                           ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_INT_OP                       ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_FP_OP                        ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_LD_OP                        ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_ST_OP                        ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_BRANCH_MISPREDICT            ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_COMMITTED_OP                 ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_COMMITTED_INT_OP             ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_COMMITTED_FP_OP              ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_BRANCH_OP                    ,     COUNT, NO_RATIO )
+
+/* DRAM power stats */
+DEF_STAT(  POWER_DRAM_PRECHARGE               ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_DRAM_ACTIVATE                ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_DRAM_READ                    ,     COUNT, NO_RATIO )
+DEF_STAT(  POWER_DRAM_WRITE                   ,     COUNT, NO_RATIO )
+
+/* Sentinel stat to make stat resetting easier for DVFS */
+DEF_STAT(  POWER_STATS_END                    ,     COUNT, NO_RATIO )
+
+/* Energy stats */
+DEF_STAT(  ENERGY                             ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_CORE                        ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_UNCORE                      ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_MEMORY                      ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_OTHER                       ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_CORE_STATIC                 ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_CORE_DYNAMIC                ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_UNCORE_STATIC               ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_UNCORE_DYNAMIC              ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_MEMORY_STATIC               ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_MEMORY_DYNAMIC              ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_OTHER_STATIC                ,     FLOAT, NO_RATIO )
+DEF_STAT(  ENERGY_OTHER_DYNAMIC               ,     FLOAT, NO_RATIO )
+
+/* Float version of EXECUTION_TIME */
+DEF_STAT(  TIME                               ,     FLOAT, NO_RATIO )
+
+DEF_STAT(  ENERGY_STATS_END                   ,     COUNT, NO_RATIO )

@@ -1,0 +1,140 @@
+/* -*- Mode: c -*- */
+####################################################################################################
+Core 0
+####################################################################################################
+Cumulative:        Cycles: 2100778               Instructions: 5000001               IPC: 2.38007
+
+L2WAY_FILL_L1                                        0                              0              
+
+L2WAY_WAY_HIT                                        0         -nan%                0         -nan%
+L2WAY_WAY_MISS                                       0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2WAY_PREF_REQ                                       0                              0              
+
+L2WAY_PREF_HIT_DATA_IN_CACHE                         0         -nan%                0         -nan%
+L2WAY_PREF_HIT_DATA_REQ                              0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2WAY_TRAIN_HIT                                      0         -nan%                0         -nan%
+L2WAY_TRAIN_MISS                                     0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L1_HIT_REQ_TYPE_IFETCH                               0         -nan%                0         -nan%
+L1_HIT_REQ_TYPE_DFETCH                               0         -nan%                0         -nan%
+L1_HIT_REQ_TYPE_DSTORE                               0         -nan%                0         -nan%
+L1_HIT_REQ_TYPE_IPRF                                 0         -nan%                0         -nan%
+L1_HIT_REQ_TYPE_DPRF                                 0         -nan%                0         -nan%
+L1_HIT_REQ_TYPE_WB                                   0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2_ACCESS_INTERVAL__0                                0         -nan%                0         -nan%
+L2_ACCESS_INTERVAL__1                                0         -nan%                0         -nan%
+L2_ACCESS_INTERVAL__2                                0         -nan%                0         -nan%
+L2_ACCESS_INTERVAL__3                                0         -nan%                0         -nan%
+L2_ACCESS_INTERVAL__4                                0         -nan%                0         -nan%
+L2_ACCESS_INTERVAL__5                                0         -nan%                0         -nan%
+L2_ACCESS_INTERVAL__6                                0         -nan%                0         -nan%
+L2_ACCESS_INTERVAL__7                                0         -nan%                0         -nan%
+L2_ACCESS_INTERVAL__8                                0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2WAY_L1INSERT_PORT_FULL                             0         -nan%                0         -nan%
+L2WAY_L1INSERT_PORT_READY                            0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2MARKV_NEXT_ADDR_HIT                                0         -nan%                0         -nan%
+L2MARKV_NEXT_ADDR_MISS                               0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2MARKV_LAST_ADDR_HIT                                0         -nan%                0         -nan%
+L2MARKV_LAST_ADDR_MISS                               0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+MARKV_L2_TIME_DIFF__0                                0         -nan%                0         -nan%
+MARKV_L2_TIME_DIFF__1                                0         -nan%                0         -nan%
+MARKV_L2_TIME_DIFF__2                                0         -nan%                0         -nan%
+MARKV_L2_TIME_DIFF__3                                0         -nan%                0         -nan%
+MARKV_L2_TIME_DIFF__4                                0         -nan%                0         -nan%
+MARKV_L2_TIME_DIFF__5                                0         -nan%                0         -nan%
+MARKV_L2_TIME_DIFF__6                                0         -nan%                0         -nan%
+MARKV_L2_TIME_DIFF__7                                0         -nan%                0         -nan%
+MARKV_L2_TIME_DIFF__8                                0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2MARKV_PREF_REQ                                     0                              0              
+
+L2MARKV_PREF_TRAIN                                   0                              0              
+
+L2MARKV_PREF_HIT_DATA_REQ                            0         -nan%                0         -nan%
+L2MARKV_PREF_HIT_DATA_IN_CACHE                       0         -nan%                0         -nan%
+L2MARKV_PREF_MISS                                    0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2MARKV_L1INSERT_PORT_READY                          0         -nan%                0         -nan%
+L2MARKV_L1INSERT_PORT_FULL                           0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2NEXT_PREF_REQ                                      0                              0              
+
+L2NEXT_PREF_HIT_DATA_REQ                             0         -nan%                0         -nan%
+L2NEXT_PREF_HIT_DATA_IN_CACHE                        0         -nan%                0         -nan%
+L2NEXT_PREF_MISS                                     0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2NEXT_L1INSERT_PORT_READY                           0         -nan%                0         -nan%
+L2NEXT_L1INSERT_PORT_FULL                            0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+DCACHE_PREF_NOT_RDY                                  0         -nan%                0         -nan%
+DCACHE_PREF_FETCH_10                                 0         -nan%                0         -nan%
+DCACHE_PREF_FETCH_100                                0         -nan%                0         -nan%
+DCACHE_PREF_FETCH_1000                               0         -nan%                0         -nan%
+DCACHE_PREF_FETCH_10000                              0         -nan%                0         -nan%
+DCACHE_PREF_FETCH_100000                             0         -nan%                0         -nan%
+DCACHE_PREF_FETCH_1000000                            0         -nan%                0         -nan%
+DCACHE_PREF_FETCH_10000000                           0         -nan%                0         -nan%
+DCACHE_PREF_FETCH_100000000                          0         -nan%                0         -nan%
+DCACHE_PREF_FETCH_MORE                               0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2HIT_SAME_IP_DELTA__0                               0         -nan%                0         -nan%
+L2HIT_SAME_IP_DELTA__1                               0         -nan%                0         -nan%
+L2HIT_SAME_IP_DELTA__2                               0         -nan%                0         -nan%
+L2HIT_SAME_IP_DELTA__3                               0         -nan%                0         -nan%
+L2HIT_SAME_IP_DELTA__4                               0         -nan%                0         -nan%
+L2HIT_SAME_IP_DELTA__5                               0         -nan%                0         -nan%
+L2HIT_SAME_IP_DELTA__6                               0         -nan%                0         -nan%
+L2HIT_SAME_IP_DELTA__7                               0         -nan%                0         -nan%
+L2HIT_SAME_IP_DELTA__8                               0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+L2HIT_IP_HIT_COUNT__1                                0         -nan%                0         -nan%
+L2HIT_IP_HIT_COUNT__2                                0         -nan%                0         -nan%
+L2HIT_IP_HIT_COUNT__3                                0         -nan%                0         -nan%
+L2HIT_IP_HIT_COUNT__4                                0         -nan%                0         -nan%
+L2HIT_IP_HIT_COUNT__5                                0         -nan%                0         -nan%
+L2HIT_IP_HIT_COUNT__6                                0         -nan%                0         -nan%
+L2HIT_IP_HIT_COUNT__7                                0         -nan%                0         -nan%
+L2HIT_IP_HIT_COUNT__8                                0         -nan%                0         -nan%
+L2HIT_IP_HIT_COUNT__9                                0         -nan%                0         -nan%
+                                                     0         -nan%                0         -nan%
+                                                  -nan         -nan              -nan         -nan
+
+
+

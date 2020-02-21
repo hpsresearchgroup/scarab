@@ -1,0 +1,184 @@
+{
+   random
+   Memcheck:Cond
+   ...
+   fun:random
+   ...
+}
+{
+   malloc/calloc
+   Memcheck:Cond
+   ...
+   fun:?alloc
+   ...
+}
+{
+   realloc
+   Memcheck:Cond
+   ...
+   fun:realloc
+   ...
+}
+{
+   free
+   Memcheck:Cond
+   ...
+   fun:free
+   ...
+}
+{
+   pthreads cond
+   Memcheck:Cond
+   ...
+   fun:*_pthread*
+   ...
+}
+{
+   pthreads param
+   Memcheck:Param
+   ...
+   fun:*_pthread*
+   ...
+}
+{
+   libc cond
+   Memcheck:Cond
+   ...
+   fun:__libc*
+   ...
+}
+{
+   IO
+   Memcheck:Cond
+   ...
+   fun:_IO*
+   ...
+}
+{
+   IO
+   Memcheck:Cond
+   ...
+   fun:rewind
+   ...
+}
+{
+   printf
+   Memcheck:Cond
+   ...
+   fun:*printf
+   ...
+}
+{
+   scanf
+   Memcheck:Cond
+   ...
+   fun:*scanf
+   ...
+}
+{
+   strlen
+   Memcheck:Cond
+   ...
+   fun:strlen
+   ...
+}
+{
+   open
+   Memcheck:Cond
+   ...
+   fun:open
+   ...
+}
+{
+   fread
+   Memcheck:Cond
+   ...
+   fun:fread
+   ...
+}
+{
+   fwrite
+   Memcheck:Cond
+   ...
+   fun:fwrite
+   ...
+}
+{
+   fput*
+   Memcheck:Cond
+   ...
+   fun:fput*
+   ...
+}
+{
+   getc/ungetc
+   Memcheck:Cond
+   ...
+   fun:*getc
+   ...
+}
+{
+   fopen
+   Memcheck:Cond
+   ...
+   fun:fopen
+   ...
+}
+{
+   fclose
+   Memcheck:Cond
+   ...
+   fun:fclose
+   ...
+}
+{
+   fflush
+   Memcheck:Cond
+   ...
+   fun:fflush
+   ...
+}
+{
+   gz lib
+   Memcheck:Cond
+   ...
+   fun:gz*
+   ...
+}
+{
+   exit
+   Memcheck:Value4
+   ...
+   fun:exit
+   ...
+}
+{
+   special functions cond
+   Memcheck:Cond
+   ...
+   fun:__*
+   ...
+}
+{
+   special functions param
+   Memcheck:Param
+   ...
+   fun:__*
+   ...
+}
+{
+   set_robust_list syscall param
+   Memcheck:Param
+   set_robust_list(head)
+   ...
+   fun:__*
+   ...
+}
+{
+   open syscall param
+   Memcheck:Param
+   open(filename)
+   ...
+   fun:__*
+   ...
+}

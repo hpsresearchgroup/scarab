@@ -1,0 +1,65 @@
+/* Copyright 2020 HPS/SAFARI Research Groups
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/***************************************************************************************
+* File         : bp/bp_table.def
+* Author       : HPS Research Group
+* Date         : 12/11/1998
+* Description  : 
+***************************************************************************************/
+
+
+Bp bp_table [] = {
+    /* Enum         Name        init                timestamp               pred              spec_update               update               retire               recover            */
+    /* ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
+    { GSHARE_BP,    "gshare",   bp_gshare_init,     bp_gshare_timestamp,    bp_gshare_pred,   bp_gshare_spec_update,    bp_gshare_update,    bp_gshare_retire,    bp_gshare_recover   },
+    { HYBRIDGP_BP,  "hybridgp", bp_hybridgp_init,   bp_hybridgp_timestamp,  bp_hybridgp_pred, bp_hybridgp_spec_update,  bp_hybridgp_update,  bp_hybridgp_retire,  bp_hybridgp_recover },
+    { TAGESCL_BP,   "tagescl",  bp_tagescl_init,    bp_tagescl_timestamp,   bp_tagescl_pred,  bp_tagescl_spec_update,   bp_tagescl_update,   bp_tagescl_retire,   bp_tagescl_recover },    
+    { NUM_BP,       0,          NULL,               NULL,                   NULL,             NULL,                     NULL,                NULL,                NULL }
+    
+};
+
+
+Bp_Btb bp_btb_table [] = {
+    /* Enum        Name       init             pred             update             recover */
+    /* ----------------------------------------------------------------------------------- */
+    { GENERIC_BTB, "generic", bp_btb_gen_init, bp_btb_gen_pred, bp_btb_gen_update, NULL  },
+    { NUM_BTB,     0,         NULL,            NULL,            NULL,              NULL, }
+};
+
+
+Bp_Ibtb bp_ibtb_table [] = {
+    /* Enum            Name          init                     pred                     update                     recover                    */
+    /* ------------------------------------------------------------------------------------------------------------------------------------ */
+    { TC_TAGLESS_IBTB, "tc_tagless", bp_ibtb_tc_tagless_init, bp_ibtb_tc_tagless_pred, bp_ibtb_tc_tagless_update, bp_ibtb_tc_tagless_recover },
+    { TC_TAGGED_IBTB,  "tc_tagged",  bp_ibtb_tc_tagged_init,  bp_ibtb_tc_tagged_pred,  bp_ibtb_tc_tagged_update,  bp_ibtb_tc_tagged_recover  },
+    { TC_HYBRID_IBTB,  "tc_hybrid",  bp_ibtb_tc_hybrid_init,  bp_ibtb_tc_hybrid_pred,  bp_ibtb_tc_hybrid_update,  bp_ibtb_tc_hybrid_recover  },
+    { NUM_IBTB,        0,            NULL,                    NULL,                    NULL,                      NULL,                      }
+};
+
+
+Br_Conf br_conf_table [] = {
+    /* Enum            Name          init                     pred                     update                     recover                    */
+    /* ----------------------------------------------------------------------------------- */
+    { ONPATH_CONF,      "onpath_conf",       init_bp_conf,           pred_onpath_conf,         update_onpath_conf,        recover_onpath_conf  },	
+    { PERCEPTRON_CONF,  "perceptron_conf",   conf_perceptron_init,   conf_perceptron_pred,     conf_perceptron_update,     NULL  },                   /* based on perceptron Akkary's paper*/ 	
+    { NUM_BR_CONF,     0,            NULL,                   NULL,                     NULL,                      NULL, }
+};

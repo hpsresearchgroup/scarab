@@ -1,0 +1,128 @@
+/* Copyright 2020 HPS/SAFARI Research Groups
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/* -*- Mode: c -*- */
+
+/* These ".param.def" files contain the various parameters that can be given to the
+   simulator.  NOTE: Don't screw around with the order of these macro fields without
+   fixing the etags regexps.
+
+   DEF_PARAM(  Option, Variable Name, Type, Function, Default Value, Const) 
+
+   Option -- The name of the parameter when given on the command line (eg. "--param_0").
+	   All parameters take an argument.  Thus, "--param_0=3" would be a valid
+	   specification.
+
+   Variable Name -- The name of the variable that will be created in 'parameters.c' and
+	    externed in 'parameters.h'.
+
+   Type -- The type of the variable that will be created in 'parameters.c' and externed
+	   in 'parameters.h'.
+
+   Function -- The name of the function declared in 'parameters.c' that will parse the
+	    text after the '='.
+
+   Default Value -- The default value that the variable created will have.  This must be
+	    the same type as the 'Type' field indicates (or be able to be cast to it).
+
+   Const -- Put the word "const" here if you want this parameter to be constant.  An
+	    error messsage will be printed if the user tries to set it with a command
+	    line option.
+
+*/
+
+DEF_PARAM( pref_framework_on                   , PREF_FRAMEWORK_ON                   , Flag            , Flag               , FALSE     ,    )
+DEF_PARAM( pref_trace_on                       , PREF_TRACE_ON                       , Flag            , Flag               , FALSE     ,    )
+DEF_PARAM( pref_dl0req_queue_size              , PREF_DL0REQ_QUEUE_SIZE              , uns             , uns                , 32        ,    )
+DEF_PARAM( pref_umlc_req_queue_size            , PREF_UMLC_REQ_QUEUE_SIZE            , uns             , uns                , 64        ,    )
+DEF_PARAM( pref_ul1req_queue_size              , PREF_UL1REQ_QUEUE_SIZE              , uns             , uns                , 128       ,    )
+DEF_PARAM( pref_shared_queues                  , PREF_SHARED_QUEUES                  , Flag            , Flag               , TRUE     ,    )
+DEF_PARAM( pref_dl0_miss_on                    , PREF_DL0_MISS_ON                    , Flag            , Flag               , TRUE      ,    )
+DEF_PARAM( pref_dl0_hit_on                     , PREF_DL0_HIT_ON                     , Flag            , Flag               , TRUE      ,    )
+DEF_PARAM( pref_dl0req_queue_filter_on         , PREF_DL0REQ_QUEUE_FILTER_ON         , Flag            , Flag               , TRUE      ,    )
+DEF_PARAM( pref_umlc_req_queue_filter_on       , PREF_UMLC_REQ_QUEUE_FILTER_ON       , Flag            , Flag               , TRUE      ,    )
+DEF_PARAM( pref_ul1req_queue_filter_on         , PREF_UL1REQ_QUEUE_FILTER_ON         , Flag            , Flag               , TRUE      ,    )
+DEF_PARAM( pref_dl0req_add_filter_on           , PREF_DL0REQ_ADD_FILTER_ON           , Flag            , Flag               , TRUE      ,    )
+DEF_PARAM( pref_umlc_req_add_filter_on         , PREF_UMLC_REQ_ADD_FILTER_ON         , Flag            , Flag               , TRUE      ,    )
+DEF_PARAM( pref_ul1req_add_filter_on           , PREF_UL1REQ_ADD_FILTER_ON           , Flag            , Flag               , TRUE      ,    )
+DEF_PARAM( pref_dl0req_queue_overwrite_on_full , PREF_DL0REQ_QUEUE_OVERWRITE_ON_FULL , Flag            , Flag               , FALSE     ,    )
+DEF_PARAM( pref_umlc_req_queue_overwrite_on_full, PREF_UMLC_REQ_QUEUE_OVERWRITE_ON_FULL, Flag          , Flag               , FALSE     ,    )
+DEF_PARAM( pref_ul1req_queue_overwrite_on_full , PREF_UL1REQ_QUEUE_OVERWRITE_ON_FULL , Flag            , Flag               , FALSE     ,    )
+DEF_PARAM( pref_dl0schedule_num                , PREF_DL0SCHEDULE_NUM                , uns             , uns                , 4         ,    )
+DEF_PARAM( pref_umlc_schedule_num              , PREF_UMLC_SCHEDULE_NUM              , uns             , uns                , 4         ,    )
+DEF_PARAM( pref_ul1schedule_num                , PREF_UL1SCHEDULE_NUM                , uns             , uns                , 4         ,    )
+DEF_PARAM( pref_l1q_demand_reserve             , PREF_L1Q_DEMAND_RESERVE             , uns             , uns                , 0         ,    ) 
+
+DEF_PARAM( pref_report_pref_match_as_miss      , PREF_REPORT_PREF_MATCH_AS_MISS      , Flag            , Flag               , FALSE     ,    )
+DEF_PARAM( pref_report_pref_match_as_hit       , PREF_REPORT_PREF_MATCH_AS_HIT       , Flag            , Flag               , TRUE      ,    )
+DEF_PARAM( pref_update_on_wrongpath            , PREF_UPDATE_ON_WRONGPATH            , Flag            , Flag               , TRUE      ,    )
+
+DEF_PARAM( pref_train_on_pref_misses           , PREF_TRAIN_ON_PREF_MISSES           , Flag            , Flag               , FALSE     ,    )
+DEF_PARAM( pref_oracle_train_on                , PREF_ORACLE_TRAIN_ON                , Flag            , Flag               , FALSE     ,    )
+
+     // Throttling Stuff
+// Prefetcher drops a request when memory req buffer is full
+DEF_PARAM(pref_req_drop                        , PREF_REQ_DROP                       , Flag            , Flag               , FALSE     ,    )    
+DEF_PARAM( pref_throttle_on                    , PREF_THROTTLE_ON                    , Flag            , Flag               , FALSE     ,    )
+DEF_PARAM( pref_throttlefb_on                  , PREF_THROTTLEFB_ON                  , Flag            , Flag               , FALSE     ,    )
+
+DEF_PARAM(pref_acc_thresh_1                 , PREF_ACC_THRESH_1              , float  , float     , 0.90    ,      ) 
+DEF_PARAM(pref_acc_thresh_2                 , PREF_ACC_THRESH_2              , float  , float     , 0.70    ,     ) 
+DEF_PARAM(pref_acc_thresh_3                 , PREF_ACC_THRESH_3              , float  , float     , 0.60    ,     ) 
+DEF_PARAM(pref_acc_thresh_4                 , PREF_ACC_THRESH_4              , float  , float     , 0.40    ,     ) 
+DEF_PARAM(pref_update_interval              , PREF_UPDATE_INTERVAL           , uns64  , uns64                , 0         ,    )
+
+DEF_PARAM(pref_analyze_load                 , PREF_ANALYZE_LOAD              , Flag            , Flag               , FALSE     ,    )
+
+DEF_PARAM(pref_pol_thresh_1                , PREF_POL_THRESH_1              , float  , float     , 0.25     ,      ) 
+DEF_PARAM(pref_pol_thresh_2                , PREF_POL_THRESH_2              , float  , float     , 0.10     ,      ) 
+
+     // Pollution Bitvector
+DEF_PARAM( pref_polbv_on                   , PREF_POLBV_ON                      , Flag            , Flag               , FALSE     ,    )
+DEF_PARAM( pref_polbv_size                 , PREF_POLBV_SIZE                    , uns             , uns                , 1024      ,    ) 
+
+DEF_PARAM(pref_timely_thresh               , PREF_TIMELY_THRESH             , float  , float     , 0.05     ,      ) 
+DEF_PARAM(pref_polpf_thresh                , PREF_POLPF_THRESH              , float  , float     , 0.01     ,      ) 
+
+DEF_PARAM( pref_degfb_useonlyacc           , PREF_DEGFB_USEONLYACC          , Flag            , Flag        , FALSE     ,    )
+
+DEF_PARAM( pref_degfb_useonlypol           , PREF_DEGFB_USEONLYPOL          , Flag            , Flag        , FALSE     ,    )
+DEF_PARAM( pref_degfb_useonlylate          , PREF_DEGFB_USEONLYLATE         , Flag            , Flag        , FALSE     ,    )
+
+DEF_PARAM(pref_timely_thresh_2             , PREF_TIMELY_THRESH_2             , float  , float     , 0.005     ,      ) 
+
+DEF_PARAM( pref_degfb_statphasefile        , PREF_DEGFB_STATPHASEFILE       , Flag            , Flag        , FALSE     ,    )
+
+DEF_PARAM( pref_max_degfb                  , PREF_MAX_DEGFB                 , uns             , uns         , 4         ,    )
+
+DEF_PARAM( pref_dhal                       , PREF_DHAL                          , Flag            , Flag               , FALSE     ,    )
+DEF_PARAM( pref_dhal_sentthresh            , PREF_DHAL_SENTTHRESH           , uns             , uns                , 16      ,    ) 
+DEF_PARAM( pref_dhal_usethresh_max         , PREF_DHAL_USETHRESH_MAX        , uns             , uns                , 12      ,    ) 
+DEF_PARAM( pref_dhal_usethresh_min2        , PREF_DHAL_USETHRESH_MIN2        , uns             , uns                , 8       ,    ) 
+DEF_PARAM( pref_dhal_usethresh_min1        , PREF_DHAL_USETHRESH_MIN1        , uns             , uns                , 4       ,    ) 
+DEF_PARAM( pref_dhal_maxdeg                , PREF_DHAL_MAXDEG        , uns             , uns                , 64       ,    ) 
+
+DEF_PARAM( pref_hfilter_on                 , PREF_HFILTER_ON         , Flag            , Flag               , FALSE    ,    )
+DEF_PARAM( pref_hfilter_index_bits         , PREF_HFILTER_INDEX_BITS , uns             , uns                , 12       ,    )
+DEF_PARAM( pref_hfilter_use_pc             , PREF_HFILTER_USE_PC     , Flag            , Flag               , FALSE    ,    )
+DEF_PARAM( pref_hfilter_pred_useless_thres , PREF_HFILTER_PRED_USELESS_THRES, uns8     , uns8               , 2        ,    )
+DEF_PARAM( pref_hfilter_reset_enable       , PREF_HFILTER_RESET_ENABLE, Flag           , Flag               , FALSE    ,    )
+DEF_PARAM( pref_hfilter_reset_interval     , PREF_HFILTER_RESET_INTERVAL, uns          , uns                , 100000   ,    )      

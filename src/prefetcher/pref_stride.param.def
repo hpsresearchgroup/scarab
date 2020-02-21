@@ -1,0 +1,65 @@
+/* Copyright 2020 HPS/SAFARI Research Groups
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/* -*- Mode: c -*- */
+
+/* These ".param.def" files contain the various parameters that can be given to the
+   simulator.  NOTE: Don't screw around with the order of these macro fields without
+   fixing the etags regexps.
+
+   DEF_PARAM(  Option, Variable Name, Type, Function, Default Value, Const) 
+
+   Option -- The name of the parameter when given on the command line (eg. "--param_0").
+	   All parameters take an argument.  Thus, "--param_0=3" would be a valid
+	   specification.
+
+   Variable Name -- The name of the variable that will be created in 'parameters.c' and
+	    externed in 'parameters.h'.
+
+   Type -- The type of the variable that will be created in 'parameters.c' and externed
+	   in 'parameters.h'.
+
+   Function -- The name of the function declared in 'parameters.c' that will parse the
+	    text after the '='.
+
+   Default Value -- The default value that the variable created will have.  This must be
+	    the same type as the 'Type' field indicates (or be able to be cast to it).
+
+   Const -- Put the word "const" here if you want this parameter to be constant.  An
+	    error messsage will be printed if the user tries to set it with a command
+	    line option.
+
+*/
+
+DEF_PARAM(pref_stride_on                , PREF_STRIDE_ON              , Flag   , Flag      , FALSE       ,      ) 
+DEF_PARAM(debug_pref_stride             , DEBUG_PREF_STRIDE           , Flag   , Flag      , FALSE       ,      ) 
+// the size of the stride table
+DEF_PARAM(pref_stride_table_n           , PREF_STRIDE_TABLE_N         , uns    , uns       , 1024        ,      ) 
+     // number of high order bits to use to determine the region
+DEF_PARAM(pref_stride_REGION_bits       , PREF_STRIDE_REGION_BITS     , uns    , uns       , 16          ,      ) 
+     // Number of prefetches sent out on a miss/prefetch
+DEF_PARAM(pref_stride_degree            , PREF_STRIDE_DEGREE          , uns    , uns       , 4           ,      ) 
+DEF_PARAM(pref_stride_distance          , PREF_STRIDE_DISTANCE        , uns    , uns       , 16           ,      ) 
+DEF_PARAM(pref_stride_startdistance     , PREF_STRIDE_STARTDISTANCE   , uns    , uns       , 1           ,      ) 
+DEF_PARAM(pref_stride_single_thresh     , PREF_STRIDE_SINGLE_THRESH   , uns    , uns       , 6           ,      ) 
+DEF_PARAM(pref_stride_multi_thresh      , PREF_STRIDE_MULTI_THRESH    , uns    , uns       , 6           ,      ) 
+
+DEF_PARAM(pref_stride_single_stride_mode, PREF_STRIDE_SINGLE_STRIDE_MODE, Flag   , Flag      , FALSE       ,      ) 

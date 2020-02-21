@@ -1,0 +1,185 @@
+/* Copyright 2020 HPS/SAFARI Research Groups
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/* -*- Mode: c -*- */
+
+/* These ".stat" files contain the various statistics that can be taken via STAT_EVENTs.
+   It's not a good idea to reorder these, since many calls are made like
+   STAT_EVENT(ICACHE_MISS + hit) which could update either.  All stats are printed both
+   as 'Interval' and 'Cumulative'.  'Interval' is measured during the current stat
+   interval, 'Cumulative' is over the entire run so far.
+
+   DEF_STAT( Name, Type, Ratio )
+
+   The 'Type' column is used to group statistics together and format the printouts
+   somewhat.  See the 'RATIO' type for a description of the 'Ratio Stat' column.
+   Possible 'Type' values are:
+
+	COUNT -- The count is what's important.  Just print the number of times it
+	occurred.  
+	
+	PER_CYCLE -- We care about how many times this occured per cycle, so divide by
+	the number of cycles.  (Ex. IPC)  The count is also printed.
+
+	PER_INST -- Same thing, but per instruction.
+
+	DIST -- This is a little bit complicated.  The first DIST type encountered
+	signals the beginning of a distribution.  The next DIST encountered marks the
+	end of the distribution (inclusive).  All of the stats in-between should be of
+	type COUNT.  All of the stats in a distribution are printed as a percentage of
+	the total.
+
+	RATIO -- This stat should be printed as a ratio.  The 'Ratio' argument
+	determines which other stat should be used.  The current stat is divided by that
+	specified in the 'Ratio Stat' column.  This column is ignored for all types but
+	RATIO.
+
+*/
+
+DEF_STAT(L2WAY_FILL_L1,                                COUNT,           NO_RATIO)
+
+DEF_STAT(L2WAY_WAY_HIT,                                DIST,            NO_RATIO) 
+DEF_STAT(L2WAY_WAY_MISS,                               DIST,            NO_RATIO) 
+
+DEF_STAT(L2WAY_PREF_REQ,                               COUNT,           NO_RATIO) 
+
+DEF_STAT(L2WAY_PREF_HIT_DATA_IN_CACHE,                 DIST,            NO_RATIO) 
+DEF_STAT(L2WAY_PREF_HIT_DATA_REQ,                      DIST,           NO_RATIO) 
+
+DEF_STAT(L2WAY_TRAIN_HIT, DIST, NO_RATIO)
+DEF_STAT(L2WAY_TRAIN_MISS, DIST, NO_RATIO)
+
+DEF_STAT(L1_HIT_REQ_TYPE_IFETCH,                       DIST,            NO_RATIO) 
+DEF_STAT(L1_HIT_REQ_TYPE_DFETCH,                       COUNT,           NO_RATIO) 
+DEF_STAT(L1_HIT_REQ_TYPE_DSTORE,                       COUNT,           NO_RATIO) 
+DEF_STAT(L1_HIT_REQ_TYPE_IPRF,                         COUNT,           NO_RATIO) 
+DEF_STAT(L1_HIT_REQ_TYPE_DPRF,                         COUNT,           NO_RATIO) 
+DEF_STAT(L1_HIT_REQ_TYPE_WB,                           DIST,            NO_RATIO) 
+
+
+DEF_STAT(L2_ACCESS_INTERVAL__0,                        DIST,            NO_RATIO)
+DEF_STAT(L2_ACCESS_INTERVAL__1,                        COUNT,           NO_RATIO) 
+DEF_STAT(L2_ACCESS_INTERVAL__2,                        COUNT,           NO_RATIO) 
+DEF_STAT(L2_ACCESS_INTERVAL__3,                        COUNT,           NO_RATIO) 
+DEF_STAT(L2_ACCESS_INTERVAL__4,                        COUNT,           NO_RATIO) 
+DEF_STAT(L2_ACCESS_INTERVAL__5,                        COUNT,           NO_RATIO) 
+DEF_STAT(L2_ACCESS_INTERVAL__6,                        COUNT,           NO_RATIO) 
+DEF_STAT(L2_ACCESS_INTERVAL__7,                        COUNT,           NO_RATIO) 
+DEF_STAT(L2_ACCESS_INTERVAL__8,                        DIST,            NO_RATIO) 
+
+DEF_STAT(L2WAY_L1INSERT_PORT_FULL,                     DIST,            NO_RATIO)
+DEF_STAT(L2WAY_L1INSERT_PORT_READY,                    DIST,            NO_RATIO)
+            
+/* markov prefetcher's statistics */ 
+
+DEF_STAT(L2MARKV_NEXT_ADDR_HIT,                        DIST,            NO_RATIO)
+DEF_STAT(L2MARKV_NEXT_ADDR_MISS,                       DIST,            NO_RATIO)
+
+DEF_STAT(L2MARKV_LAST_ADDR_HIT,                        DIST,            NO_RATIO)
+DEF_STAT(L2MARKV_LAST_ADDR_MISS,                       DIST,            NO_RATIO)
+
+
+
+DEF_STAT(MARKV_L2_TIME_DIFF__0,                        DIST,            NO_RATIO)
+DEF_STAT(MARKV_L2_TIME_DIFF__1,                        COUNT,           NO_RATIO) 
+DEF_STAT(MARKV_L2_TIME_DIFF__2,                        COUNT,           NO_RATIO) 
+DEF_STAT(MARKV_L2_TIME_DIFF__3,                        COUNT,           NO_RATIO) 
+DEF_STAT(MARKV_L2_TIME_DIFF__4,                        COUNT,           NO_RATIO) 
+DEF_STAT(MARKV_L2_TIME_DIFF__5,                        COUNT,           NO_RATIO) 
+DEF_STAT(MARKV_L2_TIME_DIFF__6,                        COUNT,           NO_RATIO) 
+DEF_STAT(MARKV_L2_TIME_DIFF__7,                        COUNT,           NO_RATIO) 
+DEF_STAT(MARKV_L2_TIME_DIFF__8,                        DIST,            NO_RATIO) 
+
+DEF_STAT(L2MARKV_PREF_REQ,                             COUNT,           NO_RATIO)
+DEF_STAT(L2MARKV_PREF_TRAIN,                           COUNT,           NO_RATIO)
+
+DEF_STAT(L2MARKV_PREF_HIT_DATA_REQ,                    DIST,            NO_RATIO)
+DEF_STAT(L2MARKV_PREF_HIT_DATA_IN_CACHE,               COUNT,           NO_RATIO)
+DEF_STAT(L2MARKV_PREF_MISS,                            DIST,            NO_RATIO)
+
+DEF_STAT(L2MARKV_L1INSERT_PORT_READY,                  DIST,            NO_RATIO)
+DEF_STAT(L2MARKV_L1INSERT_PORT_FULL,                   DIST,            NO_RATIO)
+
+     /* next line prefetcher */
+
+DEF_STAT(L2NEXT_PREF_REQ,                             COUNT,           NO_RATIO)
+
+DEF_STAT(L2NEXT_PREF_HIT_DATA_REQ,                    DIST,            NO_RATIO)
+DEF_STAT(L2NEXT_PREF_HIT_DATA_IN_CACHE,               COUNT,           NO_RATIO)
+DEF_STAT(L2NEXT_PREF_MISS,                            DIST,            NO_RATIO)
+
+DEF_STAT(L2NEXT_L1INSERT_PORT_READY,                  DIST,            NO_RATIO)
+DEF_STAT(L2NEXT_L1INSERT_PORT_FULL,                   DIST,            NO_RATIO)
+
+     /* dc_pref_cache */
+     /*
+DEF_STAT(DC_PREF_CACHE_FILL,                          COUNT,           NO_RATIO)
+
+DEF_STAT(DC_PREF_CACHE_INSERT_REQ,                    COUNT,           NO_RATIO)
+
+DEF_STAT(DC_PREF_REQ_DCACHE_HIT,                      DIST,            DC_PREF_CACHE_INSERT_REQ)
+DEF_STAT(DC_PREF_REQ_PREF_CACHE_HIT,                  COUNT,           DC_PREF_CACHE_INSERT_REQ)
+DEF_STAT(DC_PREF_REQ_L1_MISS,                         COUNT,           DC_PREF_CACHE_INSERT_REQ)
+DEF_STAT(DC_PREF_REQ_CORR,                            DIST,            DC_PREF_CACHE_INSERT_REQ)
+     
+DEF_STAT(DC_PREF_CACHE_INSERT,                        COUNT,            NO_RATIO)
+
+DEF_STAT(DC_PREF_CACHE_HIT_PER                      , PERCENT,        DCACHE_HIT )
+DEF_STAT(DC_PREF_CACHE_HIT                          , COUNT,           NO_RATIO)
+
+DEF_STAT(DC_PREF_HIT_L1_MISS                        ,  COUNT,          NO_RATIO)
+     */
+DEF_STAT(DCACHE_PREF_NOT_RDY                        , DIST,            NO_RATIO)
+DEF_STAT(DCACHE_PREF_FETCH_10                       , COUNT,           NO_RATIO)
+DEF_STAT(DCACHE_PREF_FETCH_100                      , COUNT,           NO_RATIO)
+DEF_STAT(DCACHE_PREF_FETCH_1000                     , COUNT,           NO_RATIO)
+DEF_STAT(DCACHE_PREF_FETCH_10000                    , COUNT,           NO_RATIO)
+DEF_STAT(DCACHE_PREF_FETCH_100000                   , COUNT,           NO_RATIO)
+DEF_STAT(DCACHE_PREF_FETCH_1000000                  , COUNT,           NO_RATIO)
+DEF_STAT(DCACHE_PREF_FETCH_10000000                 , COUNT,           NO_RATIO)
+DEF_STAT(DCACHE_PREF_FETCH_100000000                , COUNT,           NO_RATIO)
+DEF_STAT(DCACHE_PREF_FETCH_MORE                     , DIST,            NO_RATIO)
+
+
+
+     /* ip stat */
+
+DEF_STAT(L2HIT_SAME_IP_DELTA__0                      ,DIST,             NO_RATIO)
+DEF_STAT(L2HIT_SAME_IP_DELTA__1                      ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_SAME_IP_DELTA__2                      ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_SAME_IP_DELTA__3                      ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_SAME_IP_DELTA__4                      ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_SAME_IP_DELTA__5                      ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_SAME_IP_DELTA__6                      ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_SAME_IP_DELTA__7                      ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_SAME_IP_DELTA__8                      ,DIST,             NO_RATIO)
+
+
+DEF_STAT(L2HIT_IP_HIT_COUNT__1                       ,DIST,             NO_RATIO)
+DEF_STAT(L2HIT_IP_HIT_COUNT__2                       ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_IP_HIT_COUNT__3                       ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_IP_HIT_COUNT__4                       ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_IP_HIT_COUNT__5                       ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_IP_HIT_COUNT__6                       ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_IP_HIT_COUNT__7                       ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_IP_HIT_COUNT__8                       ,COUNT,            NO_RATIO)
+DEF_STAT(L2HIT_IP_HIT_COUNT__9                       ,DIST,             NO_RATIO)
+

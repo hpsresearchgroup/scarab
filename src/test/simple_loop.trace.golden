@@ -1,0 +1,815 @@
+138
+*** beginning of the data structure *** count:0
+EIP: 400078
+Next EIP: 40007a
+OpType: c
+ICLASS: XOR
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:1
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:2
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:3
+EIP: 400080
+Next EIP: 40007a
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x1
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:4
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:5
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:6
+EIP: 400080
+Next EIP: 40007a
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x1
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:7
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:8
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:9
+EIP: 400080
+Next EIP: 40007a
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x1
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:10
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:11
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:12
+EIP: 400080
+Next EIP: 40007a
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x1
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:13
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:14
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:15
+EIP: 400080
+Next EIP: 40007a
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x1
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:16
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:17
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:18
+EIP: 400080
+Next EIP: 40007a
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x1
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:19
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:20
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:21
+EIP: 400080
+Next EIP: 40007a
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x1
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:22
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:23
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:24
+EIP: 400080
+Next EIP: 40007a
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x1
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:25
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:26
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:27
+EIP: 400080
+Next EIP: 40007a
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x1
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:28
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:29
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:30
+EIP: 400080
+Next EIP: 40007a
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x1
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:31
+EIP: 40007a
+Next EIP: 40007d
+OpType: 8
+ICLASS: ADD
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: RAX,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:32
+EIP: 40007d
+Next EIP: 400080
+OpType: b
+ICLASS: CMP
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RAX,
+Destination Regs: ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:33
+EIP: 400080
+Next EIP: 400082
+OpType: 8
+ICLASS: JLE
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: Yes
+Branch Target: 0x40007a
+Actually Taken: 0x0
+Source Regs: ZPS,
+Destination Regs: 
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:34
+EIP: 400082
+Next EIP: 400084
+OpType: c
+ICLASS: XOR
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: RDI,RDI,
+Destination Regs: RDI,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:35
+EIP: 400084
+Next EIP: 400089
+OpType: 4
+ICLASS: MOV
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 4
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: 
+Destination Regs: RAX,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+
+*** beginning of the data structure *** count:36
+EIP: 400089
+Next EIP: 40008b
+OpType: 8
+ICLASS: SYSCALL
+Number of Loads: 0
+Number of Store: 0
+Load Size: 0
+Store Size: 0
+Number of SIMD Lanes: 1
+Lane Width: 8
+Is Repeat Instruction: No
+Control Flow Instruction: No
+Branch Target: 0x0
+Actually Taken: 0x0
+Source Regs: 
+Destination Regs: RCX,R11,ZPS,
+First Load Address Regs: 
+Second Load Address Regs: 
+Store Address Regs: 
+*** end of the data structure *** 
+

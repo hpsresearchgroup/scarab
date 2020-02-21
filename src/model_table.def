@@ -1,0 +1,58 @@
+/* Copyright 2020 HPS/SAFARI Research Groups
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/***************************************************************************************
+* File         : model_table.def
+* Author       : HPS Research Group 
+* Date         : 12/6/1998
+* Description  : This file contains the interface functions for the different simulator
+                models.  The 'init' function should be called by full_sim or
+                sampling_sim.  The 'reset' function is used by sampling mode to reset
+                the model inbetween samples.  The 'cycle' function is called by the main
+                loop in full_sim or sampling_sim to simulate a cycle of the machine.
+***************************************************************************************/
+
+
+Model model_table [] = {
+    /* id                , memory type       , name              , init                  , reset */
+    /*                   , cycle             , debug             , per core done         , done */
+    /*                   , wake              , break             , op fetched hook       , op retired hook */
+    /*                   , warmup_func */
+    /* --------------------------------------------------------------------------------------------------- */
+    {  CMP_MODEL         , MODEL_MEM         , "cmp"             , cmp_init              , cmp_reset
+                         , cmp_cycle         , cmp_debug         , cmp_per_core_done     , cmp_done
+                         , cmp_wake          , NULL              , NULL                  , cmp_retire_hook
+			             , cmp_warmup, } ,
+
+    {  DUMB_MODEL        , MODEL_MEM         , "dumb"            , dumb_init             , dumb_reset
+                         , dumb_cycle        , dumb_debug        , NULL                  , dumb_done
+                         , NULL              , NULL              , NULL                  , NULL
+			             , NULL, } ,
+
+    {  NUM_MODELS        , 0                 , 0                 , NULL                  , NULL
+                         , NULL              , NULL              , NULL                  , NULL
+                         , NULL              , NULL              , NULL                  , NULL                   
+			             , NULL, } ,
+};
+
+// note: the model's mem field is for easy distinction of which memory
+// model is used.  You can't switch back and forth just by changing it
+// here.

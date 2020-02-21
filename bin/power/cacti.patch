@@ -1,0 +1,14 @@
+diff -ruN cacti65/io.cc ../cacti65/io.cc
+--- cacti65/io.cc	2009-12-25 10:16:58.000000000 -0600
++++ ../cacti65/io.cc	2019-02-21 13:50:33.804812785 -0600
+@@ -1190,7 +1190,9 @@
+   cout << "    Write ports: " <<
+     g_ip->num_wr_ports << endl;;
+   cout << "    Technology size (nm): " <<  
+-    g_ip->F_sz_nm << endl << endl;
++    g_ip->F_sz_nm << endl;
++  cout << "    Voltage (V): " <<
++    g_tp.dram_cell_Vdd << endl << endl;
+ 
+   cout << "    Access time (ns): " << fr->access_time*1e9 << endl;
+   cout << "    Cycle time (ns):  " << fr->cycle_time*1e9 << endl;
