@@ -1,0 +1,66 @@
+syntax: regexp
+
+# Files matching these patterns will be ignored by hg
+# if they are not tracked already
+
+# experiment result directories
+out/
+results/
+rollups/
+
+# intermediate compilation files
+*.o
+*.so
+*.a
+*.d
+*.dd
+*.aux
+*.bbl
+*.blg
+*.brf
+*.dvi
+*.log
+
+# Doxygen output
+^doc/doxygen
+
+# binaries/compilation results
+*.pdf
+*.ps
+*.pyc
+bin/Linux
+src/bin
+src/obj
+src/libcbp_inst/libcbp_inst.a
+src/libcbp_inst/predictor
+src/scarab
+src/gitrev
+src/ramulator/lib_opt
+src/ramulator/lib_dbg
+src/ramulator/lib_gpf
+utils/qsort/test_qsort
+
+# Emacs backup files
+*.~
+
+# tags files
+TAGS
+
+# Hidden files usually should not be tracked
+^\.
+.*.swp
+
+PARAMS.in
+src/pin/pin_trace/read
+src/test/PARAMS.in
+test_mem
+test_mem.c
+test_simd
+test_simd.c
+test_simd.dump
+test_simd_pinball/
+test_string
+test_string.c
+test_string.dump
+test_string_pinball/
+
