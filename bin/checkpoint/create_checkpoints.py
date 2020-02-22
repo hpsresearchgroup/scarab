@@ -281,9 +281,11 @@ def get_create_checkpoint_command(workload_path, benchmark_name,
     f.write(CREATE_CHECKPOINT_CMD_TEMPLATE.format(
           checkpoint_creator_dir=scarab_paths.checkpoint_creator_dir,
           icount=icount,
-          run_dir_path=workload_path,
+          #run_dir_path=workload_path,
+          run_dir_path=checkpoint_path,
           run_command=run_command,
           checkpoint_path=checkpoint_path))
+  distutils.dir_util.copytree('{}/RUN_DIR'.format(workload_path), '{}/RUN_DIR'.format(checkpoint_path)) 
 
   return command.generate(
       get_submission_system(),

@@ -177,8 +177,8 @@ def find_spec_run_dir(benchmark, input_name):
     print('Found multiple SPEC run directories for workload {},{} with '
           'glob search path {}'.format(
               benchmark, input_name, glob_search_path))
-    sys.exit(1)
-  return glob_result[0]
+    print('Using latest version: ', glob_result[len(glob_result)-1])
+  return glob_result[len(glob_result)-1]
 
 def setup_run_dir(benchmark, input_name, run_dir_path):
   os.makedirs(run_dir_path, exist_ok=True)
@@ -224,13 +224,17 @@ def extract_run_commands_spec06(speccmds_out_file_path):
   cmds = []
   with open(speccmds_out_file_path) as f:
       for line in f:
-        m = re.match("-(.) ([^ ]*) (-. .*?)* (.*)", line)
-        if m is not None:
-          orig_cmd = m.group(4)
-          if m.group(1) == 'i':
-            orig_cmd = orig_cmd + " < " + m.group(2)  
-          cmd_words = orig_cmd.split()
-          cmd_words[0] = './' + os.path.basename(cmd_words[0])
+        words = line.split()
+        cmd_words = []
+        if words[0]!="-C":
+          for word in words:
+            if "run_base" in word:
+              temp = word.split("/")
+              cmd_words.insert(0, './' + temp[2])
+            elif len(cmd_words)!=0:
+              cmd_words.append(word)
+          if words[0]=="-i":
+            cmd_words.append("< " + words[1])
           cmd = ' '.join(cmd_words)
           cmds.append(cmd)
   return cmds
