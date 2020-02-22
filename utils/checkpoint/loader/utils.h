@@ -27,10 +27,10 @@
 #define __UTILS_H__
 
 #include <cstdint>
+#include <getopt.h>
 #include <iostream>
 #include <set>
 #include <string>
-#include <getopt.h>
 
 #define PG_SIZE (1ULL << 12)
 #define MAX_PG_SIZE (1ULL << 21)
@@ -40,14 +40,14 @@
 
 typedef uint64_t ADDR;
 
-//void fatal(const char* fmt, ...);
+// void fatal(const char* fmt, ...);
 void vfatal(const char* fmt, va_list va);
-void fatal_and_kill_child(pid_t child_pid, const char* fmt, va_list va); 
+void fatal_and_kill_child(pid_t child_pid, const char* fmt, va_list va);
 void debug(const char* fmt, ...);
 void assertm(bool p, const char* message);
 
 void print_string_array(const char* name, const char* const str_array[]);
-int count_longest_option_length(const struct option long_options[]);
+int  count_longest_option_length(const struct option long_options[]);
 void turn_aslr_off();
 
 struct AddressRange {

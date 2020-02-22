@@ -335,7 +335,8 @@ int execute_open(pid_t pid, const char* pathname, int flags) {
   temp_addr = execute_mmap(pid, NULL, rounded_strlen, PROT_READ,
                            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if(temp_addr == (void*)-1) {
-    std::cerr << "Could not map a temporary page for the path of open()" << std::endl;
+    std::cerr << "Could not map a temporary page for the path of open()"
+              << std::endl;
     kill_and_exit(pid);
   }
 
@@ -345,7 +346,8 @@ int execute_open(pid_t pid, const char* pathname, int flags) {
                                 (unsigned long long int)flags, 0, 0, 0, 0);
 
   if(execute_munmap(pid, temp_addr, rounded_strlen)) {
-    std::cerr << "Could not unmap a temporary page used for the path of open()" << std::endl;
+    std::cerr << "Could not unmap a temporary page used for the path of open()"
+              << std::endl;
     kill_and_exit(pid);
   }
   return ret_val;

@@ -65,5 +65,6 @@ std::vector<char*> get_checkpoint_envp_vector();
 
 std::vector<char*> get_checkpoint_argv_vector();
 
-void get_checkpoint_os_info(std::string& kernel_release, std::string& os_version);
+void get_checkpoint_os_info(std::string& kernel_release,
+                            std::string& os_version);
 #endif

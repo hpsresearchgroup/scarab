@@ -24,12 +24,12 @@
  */
 
 #include "utils.h"
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
-#include <stdarg.h>
-#include <cassert>
 #include <cstring>
 #include <signal.h>
+#include <stdarg.h>
 #include <sys/personality.h>
 
 void vfatal(const char* fmt, va_list va) {
@@ -40,7 +40,7 @@ void vfatal(const char* fmt, va_list va) {
 }
 
 void fatal_and_kill_child(pid_t child_pid, const char* fmt, va_list va) {
-  assert(0!= child_pid);
+  assert(0 != child_pid);
   kill(child_pid, SIGKILL);
 
   vfatal(fmt, va);
@@ -71,10 +71,10 @@ void print_string_array(const char* name, const char* const str_array[]) {
 }
 
 int count_longest_option_length(const struct option long_options[]) {
-  assert(NULL!=long_options);
+  assert(NULL != long_options);
 
   int longest_option_length = -1;
-  for(int i = 0; NULL!=long_options[i].name; i++) {
+  for(int i = 0; NULL != long_options[i].name; i++) {
     int length = strlen(long_options[i].name);
     if(length > longest_option_length) {
       longest_option_length = length;

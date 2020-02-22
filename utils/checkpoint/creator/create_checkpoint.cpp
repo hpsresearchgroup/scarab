@@ -234,9 +234,10 @@ void dumpProcFileRawContent(FILE* out, std::string fileName, UINT pid) {
   std::ifstream procFileInputStream;
   procFileInputStream.open(("/proc/" + pidSS.str() + "/" + fileName).c_str());
 
-  std::string relativeOutputDatFilePath = (fileName + ".dat");
+  std::string   relativeOutputDatFilePath = (fileName + ".dat");
   std::ofstream outputDatFileStream;
-  outputDatFileStream.open((KnobOutputDir.Value() + "/" + relativeOutputDatFilePath).c_str());
+  outputDatFileStream.open(
+    (KnobOutputDir.Value() + "/" + relativeOutputDatFilePath).c_str());
 
   while(procFileInputStream.peek() != EOF) {
     std::string line;
@@ -252,14 +253,14 @@ void dumpProcFileRawContent(FILE* out, std::string fileName, UINT pid) {
 
 void dumpOSinfo(FILE* out) {
   const USIZE buf_size = 128;
-  char kernel_release[buf_size];
-  char os_version[buf_size];
+  char        kernel_release[buf_size];
+  char        os_version[buf_size];
 
   OS_RETURN_CODE ret_code = OS_GetKernelRelease(kernel_release, buf_size);
   ASSERTX(OS_RETURN_CODE_NO_ERROR == ret_code);
   ret_code = OS_GetOSVersion(os_version, buf_size);
   ASSERTX(OS_RETURN_CODE_NO_ERROR == ret_code);
-  
+
   startChild(out, "os_info");
   INLINE_CHILD(out, "release", "\"%s\"", kernel_release);
   INLINE_CHILD(out, "version", "\"%s\"", os_version);
