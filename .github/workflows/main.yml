@@ -28,5 +28,6 @@ jobs:
     - name: make release
       run: |
         export PIN_ROOT=`pwd`/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
-        make clean
+        make clean -C src
         make opt -j -C src
+        make dbg -j -C src
