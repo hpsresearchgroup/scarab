@@ -6,7 +6,7 @@
 * gcc 7.3.1
 * McPAT v1.0
 * CACTI 6.5
-* Intel [PIN 3.5](https://software.intel.com/en-us/articles/pin-a-binary-instrumentation-tool-downloads).
+* Intel [PIN 3.5](https://software.intel.com/system/files/managed/23/50/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux.tar.gz).
 * Clang 5.0.1
 
 ## Python Packages
