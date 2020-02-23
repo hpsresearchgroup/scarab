@@ -26,7 +26,7 @@ jobs:
         token: ${{ secrets.HPS_ACCESS_TOKEN }}  
           
     - name: make release
-      run:
+      run: |
         export PIN_ROOT=`pwd`/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
         make clean
         make opt -j -C src
