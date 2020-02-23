@@ -1,0 +1,32 @@
+name: Test Compile Scarab
+
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Check Cache for Scarab Dependencies
+      id: cache-scarab-dep
+      uses: actions/cache@v1
+      env:
+        cache-name: cache-scarab-dep
+      with:
+        path: ~/scarab-dependencies
+        key: scarab-dep-key
+        
+    - name: Install Scarab Dependencies
+      if: steps.cache-scarab-dep.outputs.cache-hit != 'true'
+      uses: actions/checkout@v1
+      with:
+        repository: hpsresearchgroup/scarab-dependencies
+        token: ${{ secrets.HPS_ACCESS_TOKEN }}  
+          
+    - name: make release
+      run:
+        export PIN_ROOT=`pwd`/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
+        make clean
+        make opt -j -C src
