@@ -20,7 +20,7 @@ jobs:
         
     - name: Install Scarab Dependencies
       if: steps.cache-scarab-dep.outputs.cache-hit != 'true'
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
       with:
         repository: hpsresearchgroup/scarab-dependencies
         token: ${{ secrets.HPS_ACCESS_TOKEN }}  
