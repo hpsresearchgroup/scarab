@@ -25,7 +25,6 @@
  * Date         : 2/17/1999
  * Description  :
  ***************************************************************************************/
-asdfasdfas
 
 #include "debug/debug_macros.h"
 #include "debug/debug_print.h"
