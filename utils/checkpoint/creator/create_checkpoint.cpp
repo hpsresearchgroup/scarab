@@ -25,12 +25,13 @@
 #include <linux/unistd.h>
 #include <signal.h>
 #include <sstream>
-#include <stdio.h>
+#include <string>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <zlib.h>
 
+#include "../loader/cpuinfo.h"
 #include "control_manager.H"
 #include "instlib.H"
 #include "pin.H"
@@ -67,6 +68,7 @@ void dumpProcessInfo(FILE* out, CONTEXT* ctxt);
 void dumpProcFileRawContent(FILE* out, std::string fileName, UINT pid);
 void dumpThread(FILE* out, CONTEXT* ctxt);
 void dumpOSinfo(FILE* out);
+void dumpCPUinfo(FILE* out);
 
 /* Register dumping functions */
 void dumpRegs(FILE* out, CONTEXT* ctxt);
@@ -212,6 +214,7 @@ void dumpProcessInfo(FILE* out, CONTEXT* ctxt) {
   dumpProcFileRawContent(out, "environ", PIN_GetPid());
   dumpProcFileRawContent(out, "cmdline", PIN_GetPid());
   dumpOSinfo(out);
+  dumpCPUinfo(out);
   dumpMemory(out, PIN_GetPid());
   endChild(out);
   DEBUG("End of Dumping process %d\n", PIN_GetPid());
@@ -264,6 +267,13 @@ void dumpOSinfo(FILE* out) {
   startChild(out, "os_info");
   INLINE_CHILD(out, "release", "\"%s\"", kernel_release);
   INLINE_CHILD(out, "version", "\"%s\"", os_version);
+  endChild(out);
+}
+
+void dumpCPUinfo(FILE* out) {
+  std::string cpuinfo_flags = getCPUflags();
+  startChild(out, "cpuinfo");
+  INLINE_CHILD(out, "flags", "\"%s\"", cpuinfo_flags.c_str());
   endChild(out);
 }
 
