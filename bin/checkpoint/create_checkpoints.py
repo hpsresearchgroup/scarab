@@ -22,6 +22,7 @@ import argparse
 import distutils.dir_util
 import glob
 from itertools import product
+from pathlib import Path
 import math
 import multiprocessing
 import os
@@ -268,24 +269,26 @@ def get_create_checkpoint_command(workload_path, benchmark_name,
   run_command_file_path = ('{}/simpoints_{}.Data/BENCHMARK_RUN_CMD'.format(workload_path, benchmark_name))
   with open(run_command_file_path) as f:
     run_command = f.read()
+  workload_parent = Path(workload_path).parent
 
-  checkpoint_path = ('{workload_path}/{benchmark_name}_'
+  checkpoint_path = ('{workload_parent}/{benchmark_name}_'
                      'checkpoint{checkpoint_num}_{weight}_{icount}'.format(
-      workload_path=workload_path,
+      workload_parent=workload_parent,
       benchmark_name=benchmark_name,
       checkpoint_num=checkpoint_num,
       weight=weight,
       icount=icount))
   os.makedirs(checkpoint_path, exist_ok=__args__.force_write)
+  checkpoint_rundir_path = ('{}/RUN_DIR'.format(checkpoint_path))
   with open(checkpoint_path + '/CREATE_CMD', 'w') as f:
     f.write(CREATE_CHECKPOINT_CMD_TEMPLATE.format(
           checkpoint_creator_dir=scarab_paths.checkpoint_creator_dir,
           icount=icount,
           #run_dir_path=workload_path,
-          run_dir_path=checkpoint_path,
+          run_dir_path=checkpoint_rundir_path,
           run_command=run_command,
           checkpoint_path=checkpoint_path))
-  distutils.dir_util.copytree('{}/RUN_DIR'.format(workload_path), '{}/RUN_DIR'.format(checkpoint_path)) 
+  distutils.dir_util.copy_tree(workload_path, checkpoint_rundir_path) 
 
   return command.generate(
       get_submission_system(),
@@ -376,13 +379,13 @@ def create_descriptor_file_phase():
   name_list = []
   for benchmark in __benchmarks__:
     workload_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
-    checkpoint_paths = get_all_checkpoint_paths(workload_path, benchmark.name)
+    workload_parent = Path(workload_path).parent
+    checkpoint_paths = get_all_checkpoint_paths(workload_parent, benchmark.name)
     verify_checkpoints_are_sane(checkpoint_paths)
     benchmarks_descriptor_str = get_descriptor_definitions(
         benchmark, benchmark.name, checkpoint_paths)
     descriptor_str += benchmarks_descriptor_str
     name_list.append(benchmark.name)
-    print(name_list)
 
   with open(__args__.output_dir + '/descriptor.def', 'w') as f:
     f.write(descriptor_str)

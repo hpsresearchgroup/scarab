@@ -1026,7 +1026,7 @@ static void init_pin_opcode_convert(void) {
   iclass_to_scarab_map[XED_ICLASS_FNSTSW] = {OP_NOTPIPELINED_MEDIUM, -1, 1,
                                              NONE};
   iclass_to_scarab_map[XED_ICLASS_FNOP]   = {OP_NOP, -1, 1, NONE};
-  iclass_to_scarab_map[XED_ICLASS_FPREM]    = {OP_FMUL, 8, 1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_FPREM]  = {OP_FMUL, 8, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_FRNDINT]       = {OP_FCVT, 8, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_FSETPM287_NOP] = {OP_NOP, -1, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_FSIN]    = {OP_NOTPIPELINED_VERY_SLOW, 8, 1,
