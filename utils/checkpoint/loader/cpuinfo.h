@@ -19,54 +19,39 @@
  * SOFTWARE.
  */
 
-#ifndef __CHECKPOINT_READER_H__
-#define __CHECKPOINT_READER_H__
+/*cpuinfo.h
+ * 2/25/20
+ */
 
-#include <cinttypes>
-#include <cstdarg>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <sys/mman.h>
-#include <unordered_map>
-#include <vector>
+#ifndef __CPUINFO_H__
+#define __CPUINFO_H__
 
-extern "C" {
-#include "hconfig.h"
+#include <string>
+
+inline std::string getCPUflags() {
+  const int BUF_MAX = 2048;
+  char      buf[2048];
+
+  FILE* fp;
+  fp = popen("cat /proc/cpuinfo | grep flags | head -n 1", "r");
+  assert(NULL != fp);
+  fgets(buf, BUF_MAX, fp);
+  assert(NULL == fgets(buf, BUF_MAX, fp));  // should only be a single line
+  int status = pclose(fp);
+  assert(-1 != status);
+
+  std::string full_line(buf);
+  std::string separator        = std::string(": ");
+  std::size_t pos_of_separator = full_line.find(separator);
+  assert(std::string::npos != pos_of_separator);
+  std::size_t pos_of_endline = full_line.find("\n");
+  assert(std::string::npos != pos_of_endline);
+  std::size_t start_pos  = (pos_of_separator + separator.size());
+  std::string just_flags = full_line.substr(start_pos,
+                                            pos_of_endline - start_pos);
+
+  assert(!just_flags.empty());
+  return just_flags;
 }
 
-#include "utils.h"
-
-static const int FPSTATE_SIZE = 2688;
-extern char      fpstate_buffer[FPSTATE_SIZE];
-
-void read_checkpoint(const char* checkpoint_dir);
-
-void set_child_pid(pid_t pid);
-
-void open_file_descriptors();
-
-void change_working_directory();
-
-uint64_t get_checkpoint_start_rip();
-
-const char* get_checkpoint_exe_path();
-
-void allocate_new_regions(pid_t child_pid);
-
-void write_data_to_regions(pid_t child_pid);
-
-void update_region_protections(pid_t child_pid);
-
-void load_registers(pid_t child_id);
-
-std::vector<char*> get_checkpoint_envp_vector();
-
-std::vector<char*> get_checkpoint_argv_vector();
-
-bool get_checkpoint_os_info(std::string& kernel_release,
-                            std::string& os_version);
-
-bool get_checkpoint_cpuinfo(std::string& flags);
 #endif

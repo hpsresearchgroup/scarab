@@ -339,6 +339,8 @@ static std::vector<char*> read_null_delimited_data(const char* name) {
       len = strlen(ptr);
     }
     addrsOfIndivStrs.push_back(NULL);
+    int ret = close(fd);
+    assert(0 == ret);
   }
   return addrsOfIndivStrs;
 }
@@ -843,9 +845,26 @@ std::vector<char*> get_checkpoint_argv_vector() {
   return read_null_delimited_data("cmdline");
 }
 
-void get_checkpoint_os_info(std::string& kernel_release,
+bool get_checkpoint_os_info(std::string& kernel_release,
                             std::string& os_version) {
-  const struct hconfig_t* os_info_config = subconfig(process_config, "os_info");
-  kernel_release = std::string(require_str(os_info_config, "release"));
-  os_version     = std::string(require_str(os_info_config, "version"));
+  const struct hconfig_t* os_info_config = hconfig_descend(process_config,
+                                                           "os_info");
+  if(NULL != os_info_config) {
+    kernel_release = std::string(require_str(os_info_config, "release"));
+    os_version     = std::string(require_str(os_info_config, "version"));
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool get_checkpoint_cpuinfo(std::string& flags) {
+  const struct hconfig_t* cpuinfo_config = hconfig_descend(process_config,
+                                                           "cpuinfo");
+  if(NULL != cpuinfo_config) {
+    flags = std::string(require_str(cpuinfo_config, "flags"));
+    return true;
+  } else {
+    return false;
+  }
 }

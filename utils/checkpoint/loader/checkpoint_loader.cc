@@ -23,10 +23,12 @@
 
 #include <getopt.h>
 #include <iomanip>
+#include <set>
 #include <sstream>
 #include <sys/utsname.h>
 
 #include "checkpoint_reader.h"
+#include "cpuinfo.h"
 #include "ptrace_interface.h"
 #include "utils.h"
 
@@ -43,7 +45,14 @@ void parse_options(int argc, char* const argv[], int& run_natively_without_pin,
 void parse_positional_arguments(int argc, char* const argv[],
                                 int run_natively_without_pin,
                                 int longest_option_length);
-void checkOSinfo();
+void print_high_level_difference(const char* what_was_different);
+void print_flag_to_force(const char* flag_to_force);
+void print_os_info_difference_then_exit(const char* what_was_different,
+                                        std::string checkpoint_version,
+                                        std::string loader_version);
+std::set<std::string> split_cpuinfo_flags(std::string all_flags);
+void                  check_os_info();
+void                  check_cpuinfo();
 
 void execute_tracee(const char* application, char* const argv[],
                     char* const envp[], bool print_argv_envp) {
@@ -195,34 +204,97 @@ void parse_positional_arguments(int argc, char* const argv[],
   }
 }
 
-void checkOSinfo() {
-  std::string checkpoint_kernel_release, checkpoint_os_version;
-  get_checkpoint_os_info(checkpoint_kernel_release, checkpoint_os_version);
+void print_high_level_difference(const char* what_was_different) {
+  std::cerr << "Error! " << what_was_different
+            << " during checkpoint creation is different from "
+               "current "
+            << what_was_different << ":" << std::endl;
+}
 
-  struct utsname loader_os_info;
-  int            ret_val = uname(&loader_os_info);
-  assertm(0 == ret_val, "uname failed while determining loader OS info");
-  if(std::string(loader_os_info.release) != checkpoint_kernel_release) {
-    std::cerr << "Error! Kernel during checkpoint creation is different from "
-                 "current kernel:"
-              << std::endl
-              << '\t' << checkpoint_kernel_release
-              << " (kernel used during checkpoint creation)" << std::endl
-              << '\t' << loader_os_info.release << " (current kernel)"
-              << std::endl;
-    exit(EXIT_FAILURE);
+void print_flag_to_force(const char* flag_to_force) {
+  std::cerr << "run with the --" << flag_to_force
+            << " flag to force the loader to"
+               " load the checkpoint anyways"
+            << std::endl;
+}
+
+void print_os_info_difference_then_exit(const char* what_was_different,
+                                        std::string checkpoint_version,
+                                        std::string loader_version) {
+  print_high_level_difference(what_was_different);
+  std::cerr << '\t' << checkpoint_version << " (" << what_was_different
+            << " used during checkpoint creation)" << std::endl
+            << '\t' << loader_version << " (current " << what_was_different
+            << ")" << std::endl;
+  print_flag_to_force(force_even_if_wrong_kernel_option);
+  exit(EXIT_FAILURE);
+}
+
+std::set<std::string> split_cpuinfo_flags(std::string all_flags) {
+  std::stringstream     ss(all_flags);
+  std::string           flag;
+  std::set<std::string> set_of_flags;
+
+  while(std::getline(ss, flag, ' ')) {
+    set_of_flags.insert(flag);
   }
-  if(std::string(loader_os_info.version) != checkpoint_os_version) {
-    std::cerr
-      << "Error! OS version during checkpoint creation is different from "
-         "current OS version:"
-      << std::endl
-      << '\t' << checkpoint_os_version
-      << " (OS version used during checkpoint creation)" << std::endl
-      << '\t' << loader_os_info.version << " (current OS version)" << std::endl;
-    exit(EXIT_FAILURE);
+
+  return set_of_flags;
+}
+
+void check_os_info() {
+  std::string checkpoint_kernel_release, checkpoint_os_version;
+  bool        os_info_exists = get_checkpoint_os_info(checkpoint_kernel_release,
+                                               checkpoint_os_version);
+
+  if(os_info_exists) {
+    struct utsname loader_os_info;
+    int            ret_val = uname(&loader_os_info);
+    assertm(0 == ret_val, "uname failed while determining loader OS info");
+    if(std::string(loader_os_info.release) != checkpoint_kernel_release) {
+      print_os_info_difference_then_exit(
+        "kernel release", checkpoint_kernel_release, loader_os_info.release);
+    }
+    if(std::string(loader_os_info.version) != checkpoint_os_version) {
+      print_os_info_difference_then_exit("OS version", checkpoint_os_version,
+                                         loader_os_info.version);
+    }
   }
 }
+
+void check_cpuinfo() {
+  std::string checkpoint_cpuinfo_flags;
+  bool        cpuinfo_exists = get_checkpoint_cpuinfo(checkpoint_cpuinfo_flags);
+
+  if(cpuinfo_exists) {
+    std::string current_cpuinfo_flags = getCPUflags();
+
+    std::set<std::string> checkpoint_flags_set = split_cpuinfo_flags(
+      checkpoint_cpuinfo_flags);
+    std::set<std::string> current_flags_set = split_cpuinfo_flags(
+      current_cpuinfo_flags);
+
+    std::string differences;
+    for(auto it = checkpoint_flags_set.crbegin();
+        it != checkpoint_flags_set.crend(); ++it) {
+      if(0 == current_flags_set.count(*it)) {
+        differences += (*it + " ");
+      }
+    }
+
+    if(!differences.empty()) {
+      print_high_level_difference("/proc/cpuinfo flags");
+      std::cerr << "The following flags were present during checkpoint "
+                   "creation but missing"
+                   " from the current machine:"
+                << std::endl
+                << "\t" << differences << std::endl;
+      print_flag_to_force(force_even_if_wrong_cpu_option);
+      exit(EXIT_FAILURE);
+    }
+  }
+}
+
 
 int main(int argc, char* const argv[], char* const envp[]) {
   int run_natively_without_pin   = false;
@@ -237,9 +309,12 @@ int main(int argc, char* const argv[], char* const envp[]) {
   parse_positional_arguments(argc, argv, run_natively_without_pin,
                              longest_option_length);
 
-  // TODO: implement CPU checks (and also overrides)
   if(!force_even_if_wrong_kernel) {
-    checkOSinfo();
+    check_os_info();
+  }
+
+  if(!force_even_if_wrong_cpu) {
+    check_cpuinfo();
   }
 
   pid_t fork_pid = fork();
