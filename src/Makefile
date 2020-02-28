@@ -318,7 +318,7 @@ help: ## Print this message
 help-nocolor: ## Print this message
 	@echo "# Scarab Makefile:"
 	@echo
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "-%-30s\t\t%s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "* **%-30s:**\t\t%s\n", $$1, $$2}'
 
 # **************************************************************************************
 # Cleaning Rules

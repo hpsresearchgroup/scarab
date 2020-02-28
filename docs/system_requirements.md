@@ -1,15 +1,34 @@
 # SYSTEM REQUIREMENTS
-* Python 3.6.3
-* pip 20.0.2 from /opt/rh/rh-python36/root/usr/lib/python3.6/site-packages/pip (python 3.6)
-* Perl 5 v5.16.3
+
+Please be sure that your system meets these minimum software prerequisits
+before running Scarab. Below are the packages that we use to run Scarab.
+Other versions of the same software may work, but have not been tested.
+
+Scarab relies on the following software packages:
+
+## Required Packages
+* Intel [PIN 3.5](https://software.intel.com/system/files/managed/23/50/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux.tar.gz).
 * g++ 7.3.1
 * gcc 7.3.1
-* McPAT v1.0
-* CACTI 6.5
-* Intel [PIN 3.5](https://software.intel.com/system/files/managed/23/50/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux.tar.gz).
 * Clang 5.0.1
+* Python 3.6.3
 
-## Python Packages
+## Required Python Packages
+* numpy
+* pandas
+* sphinx
+
+##### E.g. Install with pip:
 > pip3 install numpy pandas sphinx
 
-Note: Lower or higher versions of the above software may work, but was not tested.
+# Other Useful Packages
+
+## If Running GTest
+* GTest 1.6
+
+## If Using Power Model
+* Perl 5 v5.16.3
+* [McPAT v1.0](http://www.hpl.hp.com/research/mcpat/)
+* [CACTI 6.5](http://www.hpl.hp.com/research/cacti/)
+
+Note: Lower or higher versions of the above software may work, but have not been tested.
