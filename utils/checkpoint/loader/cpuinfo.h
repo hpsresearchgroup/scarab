@@ -26,8 +26,8 @@
 #ifndef __CPUINFO_H__
 #define __CPUINFO_H__
 
-#include <string>
 #include <cassert>
+#include <string>
 
 inline std::string getCPUflags() {
   const int BUF_MAX = 2048;
