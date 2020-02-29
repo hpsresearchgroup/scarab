@@ -28,6 +28,6 @@ jobs:
       env:
         PIN_ROOT: $(pwd)/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
       run: |
-        make clean -C scarab/src
-        make opt -j -C scarab/src
-        make dbg -j -C scarab/src
+        make clean -C src
+        make opt -j -C src
+        make dbg -j -C src
