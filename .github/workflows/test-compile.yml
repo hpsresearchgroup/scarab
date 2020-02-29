@@ -32,5 +32,3 @@ jobs:
         make clean -C src
         make opt -j -C src
         make dbg -j -C src  
-      env:
-        PIN_ROOT: ${{ steps.install-scarab.PIN_ROOT }}
