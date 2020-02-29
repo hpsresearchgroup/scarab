@@ -7,8 +7,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-
     - name: Check Cache for Scarab Dependencies
       id: cache-scarab-dep
       uses: actions/cache@v1
@@ -25,6 +23,7 @@ jobs:
         repository: hpsresearchgroup/scarab-dependencies
         token: ${{ secrets.HPS_ACCESS_TOKEN }}
       
+    - uses: actions/checkout@v2
     - name: make release
       env:
         PIN_ROOT: $(pwd)/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
