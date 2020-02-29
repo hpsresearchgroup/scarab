@@ -41,6 +41,7 @@ the program.  This way, an exact duplicate run can be performed.
 ***************************************************************************************/
 #include <getopt.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include "globals/global_defs.h"
 #include "globals/global_types.h"
