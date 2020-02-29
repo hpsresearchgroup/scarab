@@ -1,4 +1,4 @@
-# Scarab Power Model:
+# Scarab Power Model
 
 
 ### Scarab power model files
@@ -14,8 +14,7 @@ can be found [here](http://www.hpl.hp.com/research/mcpat/).
 
 ## Download CACTI
 The scarab power model relies on CACTI. Scarab has been tested and works with CACTI 6.5, which
-can be found [here]
-(http://www.hpl.hp.com/research/cacti/).
+can be found [here](http://www.hpl.hp.com/research/cacti/).
 
 ## Running with Dynamic Voltage-and-Frequency Scaling (DVFS):
 Scarab supports DVFS, however, changes must be made to both McPAT and CACTI to
