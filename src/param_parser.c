@@ -39,9 +39,9 @@ file. If DUMP_USED_PARAMS is TRUE, a file called 'PARAMS.out' will be created
 with all of the command-line and file arguments that were actually used to run
 the program.  This way, an exact duplicate run can be performed.
 ***************************************************************************************/
+#include <ctype.h>
 #include <getopt.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <stdlib.h>
 #include "globals/global_defs.h"
 #include "globals/global_types.h"
