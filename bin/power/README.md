@@ -22,14 +22,14 @@ support this.
 
 These changes are supplied in two patch files, mcpat.patch and cacti.patch. To apply the patches, first download McPAT and CACTI (following the directions above), then apply the patches using the following commands.
 
-* McPat: 
- 
+* McPat:
+
 >$ cd <mcpat_v1.0>  
 >$ patch -s -p2 < <scarab\_root>/bin/power/mcpat.patch  
 >$ make -j
 
-* Cacti: 
- 
+* Cacti:
+
 >$ cd <cacti65>  
 >$ patch -s -p2 < <scarab\_root>/bin/power/cacti.patch  
 >$ make -j
