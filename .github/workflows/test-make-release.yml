@@ -1,4 +1,4 @@
-name: Test Compile Scarab
+name: make-release
 
 on:
   pull_request:
