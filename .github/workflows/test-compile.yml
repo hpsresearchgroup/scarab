@@ -13,7 +13,7 @@ jobs:
       env:
         cache-name: cache-scarab-dep
       with:
-        path: ~/scarab-dependencies
+        path: scarab-dependencies
         key: scarab-dep-key
         
     - name: Install Scarab Dependencies
@@ -21,16 +21,19 @@ jobs:
       if: steps.cache-scarab-dep.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
+        path: scarab-dependencies
         repository: hpsresearchgroup/scarab-dependencies
         token: ${{ secrets.HPS_ACCESS_TOKEN }}
       env:
         PIN_ROOT: $(pwd)/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux 
               
     - uses: actions/checkout@v2
+      with:
+        path: scarab
     - name: make release
       run: |
-        make clean -C src
-        make opt -j -C src
-        make dbg -j -C src
+        make clean -C scarab/src
+        make opt -j -C scarab/src
+        make dbg -j -C scarab/src
       env:
         PIN_ROOT: ${{ github.workspace }}/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
