@@ -33,4 +33,4 @@ jobs:
         make opt -j -C src
         make dbg -j -C src
       env:
-        PIN_ROOT: ${GITHUB_WORKSPACE}/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
+        PIN_ROOT: ${{ github.workspace }}/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
