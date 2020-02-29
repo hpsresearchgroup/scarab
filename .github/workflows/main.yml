@@ -1,6 +1,9 @@
 name: Test Compile Scarab
 
-on: push
+on:  
+  pull_request:
+    branches:
+      - master
 
 jobs:
   build:
@@ -26,10 +29,9 @@ jobs:
         token: ${{ secrets.HPS_ACCESS_TOKEN }}
       
     - name: make release
-      uses: actions/checkout@v2
+      env:
+        PIN_ROOT: $(pwd)/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
       run: |
         make clean -C src
         make opt -j -C src
         make dbg -j -C src
-      env:
-        PIN_ROOT = $(pwd)/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
