@@ -1,15 +1,16 @@
 # Running A Single Program on Scarab
 
-## HOW TO RUN SCARAB
+## Running QSORT
 
-Note: before running Scarab, please ensure that you have installed all
+> Note: before running Scarab, please ensure that you have installed all
 required software packed shown on the [system requirements](system_requirements.md) page.
+
+We will start off by running the ```qsort``` example on Scarab.
+
+
 
 ### Running a complete program
 > python ./bin/scarab_launch.py --program /bin/ls --param src/PARAMS.in
-
-### Running in a different directory (Scarab produces multiple stats files in the running directory)
-> python ./bin/scarab_launch.py --program /bin/ls --param src/PARAMS.in --sim_dir path_to_simulation_directory
 
 ### Fast forwarding to a simpoint
 > python ./bin/scarab_launch.py --program /bin/ls --pintool_args='-hyper_fast_forward_count 100000'
