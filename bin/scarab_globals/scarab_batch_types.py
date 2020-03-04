@@ -150,6 +150,7 @@ class Job:
 
   def print_progress(self):
     progress = self.job.get_progress(self.results_dir)
+    progress.sort()
     for p in progress:
       print(p)
 
