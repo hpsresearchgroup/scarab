@@ -3,12 +3,12 @@
 Scripts in this directory provide the interface for creating checkpoints.
 
 ### 1. Creating checkpoints for an application binary
-The ```create_checkpoints.py``` can be used to generate checkpoints for any application
-binary. Simplest way to use it, is to provide a checkpoint descriptor file and the
-output directory that checkpoints will be placed in.
+The ```create_checkpoints.py``` can be used to generate checkpoints for any
+application binary. The simplest way to use it, is to provide a checkpoint
+descriptor file and the output directory that checkpoints will be placed in.
 
-The```<scarab_root>/utils/qsort/example_checkpoint_descriptor.def``` is provided as an example. This file has the following line:
-
+The```<scarab_root>/utils/qsort/example_checkpoint_descriptor.def``` is
+provided as an example. This file has the following line:
 
 > qsort  = Program("qsort", "./test_qsort", path=scarab_paths.utils_dir + "/qsort", copy=True)
 
