@@ -155,6 +155,8 @@ operate uops that can be mapped to. These are:
 
 * `OP_PIPELINED_MEDIUM`
 
+* `OP_PIPELINED_SLOW`
+
 * `OP_NOTPIPELINED_MEDIUM`
 
 * `OP_NOTPIPELINED_SLOW`
