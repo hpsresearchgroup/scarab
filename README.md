@@ -33,9 +33,7 @@ fast and easy to work with.
 * No real OS virtual to physical address translation
 * Shared bus interconnect only (ring, mesh, and others are in progress.)
 
-Scarab was created in collaboration with HPS, SAFARI, and Intel
-as a part of the NSF/Intel Partnership on [Foundational Microarchitecture
-Research (FoMR)](https://www.nsf.gov/funding/pgm_summ.jsp?pims_id=505450)
+Scarab was created in collaboration with HPS and SAFARI. This project was sponsored by Intel Labs.
 
 ## License & Copyright
 Please see the [LICENSE](LICENSE) for more information.
