@@ -6,7 +6,7 @@ probably likely) that running on a new machine, using a different compiler,
 running a different region of a program, or running new programs will uncover
 unmapped instructions.
 
-Please see the [directions](../src/pin/pin_lib/README) to map new instructions.
+Please see the [directions](../src/pin/pin_lib/README.md) to map new instructions.
 
 ## USING POWER MODEL
 > python ./bin/scarab_launch.py --program /bin/ls --scarab_args='--power_intf_on 1'
