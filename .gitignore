@@ -64,5 +64,5 @@ test_string.c
 test_string.dump
 test_string_pinball/
 
-.vscode/settings.json
+.vscode/*
 *.code-workspace
