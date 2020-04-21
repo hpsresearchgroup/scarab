@@ -2,6 +2,7 @@
 #define __PIN_PIN_EXEC_TESTING_FAKE_SCARAB_H__
 
 #include <cstdlib>
+#include <limits>
 #include <memory>
 #include <string>
 #include <sys/types.h>
@@ -19,10 +20,15 @@ namespace testing {
 
 class Fake_Scarab {
  public:
-  Fake_Scarab();
+  Fake_Scarab(const char* binary_path);
   ~Fake_Scarab();
 
   void execute_and_verify_instructions(const std::vector<uint64_t>& addresses);
+  void fetch_wrongpath_and_verify_instructions(
+    uint64_t next_fetch_addr, uint64_t redirect_addr,
+    const std::vector<uint64_t>& wrongpath_addresses);
+  void fetch_wrongpath_nop_mode(uint64_t next_fetch_addr,
+                                uint64_t redirect_addr, int num_instrucitons);
   void execute_until_completion();
   bool has_reached_end();
 
@@ -33,12 +39,14 @@ class Fake_Scarab {
   void fetch_new_ops();
   void fetch_new_ops_if_buffer_is_empty();
   void retire_latest_op();
+  void redirect(uint64_t fetch_addr, uint64_t inst_uid);
+  void recover(uint64_t inst_uid);
 
   std::string             tmpdir_path_;
   Process_Runner          pintool_process_;
   std::unique_ptr<Server> server_communicator_;
 
-  ScarabOpBuffer_type cached_cop_buffers;
+  ScarabOpBuffer_type cached_cop_buffers_;
 };
 
 }  // namespace testing

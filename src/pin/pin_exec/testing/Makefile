@@ -3,9 +3,9 @@ PIN_EXEC_DIR = ..
 SCARAB_DIR = $(abspath ../../..)
 PIN_EXEC_TOOL_PATH = $(abspath $(PIN_EXEC_DIR)/obj-intel64/rollback.so)
 TEST_BINARY = test_binary
-SIMPLE_LOOP = simple_loop
+SIMPLE_LOOP = $(abspath ./simple_loop)
 
-CC_FLAGS := -lgtest -std=c++14  -I$(SCARAB_DIR) -L $(COMMON_LIB_DIR)/obj -lpin_fe -DPIN_EXEC_TOOL_PATH=\"$(PIN_EXEC_TOOL_PATH)\" -DSIMPLE_LOOP=\"$(SIMPLE_LOOP)\"
+CC_FLAGS := -lgtest -lpthread -std=c++14  -I$(SCARAB_DIR) -L $(COMMON_LIB_DIR)/obj -lpin_fe -DPIN_EXEC_TOOL_PATH=\"$(PIN_EXEC_TOOL_PATH)\" -DSIMPLE_LOOP=\"$(SIMPLE_LOOP)\"
 
 ASSEMBLY_SOURCES=$(wildcard *.s)
 CC_SOURCES=$(wildcard *.cc)
@@ -27,7 +27,7 @@ pin_lib:
 	make -C $(COMMON_LIB_DIR)
 
 pin_exec:
-	make -C $(PIN_EXEC_DIR)
+	make -C $(PIN_EXEC_DIR) rollback
 
 clean:
 	rm test_binary
