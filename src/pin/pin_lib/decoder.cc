@@ -1084,6 +1084,10 @@ static void init_pin_opcode_convert(void) {
   iclass_to_scarab_map[XED_ICLASS_JRCXZ]    = {OP_IADD, -1, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_JS]       = {OP_IADD, -1, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_JZ]       = {OP_IADD, -1, 1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_KMOVB]    = {OP_MOV, 1, 1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_KMOVD]    = {OP_MOV, 4, 1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_KMOVQ]    = {OP_MOV, 8, 1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_KMOVW]    = {OP_MOV, 2, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_LDDQU]    = {OP_MOV, -1, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_LDMXCSR]  = {OP_NOTPIPELINED_MEDIUM, -1, 1,
                                               NONE};
