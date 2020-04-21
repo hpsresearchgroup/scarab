@@ -13,6 +13,10 @@
 #include <sstream>
 #include <vector>
 
+#ifndef PIN_EXEC_TOOL_PATH
+#define PIN_EXEC_TOOL_PATH "../obj-intel64/rollback.so"
+#endif
+
 namespace scarab {
 namespace pin {
 namespace testing {
@@ -20,7 +24,7 @@ namespace testing {
 std::string create_pin_exec_cmd(const std::string& binary_path,
                                 const std::string& socket_path) {
   return std::string(getenv("PIN_ROOT")) + "/pin -t " + PIN_EXEC_TOOL_PATH +
-         " -socket_path " + socket_path + " -- ./" + binary_path;
+         " -socket_path " + socket_path + " -- " + binary_path;
 }
 
 std::string get_new_tmpdir_path() {
