@@ -91,8 +91,8 @@ uint8_t reg_compress_map[(int)REG_LAST + 1] = {0};  // Assuming REG_INV is 0
 iclass_to_scarab iclass_to_scarab_map[XED_ICLASS_LAST] = {{0}};
 
 // Globals used for communication between analysis functions
-uint32_t glb_opcode, glb_actually_taken;
-ADDRINT  glb_vaddr1, glb_vaddr2, glb_st_vaddr;
+uint32_t       glb_opcode, glb_actually_taken;
+queue<ADDRINT> glb_ld_vaddrs, glb_st_vaddrs;
 
 // the most recently filled instruction
 static ctype_pin_inst* filled_inst_info;
@@ -465,15 +465,23 @@ void create_compressed_op(ADDRINT iaddr) {
       // update x87 state
       update_x87_stack_state(glb_opcode);
     }
-    filled_inst_info->ld_vaddr[0]    = glb_vaddr1;
-    filled_inst_info->ld_vaddr[1]    = glb_vaddr2;
-    filled_inst_info->st_vaddr[0]    = glb_st_vaddr;
+
+    assert(glb_ld_vaddrs.size() <= MAX_LD_NUM);
+    for(uint ld = 0; ld < glb_ld_vaddrs.size(); ld++) {
+      filled_inst_info->ld_vaddr[ld] = glb_ld_vaddrs.front();
+      glb_ld_vaddrs.pop();
+    }
+
+    assert(glb_st_vaddrs.size() <= MAX_ST_NUM);
+    for(uint st = 0; st < glb_st_vaddrs.size(); st++) {
+      filled_inst_info->st_vaddr[st] = glb_st_vaddrs.front();
+      glb_st_vaddrs.pop();
+    }
     filled_inst_info->actually_taken = glb_actually_taken;
   }
-  glb_opcode         = 0;
-  glb_vaddr1         = 0;
-  glb_vaddr2         = 0;
-  glb_st_vaddr       = 0;
+  glb_opcode = 0;
+  assert(0 == glb_ld_vaddrs.size());
+  assert(0 == glb_st_vaddrs.size());
   glb_actually_taken = 0;
 
   // if (heartbeat % 100000000 == 0) {
@@ -488,16 +496,16 @@ void get_opcode(UINT32 opcode) {
 }
 
 void get_ld_ea(ADDRINT addr) {
-  glb_vaddr1 = addr;
+  glb_ld_vaddrs.push(addr);
 }
 
 void get_ld_ea2(ADDRINT addr1, ADDRINT addr2) {
-  glb_vaddr1 = addr1;
-  glb_vaddr2 = addr2;
+  glb_ld_vaddrs.push(addr1);
+  glb_ld_vaddrs.push(addr2);
 }
 
 void get_st_ea(ADDRINT addr) {
-  glb_st_vaddr = addr;
+  glb_st_vaddrs.push(addr);
 }
 
 void get_branch_dir(bool taken) {
