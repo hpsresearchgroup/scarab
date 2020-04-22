@@ -466,22 +466,27 @@ void create_compressed_op(ADDRINT iaddr) {
       update_x87_stack_state(glb_opcode);
     }
 
-    assert(glb_ld_vaddrs.size() <= MAX_LD_NUM);
-    for(uint ld = 0; ld < glb_ld_vaddrs.size(); ld++) {
+    uint num_lds = glb_ld_vaddrs.size();
+    assert(num_lds <= MAX_LD_NUM);
+    for(uint ld = 0; ld < num_lds; ld++) {
       filled_inst_info->ld_vaddr[ld] = glb_ld_vaddrs.front();
       glb_ld_vaddrs.pop();
     }
+    assert(0 == glb_ld_vaddrs.size());
 
-    assert(glb_st_vaddrs.size() <= MAX_ST_NUM);
-    for(uint st = 0; st < glb_st_vaddrs.size(); st++) {
+    uint num_sts = glb_st_vaddrs.size();
+    assert(num_sts <= MAX_ST_NUM);
+    for(uint st = 0; st < num_sts; st++) {
       filled_inst_info->st_vaddr[st] = glb_st_vaddrs.front();
       glb_st_vaddrs.pop();
     }
+    assert(0 == glb_st_vaddrs.size());
+
     filled_inst_info->actually_taken = glb_actually_taken;
   }
-  glb_opcode = 0;
-  assert(0 == glb_ld_vaddrs.size());
-  assert(0 == glb_st_vaddrs.size());
+  glb_opcode         = 0;
+  glb_ld_vaddrs      = {};
+  glb_st_vaddrs      = {};
   glb_actually_taken = 0;
 
   // if (heartbeat % 100000000 == 0) {
