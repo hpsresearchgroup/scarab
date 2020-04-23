@@ -14,15 +14,15 @@
 #include "fake_scarab.h"
 #include "utils.h"
 
-#ifndef SIMPLE_LOOP
-#define SIMPLE_LOOP "./simple_loop"
+#ifndef SIMPLE_LOOP_BINARY
+#define SIMPLE_LOOP_BINARY "./simple_loop"
 #endif
 
 using namespace scarab::pin::testing;
 
-class Simple_Loop_Info {
+class Simple_Binary_Loop_Info {
  public:
-  Simple_Loop_Info(const Parsed_Binary& parsed_binary) :
+  Simple_Binary_Loop_Info(const Parsed_Binary& parsed_binary) :
       basic_block_opcodes_{
         {"xor", "xor"},             // INIT
         {"mov", "and", "je"},       // LOOP_BODY_CHECK_COND
@@ -58,19 +58,21 @@ class Simple_Loop_Info {
     uint64_t redirect_fetch_addr;
 
     // Could be empty if WRONGPATH NOP mode
-    bool                  wrong_path_nop_mode;
-    std::vector<uint64_t> wrongpath_expected_instruction_addresses;
+    bool                      is_wrong_path_nop_mode;
+    Wrongpath_Nop_Mode_Reason wrong_path_nop_reason;
+    std::vector<uint64_t>     wrongpath_expected_instruction_addresses;
   };
 
   Wrong_Path_Test_Info get_wrongpath_nop_node_test_info() {
     Wrong_Path_Test_Info info;
     info.redirect_fetch_addr =
       basic_block_addresses_.at(WRONGPATH_LOOP).front();
-    info.wrong_path_nop_mode = true;
+    info.is_wrong_path_nop_mode = true;
+    info.wrong_path_nop_reason  = WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED;
 
     size_t split_inst_index =
       basic_block_opcodes_.at(INIT).size() +
-      basic_block_opcodes_.at(LOOP_BODY_CHECK_COND).size() - 1;
+      basic_block_opcodes_.at(LOOP_BODY_CHECK_COND).size();
 
     fill_rightpath_instructions(split_inst_index, &info);
     return info;
@@ -80,13 +82,13 @@ class Simple_Loop_Info {
     Wrong_Path_Test_Info info;
     info.redirect_fetch_addr =
       basic_block_addresses_.at(LOOP_EXIT_BLOCK).front();
-    info.wrong_path_nop_mode = false;
+    info.is_wrong_path_nop_mode = false;
 
     size_t split_inst_index =
       basic_block_opcodes_.at(INIT).size() +
       basic_block_opcodes_.at(LOOP_BODY_CHECK_COND).size() +
       basic_block_opcodes_.at(LOOP_EXIT_BLOCK).size() +
-      basic_block_opcodes_.at(LOOP_BODY_CHECK_COND).size() - 1;
+      basic_block_opcodes_.at(LOOP_BODY_CHECK_COND).size();
 
     fill_rightpath_instructions(split_inst_index, &info);
 
@@ -166,7 +168,6 @@ class Simple_Loop_Info {
       expected_addresses.begin() + split_inst_index, expected_addresses.end());
   }
 
-
   // Holds a vector char strings of the opcodes for each basic block.
   const std::vector<std::vector<const char*>> basic_block_opcodes_;
   const std::vector<std::vector<uint64_t>>    basic_block_addresses_;
@@ -175,43 +176,48 @@ class Simple_Loop_Info {
 class Simple_Loop_Test : public ::testing::Test {
  protected:
   void SetUp() override {
-    simple_loop_info_ = std::make_unique<Simple_Loop_Info>(
-      get_instructions_in_binary(SIMPLE_LOOP));
+    simple_loop_info_ = std::make_unique<Simple_Binary_Loop_Info>(
+      get_instructions_in_binary(SIMPLE_LOOP_BINARY));
   }
   void TearDown() override {}
 
-  std::unique_ptr<Simple_Loop_Info> simple_loop_info_;
+  std::unique_ptr<Simple_Binary_Loop_Info> simple_loop_info_;
 };
-
 
 TEST_F(Simple_Loop_Test, OnPathExecutesCorrectly) {
   auto        expected_addresses = simple_loop_info_->get_expected_addresses();
-  Fake_Scarab fake_scarab(SIMPLE_LOOP);
-  ASSERT_NO_FATAL_FAILURE(
-    fake_scarab.execute_and_verify_instructions(expected_addresses));
+  Fake_Scarab fake_scarab(SIMPLE_LOOP_BINARY);
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions(expected_addresses));
   ASSERT_TRUE(fake_scarab.has_reached_end());
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.retire_all());
 }
 
 void test_body_for_fetching_wrongpath(
-  Simple_Loop_Info::Wrong_Path_Test_Info test_info) {
-  Fake_Scarab fake_scarab(SIMPLE_LOOP);
+  Simple_Binary_Loop_Info::Wrong_Path_Test_Info test_info) {
+  Fake_Scarab fake_scarab(SIMPLE_LOOP_BINARY);
 
-  ASSERT_NO_FATAL_FAILURE(fake_scarab.execute_and_verify_instructions(
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions(
     test_info.expected_instruction_addresses_before_redirect));
 
-  if(test_info.wrong_path_nop_mode) {
-    ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_wrongpath_nop_mode(
-      test_info.branch_instruction_addr, test_info.redirect_fetch_addr, 10));
+  const auto redirect_uid = fake_scarab.get_latest_inst_uid();
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.redirect(test_info.redirect_fetch_addr));
+
+  if(test_info.is_wrong_path_nop_mode) {
+    ASSERT_NO_FATAL_FAILURE(
+      fake_scarab.fetch_instructions_in_wrongpath_nop_mode(
+        test_info.redirect_fetch_addr, 10, test_info.wrong_path_nop_reason));
   } else {
-    ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_wrongpath_and_verify_instructions(
-      test_info.branch_instruction_addr, test_info.redirect_fetch_addr,
+    ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions(
       test_info.wrongpath_expected_instruction_addresses));
   }
 
-  ASSERT_NO_FATAL_FAILURE(fake_scarab.execute_and_verify_instructions(
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.recover(redirect_uid));
+
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions(
     test_info.expected_instruction_addresses_after_recovery));
 
   ASSERT_TRUE(fake_scarab.has_reached_end());
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.retire_all());
 }
 
 TEST_F(Simple_Loop_Test, CanFetchAndRecoverNormalWrongPath) {

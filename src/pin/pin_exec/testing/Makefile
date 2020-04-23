@@ -3,9 +3,18 @@ PIN_EXEC_DIR = ..
 SCARAB_DIR = $(abspath ../../..)
 PIN_EXEC_TOOL_PATH = $(abspath $(PIN_EXEC_DIR)/obj-intel64/rollback.so)
 TEST_BINARY = test_binary
-SIMPLE_LOOP = $(abspath ./simple_loop)
+SIMPLE_LOOP_BINARY = $(abspath ./simple_loop)
+NOP_MODE_RET_BINARY = $(abspath ./nop_mode_ret)
+NOP_MODE_NONRET_DIRECT_BINARY = $(abspath ./nop_mode_nonret_direct)
+NOP_MODE_NONRET_INDIRECT_BINARY = $(abspath ./nop_mode_nonret_indirect)
 
-CC_FLAGS := -lgtest -lpthread -std=c++14  -I$(SCARAB_DIR) -L $(COMMON_LIB_DIR)/obj -lpin_fe -DPIN_EXEC_TOOL_PATH=\"$(PIN_EXEC_TOOL_PATH)\" -DSIMPLE_LOOP=\"$(SIMPLE_LOOP)\"
+CC_FLAGS := -lgtest -lpthread -std=c++14  -I$(SCARAB_DIR) 
+CC_FLAGS += -L $(COMMON_LIB_DIR)/obj -lpin_fe
+CC_FLAGS += -DPIN_EXEC_TOOL_PATH=\"$(PIN_EXEC_TOOL_PATH)\"
+CC_FLAGS += -DSIMPLE_LOOP_BINARY=\"$(SIMPLE_LOOP_BINARY)\"
+CC_FLAGS += -DNOP_MODE_RET_BINARY=\"$(NOP_MODE_RET_BINARY)\"
+CC_FLAGS += -DNOP_MODE_NONRET_DIRECT_BINARY=\"$(NOP_MODE_NONRET_DIRECT_BINARY)\"
+CC_FLAGS += -DNOP_MODE_NONRET_INDIRECT_BINARY=\"$(NOP_MODE_NONRET_INDIRECT_BINARY)\"
 
 ASSEMBLY_SOURCES=$(wildcard *.s)
 CC_SOURCES=$(wildcard *.cc)
@@ -30,4 +39,4 @@ pin_exec:
 	make -C $(PIN_EXEC_DIR) rollback
 
 clean:
-	rm test_binary
+	rm -f $(TEST_BINARY) $(TEST_BINARIES)

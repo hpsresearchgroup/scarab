@@ -23,30 +23,39 @@ class Fake_Scarab {
   Fake_Scarab(const char* binary_path);
   ~Fake_Scarab();
 
-  void execute_and_verify_instructions(const std::vector<uint64_t>& addresses);
-  void fetch_wrongpath_and_verify_instructions(
-    uint64_t next_fetch_addr, uint64_t redirect_addr,
-    const std::vector<uint64_t>& wrongpath_addresses);
-  void fetch_wrongpath_nop_mode(uint64_t next_fetch_addr,
-                                uint64_t redirect_addr, int num_instrucitons);
-  void execute_until_completion();
-  bool has_reached_end();
+  void fetch_instructions(const std::vector<uint64_t>& addresses);
 
-  int64_t num_fetched_instructions = 0;
-  int64_t num_retired_instructions = 0;
+  void fetch_instructions_in_wrongpath_nop_mode(
+    uint64_t next_fetch_addr, int num_instrucitons,
+    Wrongpath_Nop_Mode_Reason reason);
+
+  void fetch_until_completion();
+
+  void fetch_until_first_control_flow();
+
+  uint64_t get_latest_inst_uid();
+
+  void recover(uint64_t inst_uid);
+
+  void redirect(uint64_t fetch_addr);
+
+  void retire_all();
+
+  bool has_reached_end();
 
  private:
   void fetch_new_ops();
-  void fetch_new_ops_if_buffer_is_empty();
-  void retire_latest_op();
-  void redirect(uint64_t fetch_addr, uint64_t inst_uid);
-  void recover(uint64_t inst_uid);
+  void fetch_next_instruction();
+  void flush_cops_after_uid(uint64_t inst_uid);
+  void refill_op_buffer();
+  void retire(uint64_t inst_uid);
 
   std::string             tmpdir_path_;
   Process_Runner          pintool_process_;
   std::unique_ptr<Server> server_communicator_;
 
-  ScarabOpBuffer_type cached_cop_buffers_;
+  ScarabOpBuffer_type       op_buffer_;
+  std::deque<compressed_op> fetched_ops_;
 };
 
 }  // namespace testing
