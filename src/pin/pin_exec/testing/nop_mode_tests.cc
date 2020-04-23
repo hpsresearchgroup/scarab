@@ -153,8 +153,7 @@ TEST(RET_NOP_MODE, IndirectJumpingToUntracedAddressTriggersNopMode) {
   const auto redirect_addr = binary_info.indirect_jmp_instruction_addr;
   ASSERT_NO_FATAL_FAILURE(fake_scarab.redirect(redirect_addr));
 
-  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions(
-    {redirect_addr}));
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions({redirect_addr}));
 
   ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions_in_wrongpath_nop_mode(
     binary_info.far_target_addr, 10,
