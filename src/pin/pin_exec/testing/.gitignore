@@ -1,5 +1,7 @@
+nop_mode_bad_store
 nop_mode_nonret_direct
 nop_mode_nonret_indirect
+nop_mode_not_taken
 nop_mode_ret
 simple_loop
 test_binary

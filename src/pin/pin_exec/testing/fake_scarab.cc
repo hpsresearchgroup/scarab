@@ -35,14 +35,14 @@ void Fake_Scarab::fetch_instructions(const std::vector<uint64_t>& addresses) {
 }
 
 void Fake_Scarab::fetch_instructions_in_wrongpath_nop_mode(
-  uint64_t next_fetch_addr, int num_instrucitons,
-  Wrongpath_Nop_Mode_Reason reason) {
-  for(int i = 0; i < num_instrucitons; ++i) {
+  uint64_t next_fetch_addr, int num_instructions,
+  Wrongpath_Nop_Mode_Reason expected_reason) {
+  for(int i = 0; i < num_instructions; ++i) {
     fetch_next_instruction();
     ASSERT_TRUE(CHECK_EQUAL_IN_HEX(fetched_ops_.back().instruction_addr,
                                    next_fetch_addr, "instruction address"));
     ASSERT_TRUE(fetched_ops_.back().fake_inst);
-    ASSERT_EQ(fetched_ops_.back().fake_inst_reason, reason);
+    ASSERT_EQ(fetched_ops_.back().fake_inst_reason, expected_reason);
 
     next_fetch_addr += 1;
   }
@@ -59,6 +59,20 @@ void Fake_Scarab::fetch_until_first_control_flow() {
     ASSERT_FALSE(has_reached_end());
     fetch_next_instruction();
   } while(fetched_ops_.back().cf_type == 0);
+}
+
+void Fake_Scarab::fetch_until_first_wrongpath_nop_mode(
+  int max_num_instructions, Wrongpath_Nop_Mode_Reason expected_reason) {
+  for(int i = 0; i < max_num_instructions; ++i) {
+    fetch_next_instruction();
+
+    if(fetched_ops_.back().fake_inst) {
+      ASSERT_EQ(fetched_ops_.back().fake_inst_reason, expected_reason);
+      return;
+    }
+  }
+
+  GTEST_FATAL_FAILURE_("Did not go to wrongpath nop mode");
 }
 
 uint64_t Fake_Scarab::get_latest_inst_uid() {

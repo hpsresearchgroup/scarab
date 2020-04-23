@@ -7,6 +7,8 @@ SIMPLE_LOOP_BINARY = $(abspath ./simple_loop)
 NOP_MODE_RET_BINARY = $(abspath ./nop_mode_ret)
 NOP_MODE_NONRET_DIRECT_BINARY = $(abspath ./nop_mode_nonret_direct)
 NOP_MODE_NONRET_INDIRECT_BINARY = $(abspath ./nop_mode_nonret_indirect)
+NOP_MODE_NOT_TAKEN_BINARY = $(abspath ./nop_mode_not_taken)
+NOP_MODE_BAD_STORE_BINARY = $(abspath ./nop_mode_bad_store)
 
 CC_FLAGS := -lgtest -lpthread -std=c++14  -I$(SCARAB_DIR) 
 CC_FLAGS += -L $(COMMON_LIB_DIR)/obj -lpin_fe
@@ -15,6 +17,8 @@ CC_FLAGS += -DSIMPLE_LOOP_BINARY=\"$(SIMPLE_LOOP_BINARY)\"
 CC_FLAGS += -DNOP_MODE_RET_BINARY=\"$(NOP_MODE_RET_BINARY)\"
 CC_FLAGS += -DNOP_MODE_NONRET_DIRECT_BINARY=\"$(NOP_MODE_NONRET_DIRECT_BINARY)\"
 CC_FLAGS += -DNOP_MODE_NONRET_INDIRECT_BINARY=\"$(NOP_MODE_NONRET_INDIRECT_BINARY)\"
+CC_FLAGS += -DNOP_MODE_NOT_TAKEN_BINARY=\"$(NOP_MODE_NOT_TAKEN_BINARY)\"
+CC_FLAGS += -DNOP_MODE_BAD_STORE_BINARY=\"$(NOP_MODE_BAD_STORE_BINARY)\"
 
 ASSEMBLY_SOURCES=$(wildcard *.s)
 CC_SOURCES=$(wildcard *.cc)
