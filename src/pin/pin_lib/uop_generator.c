@@ -842,9 +842,7 @@ void convert_dyn_uop(uns8 proc_id, Inst_Info* info, ctype_pin_inst* pi,
     }
   }
 
-  if(is_last_uop) {
-    trace_uop->exit = pi->exit;
-  }
+  trace_uop->exit = is_last_uop ? pi->exit : 0;
 
   trace_uop->npc = trace_uop->addr;  // CHECKME!!
 }
