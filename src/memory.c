@@ -5120,7 +5120,6 @@ void stats_per_core_collect(uns8 proc_id) {
 /* mem_done */
 void finalize_memory() {
   perf_pred_done();
-  ramulator_finish();
 }
 
 /***************************************************************************************/
