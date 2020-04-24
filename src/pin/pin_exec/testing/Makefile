@@ -12,6 +12,7 @@ NOP_MODE_BAD_STORE_BINARY = $(abspath ./nop_mode_bad_store)
 WRONG_PATH_EXCEPTION_BINARY = $(abspath ./wrong_path_exception)
 C_PROGRAM_WITH_UD2_BINARY = $(abspath ./c_program_with_ud2)
 SIMPLE_C_PROGRAM = $(abspath ./simple_c_program)
+JUMP_NEAR_BOUNDARY_BINARY = $(abspath ./jump_near_boundary)
 
 CC_FLAGS := -lgtest -lpthread -std=c++14  -I$(SCARAB_DIR) 
 CC_FLAGS += -L $(COMMON_LIB_DIR)/obj -lpin_fe
@@ -25,6 +26,7 @@ CC_FLAGS += -DNOP_MODE_BAD_STORE_BINARY=\"$(NOP_MODE_BAD_STORE_BINARY)\"
 CC_FLAGS += -DWRONG_PATH_EXCEPTION_BINARY=\"$(WRONG_PATH_EXCEPTION_BINARY)\"
 CC_FLAGS += -DC_PROGRAM_WITH_UD2_BINARY=\"$(C_PROGRAM_WITH_UD2_BINARY)\"
 CC_FLAGS += -DSIMPLE_C_PROGRAM=\"$(SIMPLE_C_PROGRAM)\"
+CC_FLAGS += -DJUMP_NEAR_BOUNDARY_BINARY=\"$(JUMP_NEAR_BOUNDARY_BINARY)\"
 
 ASSEMBLY_SOURCES=$(wildcard *.s)
 C_SOURCES=$(wildcard *.C)
@@ -37,7 +39,7 @@ all: $(TEST_BINARY) $(TEST_BINARIES) pin_exec ## Builds and runs all the unit te
 
 %:%.s
 	as -o $@.o $^
-	ld -o $@ $@.o
+	ld -o $@ $@.o -Ttext=400000
 	rm $@.o
 
 %:%.c
