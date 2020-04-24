@@ -29,6 +29,8 @@ class Fake_Scarab {
     uint64_t next_fetch_addr, int num_instructions,
     Wrongpath_Nop_Mode_Reason expected_reason);
 
+  void fetch_retire_until_completion();
+
   void fetch_until_completion();
 
   void fetch_until_first_control_flow();
@@ -38,13 +40,16 @@ class Fake_Scarab {
 
   uint64_t get_latest_inst_uid();
 
+  bool has_fetched_ifetch_barrier();
+
+  bool has_reached_end();
+
   void recover(uint64_t inst_uid);
 
   void redirect(uint64_t fetch_addr);
 
   void retire_all();
 
-  bool has_reached_end();
 
  private:
   void fetch_new_ops();

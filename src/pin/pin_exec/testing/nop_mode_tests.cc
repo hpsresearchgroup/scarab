@@ -34,53 +34,19 @@
 
 using namespace scarab::pin::testing;
 
-class Nop_Mode_Binary_Info {
- public:
-  Nop_Mode_Binary_Info(const char* binary_path) {
-    binary_ = get_instructions_in_binary(binary_path);
-  }
-
-  uint64_t find_addr(const char* opcode, int n = 1) {
-    auto next_itr    = binary_.begin();
-    auto matched_itr = binary_.begin();
-    for(int i = 0; i < n; ++i) {
-      matched_itr = std::find_if(
-        next_itr, binary_.end(),
-        [opcode](const std::pair<uint64_t, std::string>& inst) -> bool {
-          return inst.second == opcode;
-        });
-
-      if(matched_itr == binary_.end()) {
-        break;
-      }
-
-      next_itr = std::next(matched_itr);
-    }
-
-    if(matched_itr == binary_.end()) {
-      throw std::runtime_error(std::string("Could not find the ") + opcode +
-                               " instruction");
-    }
-    return matched_itr->first;
-  }
-
- private:
-  Parsed_Binary binary_;
-};
-
-class Nop_Mode_Ret_Binary_Info : public Nop_Mode_Binary_Info {
+class Nop_Mode_Ret_Binary_Info : public Binary_Info {
  public:
   Nop_Mode_Ret_Binary_Info() :
-      Nop_Mode_Binary_Info(NOP_MODE_RET_BINARY),
+      Binary_Info(NOP_MODE_RET_BINARY),
       ret_instruction_addr(find_addr("retq")) {}
 
   const uint64_t ret_instruction_addr;
 };
 
-class Nop_Mode_Nonret_Direct_Binary_Info : public Nop_Mode_Binary_Info {
+class Nop_Mode_Nonret_Direct_Binary_Info : public Binary_Info {
  public:
   Nop_Mode_Nonret_Direct_Binary_Info() :
-      Nop_Mode_Binary_Info(NOP_MODE_NONRET_DIRECT_BINARY),
+      Binary_Info(NOP_MODE_NONRET_DIRECT_BINARY),
       test_instruction_addr(find_addr("test")),
       jne_instruction_addr(find_addr("jne")),
       far_target_addr(find_addr("jmp", 2)) {}
@@ -90,10 +56,10 @@ class Nop_Mode_Nonret_Direct_Binary_Info : public Nop_Mode_Binary_Info {
   const uint64_t far_target_addr;
 };
 
-class Nop_Mode_Nonret_Indirect_Binary_Info : public Nop_Mode_Binary_Info {
+class Nop_Mode_Nonret_Indirect_Binary_Info : public Binary_Info {
  public:
   Nop_Mode_Nonret_Indirect_Binary_Info() :
-      Nop_Mode_Binary_Info(NOP_MODE_NONRET_INDIRECT_BINARY),
+      Binary_Info(NOP_MODE_NONRET_INDIRECT_BINARY),
       indirect_jmp_instruction_addr(find_addr("jmpq")),
       far_target_addr(find_addr("jmp", 2)) {}
 
@@ -101,27 +67,26 @@ class Nop_Mode_Nonret_Indirect_Binary_Info : public Nop_Mode_Binary_Info {
   const uint64_t far_target_addr;
 };
 
-class Nop_Mode_Not_Taken_Binary_Info : public Nop_Mode_Binary_Info {
+class Nop_Mode_Not_Taken_Binary_Info : public Binary_Info {
  public:
   Nop_Mode_Not_Taken_Binary_Info() :
-      Nop_Mode_Binary_Info(NOP_MODE_NOT_TAKEN_BINARY),
+      Binary_Info(NOP_MODE_NOT_TAKEN_BINARY),
       redirect_addr(find_addr("sub", 2)) {}
 
   const uint64_t redirect_addr;
 };
 
-class Nop_Mode_Bad_Store_Binary_Info : public Nop_Mode_Binary_Info {
+class Nop_Mode_Bad_Store_Binary_Info : public Binary_Info {
  public:
   Nop_Mode_Bad_Store_Binary_Info() :
-      Nop_Mode_Binary_Info(NOP_MODE_BAD_STORE_BINARY),
-      redirect_addr(find_addr("movq")),
+      Binary_Info(NOP_MODE_BAD_STORE_BINARY), redirect_addr(find_addr("movq")),
       instruction_after_store(find_addr("mov")) {}
 
   const uint64_t redirect_addr;
   const uint64_t instruction_after_store;
 };
 
-TEST(RET_NOP_MODE, ReturningToUntracedAddressTriggersNopMode) {
+TEST(Wrongpath_Nop_Mode, ReturningToUntracedAddressTriggersNopMode) {
   Nop_Mode_Ret_Binary_Info binary_info;
   Fake_Scarab              fake_scarab(NOP_MODE_RET_BINARY);
 
@@ -143,7 +108,7 @@ TEST(RET_NOP_MODE, ReturningToUntracedAddressTriggersNopMode) {
   ASSERT_NO_FATAL_FAILURE(fake_scarab.retire_all());
 }
 
-TEST(RET_NOP_MODE, DirectJumpingToUntracedAddressTriggersNopMode) {
+TEST(Wrongpath_Nop_Mode, DirectJumpingToUntracedAddressTriggersNopMode) {
   Nop_Mode_Nonret_Direct_Binary_Info binary_info;
 
   Fake_Scarab fake_scarab(NOP_MODE_NONRET_DIRECT_BINARY);
@@ -169,7 +134,7 @@ TEST(RET_NOP_MODE, DirectJumpingToUntracedAddressTriggersNopMode) {
   ASSERT_NO_FATAL_FAILURE(fake_scarab.retire_all());
 }
 
-TEST(RET_NOP_MODE, IndirectJumpingToUntracedAddressTriggersNopMode) {
+TEST(Wrongpath_Nop_Mode, IndirectJumpingToUntracedAddressTriggersNopMode) {
   Nop_Mode_Nonret_Indirect_Binary_Info binary_info;
 
   Fake_Scarab fake_scarab(NOP_MODE_NONRET_INDIRECT_BINARY);
@@ -194,7 +159,7 @@ TEST(RET_NOP_MODE, IndirectJumpingToUntracedAddressTriggersNopMode) {
   ASSERT_NO_FATAL_FAILURE(fake_scarab.retire_all());
 }
 
-TEST(RET_NOP_MODE, FallThroughToUntracedAddressTriggersNopMode) {
+TEST(Wrongpath_Nop_Mode, FallThroughToUntracedAddressTriggersNopMode) {
   Nop_Mode_Not_Taken_Binary_Info binary_info;
 
   Fake_Scarab fake_scarab(NOP_MODE_NOT_TAKEN_BINARY);
@@ -215,7 +180,7 @@ TEST(RET_NOP_MODE, FallThroughToUntracedAddressTriggersNopMode) {
   ASSERT_NO_FATAL_FAILURE(fake_scarab.retire_all());
 }
 
-TEST(RET_NOP_MODE, StoreToUnseenAddressTriggersNopMode) {
+TEST(Wrongpath_Nop_Mode, StoreToUnseenAddressTriggersNopMode) {
   Nop_Mode_Bad_Store_Binary_Info binary_info;
 
   Fake_Scarab fake_scarab(NOP_MODE_BAD_STORE_BINARY);

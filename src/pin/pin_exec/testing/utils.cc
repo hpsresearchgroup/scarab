@@ -66,7 +66,7 @@ Parsed_Binary get_instructions_in_binary(const std::string& binary_path) {
 
 
   std::istringstream output_stream(objdump_output);
-  std::regex         search_expr("([0-9a-f]+):\\s+([a-z]+)");
+  std::regex         search_expr("([0-9a-f]+):\\s+([a-z0-9]+)");
   std::smatch        matches;
   for(std::string line; std::getline(output_stream, line);) {
     const auto found_matches = std::regex_search(line, matches, search_expr);
@@ -79,6 +79,33 @@ Parsed_Binary get_instructions_in_binary(const std::string& binary_path) {
   }
 
   return parsed_output;
+}
+
+Binary_Info::Binary_Info(const char* binary_path) :
+    binary_(get_instructions_in_binary(binary_path)) {}
+
+uint64_t Binary_Info::find_addr(const char* opcode, int n) {
+  auto next_itr    = binary_.begin();
+  auto matched_itr = binary_.begin();
+  for(int i = 0; i < n; ++i) {
+    matched_itr = std::find_if(
+      next_itr, binary_.end(),
+      [opcode](const std::pair<uint64_t, std::string>& inst) -> bool {
+        return inst.second == opcode;
+      });
+
+    if(matched_itr == binary_.end()) {
+      break;
+    }
+
+    next_itr = std::next(matched_itr);
+  }
+
+  if(matched_itr == binary_.end()) {
+    throw std::runtime_error(std::string("Could not find the ") + opcode +
+                             " instruction");
+  }
+  return matched_itr->first;
 }
 
 void Process_Runner::start() {

@@ -51,6 +51,18 @@ template <typename T>
   }
 }
 
+// A class for parsing binaries and getting the addresses of their instructions
+// using opcodes
+class Binary_Info {
+ public:
+  Binary_Info(const char* binary_path);
+
+  uint64_t find_addr(const char* opcode, int n = 1);
+
+ private:
+  Parsed_Binary binary_;
+};
+
 // A class for asynchronously running a Linux command through a forked process.
 class Process_Runner {
  public:
