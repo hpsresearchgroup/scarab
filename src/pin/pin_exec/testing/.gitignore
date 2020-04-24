@@ -8,3 +8,4 @@ simple_c_program
 simple_loop
 test_binary
 wrong_path_exception
+jump_near_boundary
