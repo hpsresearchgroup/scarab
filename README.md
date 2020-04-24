@@ -11,7 +11,7 @@ fast and easy to work with.
 * Execute-at-Fetch: Easier support for oracle features, faster development of new features
 
 ##### What Code Can Scarab Run?
-* Any x86\_64 bit code that can be run on Intel's [PIN](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool)
+* Single-threaded x86\_64 programs that can be run on Intel's [PIN](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool)
 
 ##### Scarab uArchitecture:
 * All typical pipeline stages and out-of-order structures (Fetch, Decode, Rename, Retire, ROB, R/S, and more...)
@@ -33,9 +33,7 @@ fast and easy to work with.
 * No real OS virtual to physical address translation
 * Shared bus interconnect only (ring, mesh, and others are in progress.)
 
-Scarab was created in collaboration with HPS, SAFARI, and Intel
-as a part of the NSF/Intel Partnership on [Foundational Microarchitecture
-Research (FoMR)](https://www.nsf.gov/funding/pgm_summ.jsp?pims_id=505450)
+Scarab was created in collaboration with HPS and SAFARI. This project was sponsored by Intel Labs.
 
 ## License & Copyright
 Please see the [LICENSE](LICENSE) for more information.

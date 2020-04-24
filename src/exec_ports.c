@@ -122,6 +122,7 @@ Flag is_alu_type(uns64 fu_type) {
                   get_fu_type(OP_LOGIC, FALSE) | get_fu_type(OP_SHIFT, FALSE) |
                   get_fu_type(OP_PIPELINED_FAST, FALSE) |
                   get_fu_type(OP_PIPELINED_MEDIUM, FALSE) |
+                  get_fu_type(OP_PIPELINED_SLOW, FALSE) |
                   get_fu_type(OP_NOTPIPELINED_MEDIUM, FALSE);
 
   return (alu_ops & fu_type) != 0;

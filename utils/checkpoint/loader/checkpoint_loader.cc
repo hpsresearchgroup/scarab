@@ -87,6 +87,9 @@ void execute_tracer(pid_t child_pid, bool running_with_pin) {
     jump_to_infinite_loop(child_pid);
   }
 
+  fflush(stdout);
+  fflush(stderr);
+
   detach_process(child_pid);
 
   if(running_with_pin) {

@@ -71,6 +71,7 @@
     /* all other op types that don't fit existing ops*/               \
     elem(PIPELINED_FAST)         /* i.e. <=2 cycles, pipelined */     \
     elem(PIPELINED_MEDIUM)       /* i.e. <=5 cycles, pipelined */     \
+    elem(PIPELINED_SLOW)         /* i.e. > 5 cycles, pipelined */     \
     elem(NOTPIPELINED_MEDIUM)    /* i.e. <=5 cycles, not pipelined */ \
     elem(NOTPIPELINED_SLOW)      /* i.e. >5 cycles, not pipelined */  \
     elem(NOTPIPELINED_VERY_SLOW) /* i.e. >50 cycles, not pipelined */
