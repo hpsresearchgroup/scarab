@@ -407,7 +407,7 @@ void Client::connect_to_server() {
       return;
     }
 
-    printf("Connected to Server failed. Trying again after %d ms",
+    printf("Connected to Server failed. Trying again after %d ms\n",
            WAIT_PERIOD_IN_USECONDS / 1000);
     usleep(WAIT_PERIOD_IN_USECONDS);
   }
