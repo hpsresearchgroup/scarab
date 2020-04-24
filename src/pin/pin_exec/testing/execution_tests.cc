@@ -18,6 +18,10 @@
 #define SIMPLE_LOOP_BINARY "./simple_loop"
 #endif
 
+#ifndef SIMPLE_C_PROGRAM
+#define SIMPLE_C_PROGRAM "./simple_c_program"
+#endif
+
 using namespace scarab::pin::testing;
 
 class Simple_Binary_Loop_Info {
@@ -228,4 +232,10 @@ TEST_F(Simple_Loop_Test, CanFetchAndRecoverNormalWrongPath) {
 TEST_F(Simple_Loop_Test, CanFetchAndRecoverWrongPathNopMode) {
   const auto test_info = simple_loop_info_->get_wrongpath_nop_node_test_info();
   test_body_for_fetching_wrongpath(test_info);
+}
+
+TEST(C_Program_Test, CanExecuteGlibc) {
+  Fake_Scarab fake_scarab(SIMPLE_C_PROGRAM);
+  fake_scarab.fetch_retire_until_completion();
+  ASSERT_TRUE(fake_scarab.has_reached_end());
 }

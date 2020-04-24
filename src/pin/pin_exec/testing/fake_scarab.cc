@@ -48,6 +48,18 @@ void Fake_Scarab::fetch_instructions_in_wrongpath_nop_mode(
   }
 }
 
+void Fake_Scarab::fetch_retire_until_completion() {
+  while(!has_reached_end()) {
+    while(!has_reached_end() && fetched_ops_.size() < 1000) {
+      fetch_next_instruction();
+      if(has_fetched_ifetch_barrier()) {
+        break;
+      }
+    }
+    retire_all();
+  }
+}
+
 void Fake_Scarab::fetch_until_completion() {
   while(!has_reached_end()) {
     fetch_next_instruction();
@@ -83,6 +95,9 @@ uint64_t Fake_Scarab::get_latest_inst_uid() {
   }
 }
 
+bool Fake_Scarab::has_fetched_ifetch_barrier() {
+  return !fetched_ops_.empty() && fetched_ops_.back().is_ifetch_barrier;
+}
 
 bool Fake_Scarab::has_reached_end() {
   if(op_buffer_.empty()) {
@@ -125,7 +140,6 @@ void Fake_Scarab::fetch_next_instruction() {
   fetched_ops_.push_back(op_buffer_.front());
   op_buffer_.pop_front();
 }
-
 
 void Fake_Scarab::flush_cops_after_uid(uint64_t inst_uid) {
   op_buffer_.clear();

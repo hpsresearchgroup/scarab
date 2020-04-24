@@ -9,6 +9,9 @@ NOP_MODE_NONRET_DIRECT_BINARY = $(abspath ./nop_mode_nonret_direct)
 NOP_MODE_NONRET_INDIRECT_BINARY = $(abspath ./nop_mode_nonret_indirect)
 NOP_MODE_NOT_TAKEN_BINARY = $(abspath ./nop_mode_not_taken)
 NOP_MODE_BAD_STORE_BINARY = $(abspath ./nop_mode_bad_store)
+WRONG_PATH_EXCEPTION_BINARY = $(abspath ./wrong_path_exception)
+C_PROGRAM_WITH_UD2_BINARY = $(abspath ./c_program_with_ud2)
+SIMPLE_C_PROGRAM = $(abspath ./simple_c_program)
 
 CC_FLAGS := -lgtest -lpthread -std=c++14  -I$(SCARAB_DIR) 
 CC_FLAGS += -L $(COMMON_LIB_DIR)/obj -lpin_fe
@@ -19,11 +22,15 @@ CC_FLAGS += -DNOP_MODE_NONRET_DIRECT_BINARY=\"$(NOP_MODE_NONRET_DIRECT_BINARY)\"
 CC_FLAGS += -DNOP_MODE_NONRET_INDIRECT_BINARY=\"$(NOP_MODE_NONRET_INDIRECT_BINARY)\"
 CC_FLAGS += -DNOP_MODE_NOT_TAKEN_BINARY=\"$(NOP_MODE_NOT_TAKEN_BINARY)\"
 CC_FLAGS += -DNOP_MODE_BAD_STORE_BINARY=\"$(NOP_MODE_BAD_STORE_BINARY)\"
+CC_FLAGS += -DWRONG_PATH_EXCEPTION_BINARY=\"$(WRONG_PATH_EXCEPTION_BINARY)\"
+CC_FLAGS += -DC_PROGRAM_WITH_UD2_BINARY=\"$(C_PROGRAM_WITH_UD2_BINARY)\"
+CC_FLAGS += -DSIMPLE_C_PROGRAM=\"$(SIMPLE_C_PROGRAM)\"
 
 ASSEMBLY_SOURCES=$(wildcard *.s)
+C_SOURCES=$(wildcard *.C)
 CC_SOURCES=$(wildcard *.cc)
 CC_HEADERS=$(wildcard *.h)
-TEST_BINARIES=$(patsubst %.s,%,$(ASSEMBLY_SOURCES))
+TEST_BINARIES=$(patsubst %.s,%,$(ASSEMBLY_SOURCES)) $(patsubst %.c,%,$(C_SOURCES))
 
 all: $(TEST_BINARY) $(TEST_BINARIES) pin_exec ## Builds and runs all the unit tests 
 	./$(TEST_BINARY)
@@ -32,6 +39,9 @@ all: $(TEST_BINARY) $(TEST_BINARIES) pin_exec ## Builds and runs all the unit te
 	as -o $@.o $^
 	ld -o $@ $@.o
 	rm $@.o
+
+%:%.c
+	gcc -static -O2 -o $@ $^
 
 $(TEST_BINARY): $(CC_SOURCES) $(CC_HEADERS) pin_lib ## Builds the unit test binary
 	g++ $(CC_SOURCES) -o $@ $(CC_FLAGS)
