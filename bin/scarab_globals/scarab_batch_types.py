@@ -146,7 +146,7 @@ class Job:
 
   def run(self):
     self.cmd_list = self.job.create_joblist(self.results_dir, self.params)
-    cmd = command.launch(SystemConfig.submission_system, self.cmd_list)
+    cmd = command.launch(SystemConfig.submission_system, self.cmd_list, jobname=self.job_name)
 
   def print_progress(self):
     progress = self.job.get_progress(self.results_dir)

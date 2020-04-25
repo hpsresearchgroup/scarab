@@ -34,9 +34,27 @@ class LocalConfig:
   num_threads = None
 
 class PBSConfig:
-  PBS_args ="-V -l nodes=1:ppn=5"
+  pbs_args ="-V"
+  queue=None
+  email=None
+  walltime=None
+  memory_per_core=None
+  processor_cores_per_node=10
+  cleanup_commands="echo This process was terminated abnormally!!!"
 
 def generate(submission_system, cmd_str, run_dir=None, results_dir=os.getcwd(), stdout=None, stderr=None):
+  """ Generates a Command object from a command string and a given submission system.
+
+  Args:
+    submission_system: A SubmissionSystems Enum which specifies what subsystem to run the command on.
+    cmd_str: command string. The command you want to run in string format, as if you were running it on a terminal.
+
+  Returns:
+    The Command object.
+
+  Raises:
+    None.
+  """
   if submission_system == SubmissionSystems.LOCAL:
     cmd =    Command(cmd_str, run_dir=run_dir, results_dir=results_dir, stdout=stdout, stderr=stderr)
   elif submission_system == SubmissionSystems.PBS:
@@ -45,12 +63,29 @@ def generate(submission_system, cmd_str, run_dir=None, results_dir=os.getcwd(), 
     assert False, "Error: Attempting to generate command for unknown submission system: {}".format(submission_system)
   return cmd
 
-def launch(submission_system, cmd_list):
+def launch(submission_system, cmd_list, num_threads=None, jobname=None):
+  """ Launch a list of Command objects on the given submission system.
+
+  Launches a list of Commands in parallel. If you want to run a single command directly, this is not the function you are looking for. 
+  This function acts as an interface for the Command class and JobPoolExecutor. It allows the user to not focus on the details of the job submission system and command format. 
+  Upon a call to this function, commands will be launched on the appropriate submission system. This function will block until all jobs have been submitted.
+
+  Args:
+    submission_system: A SubmissionSystems Enum which specifies what subsystem to run the command on.
+    cmd_list: A list of Command objects to run on the given submission system.
+    num_threads: The number of parallel jobs to submit at once. This option is only valid if submission_system=LOCAL. (Optional)
+
+  Returns:
+    None
+
+  Raises:
+    None
+  """
   executor = JobPoolExecutor(cmd_list)
   if submission_system == SubmissionSystems.LOCAL:
-    executor.run_parallel_commands(num_threads=LocalConfig.num_threads)
+    executor.run_parallel_commands(num_threads=num_threads if num_threads else LocalConfig.num_threads)
   elif submission_system == SubmissionSystems.PBS:
-    executor.run_serial_commands()
+    executor.run_serial_commands(jobname=jobname)
   else:
     assert False, "Error: Attempting to generate command for unknown submission system"
 
@@ -130,7 +165,7 @@ class Command:
 
   def poll(self):
     assert self.process, "Error: Cannot poll Command that has not been run!"
-    self.process.poll();
+    self.process.poll()
     self.returncode = self.process.returncode
 
   def wait(self):
@@ -155,16 +190,87 @@ class PBSCommand(Command):
   def __str__(self):
     return "PBS" + super().__str__()
 
-  def run(self, pbs_args=PBSConfig.PBS_args):
-    prefix = "source /export/software/anaconda3/bin/activate\n"
+  def __prepare_pbs_jobscript_knobs(self, jobname, pbs_config):
+    #reference: https://www.msi.umn.edu/content/job-submission-and-scheduling-pbs-scripts
+    jobscript_text=""
+
+    if self.results_dir:
+      #set job name
+      _jobname = ""
+      if jobname:
+        _jobname = jobname + "-"
+      _jobname += os.path.basename(self.results_dir)
+      jobscript_text += "#PBS -N {var}\n".format(var=_jobname)
+
+    if pbs_config.queue:
+      jobscript_text += "#PBS -q {var}\n".format(var=pbs_config.queue)
+
+    if pbs_config.email:
+      jobscript_text += "#PBS -m abe\n" # Send an email if job aborts (a), begins (b), or ends (e)
+      jobscript_text += "#PBS -M {var}\n".format(var=pbs_config.email)
+
+    if self.stdout:
+      jobscript_text += "#PBS -o {var}\n".format(var=self.stdout)
+
+    if self.stderr:
+      jobscript_text += "#PBS -e {var}\n".format(var=self.stderr)
+
+    if pbs_config.walltime:
+      jobscript_text += "#PBS -l walltime={var}\n".format(var=pbs_config.walltime)
+
+    if pbs_config.memory_per_core:
+      jobscript_text += "#PBS -l pmem={var}\n".format(var=pbs_config.memory_per_core)
+
+    if pbs_config.processor_cores_per_node:
+      jobscript_text += "#PBS -l nodes=1:ppn={var}\n".format(var=pbs_config.processor_cores_per_node)
+
+    return jobscript_text
+
+  def __create_trap_command(self, pbs_config):
+    """
+    The trap command allows you to specify a command to run in case your job terminates    
+    abnormally, for example if it runs out of wall time. It is typically used to copy      
+    output files from a temporary directory to a home or project directory. The following  
+    example creates a directory in $PBS_O_WORKDIR and copies everything from $TMPDIR into  
+    it. This executes only if the job terminates abnormally.                               
+
+    reference: https://www.osc.edu/sites/osc.edu/files/staff_files/kcahill/sample_job.pbs
+    """
+    trap_command=""
+    if pbs_config.cleanup_commands:
+      trap_command='trap "{final_commands}" TERM\n'.format(final_commands=pbs_config.cleanup_commands)
+    return trap_command
+
+  def __create_pbs_header(self, jobname, pbs_config):
+    pbs_header = """{pbs_knobs}
+echo ------------------------------------------------------
+echo -n 'Starting Job on '; date
+echo -n 'Job is running on node '; cat $PBS_NODEFILE
+echo ------------------------------------------------------
+echo PBS: qsub is running on $PBS_O_HOST
+echo PBS: executing queue is $PBS_QUEUE
+echo PBS: working directory is $PBS_O_WORKDIR
+echo PBS: job identifier is $PBS_JOBID
+echo PBS: job name is $PBS_JOBNAME
+echo PBS: node file is $PBS_NODEFILE
+echo PBS: current home directory is $PBS_O_HOME
+echo PBS: PATH = $PBS_O_PATH
+echo ------------------------------------------------------
+cd $PBS_O_WORKDIR
+{trap_command}
+    """.format(
+      pbs_knobs=self.__prepare_pbs_jobscript_knobs(jobname, pbs_config),
+      trap_command=self.__create_trap_command(pbs_config)
+    )
+    return pbs_header
+
+  def run(self, pbs_config=PBSConfig, jobname=None):
     if self.run_dir:
-      prefix += "cd {}\n".format(self.run_dir)
+      os.chdir(self.run_dir)
 
-    self.write_to_jobfile(prefix=prefix)
+    self.write_to_jobfile(prefix=self.__create_pbs_header(jobname, pbs_config))
 
-    self.pbs_cmd = "qsub " + pbs_args + \
-          " -o " + self.stdout +        \
-          " -e " + self.stderr +        \
+    self.pbs_cmd = "qsub " + pbs_config.pbs_args + \
           " " + self.jobfile_path
     
     print(self.pbs_cmd)
@@ -231,9 +337,9 @@ class JobPoolExecutor:
     print(cmd)
     return returncode
 
-  def run_serial_commands(self):
+  def run_serial_commands(self, jobname=None):
     for cmd in self.cmds:
-      cmd.run()
+      cmd.run(jobname=jobname)
 
   def run_parallel_commands(self, num_threads=None):
     """
