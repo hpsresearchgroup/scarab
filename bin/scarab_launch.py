@@ -79,8 +79,9 @@ class Scarab:
   """
   Setup the Scarab process from command line args and launch it.
   """
-  def __init__(self, socket_path):
+  def __init__(self, socket_path, processed_pin_commands):
     self.socket_path = os.path.abspath(socket_path)
+    self.pin_commands = " ".join(processed_pin_commands)
 
   def __copy_params_file_to_simdir(self):
     if args.params:
@@ -89,13 +90,17 @@ class Scarab:
       scarab_utils.warn("Using existing PARAMS.in file in current directory!");
 
   def __get_scarab_command(self):
-    self.cmd = "{scarab} --num_cores {num_cores} --pin_exec_driven_fe_socket {socket_path} --bindir {bin_dir} {additional_args}".format(
+    self.cmd = "{scarab} --num_cores {num_cores} --pin_exec_driven_fe_socket {socket_path} --bindir {bin_dir} {pin_commands} {additional_args}".format(
       scarab=args.scarab,
       num_cores=get_num_cores(),
       socket_path=self.socket_path,
       bin_dir=scarab_paths.bin_dir,
+      pin_commands=self.pin_commands,
       additional_args=args.scarab_args
     )
+
+    print(self.cmd)
+
     return self.cmd
 
   def launch(self):
@@ -178,22 +183,26 @@ class Pin:
     self.__get_stderr()
 
     cmd = command.Command(self.cmd, stdout=self.stdout, stderr=self.stderr)
-    cmd.run_in_background()
-    return cmd
+    #cmd.run_in_background()
+    return self.cmd
 
 def launch_programs(proc_list, core, socket_path):
+  pin_commands = []
   if (args.program):
     for program in args.program:
-      proc_list.push(Pin(core, socket_path, program, False).launch())
+      #proc_list.push(Pin(core, socket_path, program, False).launch())
+      pin_commands.append(Pin(core, socket_path, program, False).launch())
       core += 1
-  return core
+  return pin_commands
 
 def launch_checkpoints(proc_list, core, socket_path):
+  pin_commands = []
   if (args.checkpoint):
     for checkpoint in args.checkpoint:
-      proc_list.push(Pin(core, socket_path, checkpoint, True).launch())
+      #proc_list.push(Pin(core, socket_path, checkpoint, True).launch())
+      pin_commands.append(Pin(core, socket_path, checkpoint, True).launch())
       core += 1
-  return core
+  return pin_commands
 
 def main():
   core = 0
@@ -204,12 +213,17 @@ def main():
     make_checkpoint_loader()
 
   try:
-    proc_list.push(Scarab(socket_path).launch())
+    #proc_list.push(Scarab(socket_path).launch())
 
     time.sleep(1)
+    processed_pin_commands = []
 
-    core = launch_programs(proc_list, core, socket_path)
-    core = launch_checkpoints(proc_list, core, socket_path)
+    all_pin_commands = launch_programs(proc_list, core, socket_path) + launch_checkpoints(proc_list, core, socket_path)
+    for pin_command in all_pin_commands:
+      processed_pin_commands.append("--pin_command \"" + pin_command + "\"")      
+      
+    print(processed_pin_commands)
+    proc_list.push(Scarab(socket_path, processed_pin_commands).launch())
 
     proc_list.wait_on_processes()
 
