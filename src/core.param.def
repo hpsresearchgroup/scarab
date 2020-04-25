@@ -1,14 +1,14 @@
 /* Copyright 2020 HPS/SAFARI Research Groups
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -21,253 +21,270 @@
 
 /* -*- Mode: c -*- */
 
-/* These ".param.def" files contain the various parameters that can be given to the
-   simulator.  NOTE: Don't screw around with the order of these macro fields without
+/* These ".param.def" files contain the various parameters that can be given to
+   the simulator.  NOTE: Don't screw around with the order of these macro fields
+   without
 
-	   All parameters take an argument.  Thus, "--param_0=3" would be a valid
-	   specification.
+     All parameters take an argument.  Thus, "--param_0=3" would be a valid
+     specification.
 
-   Variable Name -- The name of the variable that will be created in 'parameters.c' and
-	    externed in 'parameters.h'.
+   Variable Name -- The name of the variable that will be created in
+   'parameters.c' and externed in 'parameters.h'.
 
-   Type -- The type of the variable that will be created in 'parameters.c' and externed
-	   in 'parameters.h'.
+   Type -- The type of the variable that will be created in 'parameters.c' and
+   externed in 'parameters.h'.
 
-   Function -- The name of the function declared in 'parameters.c' that will parse the
-	    text after the '='.
+   Function -- The name of the function declared in 'parameters.c' that will
+   parse the text after the '='.
 
-   Default Value -- The default value that the variable created will have.  This must be
-	    the same type as the 'Type' field indicates (or be able to be cast to it).
+   Default Value -- The default value that the variable created will have.  This
+   must be the same type as the 'Type' field indicates (or be able to be cast to
+   it).
 
-   Const -- Put the word "const" here if you want this parameter to be constant.  An
-	    error messsage will be printed if the user tries to set it with a command
-	    line option.
+   Const -- Put the word "const" here if you want this parameter to be constant.
+   An error messsage will be printed if the user tries to set it with a command
+      line option.
 
 */
 // Current version does not support more than 8 cores!
 // To extend this, fix frontend/pin_trace_fe.c and sim.c
 
-DEF_PARAM( num_cores                , NUM_CORES                , uns  , uns  , 1     , )
+DEF_PARAM(num_cores, NUM_CORES, uns, uns, 1, )
 /* chip cycle time, if set, affects both core and l1 cycle times */
-DEF_PARAM( chip_cycle_time          , CHIP_CYCLE_TIME          , uns  , uns  , 312500, )
-DEF_PARAM( core_0_cycle_time        , CORE_0_CYCLE_TIME        , uns  , uns  , 312500, )
-DEF_PARAM( core_1_cycle_time        , CORE_1_CYCLE_TIME        , uns  , uns  , 312500, )
-DEF_PARAM( core_2_cycle_time        , CORE_2_CYCLE_TIME        , uns  , uns  , 312500, )
-DEF_PARAM( core_3_cycle_time        , CORE_3_CYCLE_TIME        , uns  , uns  , 312500, )
-DEF_PARAM( core_4_cycle_time        , CORE_4_CYCLE_TIME        , uns  , uns  , 312500, )
-DEF_PARAM( core_5_cycle_time        , CORE_5_CYCLE_TIME        , uns  , uns  , 312500, )
-DEF_PARAM( core_6_cycle_time        , CORE_6_CYCLE_TIME        , uns  , uns  , 312500, )
-DEF_PARAM( core_7_cycle_time        , CORE_7_CYCLE_TIME        , uns  , uns  , 312500, )
-DEF_PARAM( core_8_cycle_time        , CORE_8_CYCLE_TIME        , uns  , uns  , 312500, )
-DEF_PARAM( core_9_cycle_time        , CORE_9_CYCLE_TIME        , uns  , uns  , 312500, )
-DEF_PARAM( core_10_cycle_time       , CORE_10_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_11_cycle_time       , CORE_11_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_12_cycle_time       , CORE_12_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_13_cycle_time       , CORE_13_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_14_cycle_time       , CORE_14_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_15_cycle_time       , CORE_15_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_16_cycle_time       , CORE_16_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_17_cycle_time       , CORE_17_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_18_cycle_time       , CORE_18_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_19_cycle_time       , CORE_19_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_20_cycle_time       , CORE_20_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_21_cycle_time       , CORE_21_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_22_cycle_time       , CORE_22_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_23_cycle_time       , CORE_23_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_24_cycle_time       , CORE_24_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_25_cycle_time       , CORE_25_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_26_cycle_time       , CORE_26_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_27_cycle_time       , CORE_27_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_28_cycle_time       , CORE_28_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_29_cycle_time       , CORE_29_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_30_cycle_time       , CORE_30_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_31_cycle_time       , CORE_31_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_32_cycle_time       , CORE_32_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_33_cycle_time       , CORE_33_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_34_cycle_time       , CORE_34_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_35_cycle_time       , CORE_35_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_36_cycle_time       , CORE_36_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_37_cycle_time       , CORE_37_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_38_cycle_time       , CORE_38_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_39_cycle_time       , CORE_39_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_40_cycle_time       , CORE_40_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_41_cycle_time       , CORE_41_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_42_cycle_time       , CORE_42_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_43_cycle_time       , CORE_43_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_44_cycle_time       , CORE_44_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_45_cycle_time       , CORE_45_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_46_cycle_time       , CORE_46_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_47_cycle_time       , CORE_47_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_48_cycle_time       , CORE_48_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_49_cycle_time       , CORE_49_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_50_cycle_time       , CORE_50_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_51_cycle_time       , CORE_51_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_52_cycle_time       , CORE_52_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_53_cycle_time       , CORE_53_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_54_cycle_time       , CORE_54_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_55_cycle_time       , CORE_55_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_56_cycle_time       , CORE_56_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_57_cycle_time       , CORE_57_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_58_cycle_time       , CORE_58_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_59_cycle_time       , CORE_59_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_60_cycle_time       , CORE_60_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_61_cycle_time       , CORE_61_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_62_cycle_time       , CORE_62_CYCLE_TIME       , uns  , uns  , 312500, )
-DEF_PARAM( core_63_cycle_time       , CORE_63_CYCLE_TIME       , uns  , uns  , 312500, )
+DEF_PARAM(chip_cycle_time, CHIP_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_0_cycle_time, CORE_0_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_1_cycle_time, CORE_1_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_2_cycle_time, CORE_2_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_3_cycle_time, CORE_3_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_4_cycle_time, CORE_4_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_5_cycle_time, CORE_5_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_6_cycle_time, CORE_6_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_7_cycle_time, CORE_7_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_8_cycle_time, CORE_8_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_9_cycle_time, CORE_9_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_10_cycle_time, CORE_10_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_11_cycle_time, CORE_11_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_12_cycle_time, CORE_12_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_13_cycle_time, CORE_13_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_14_cycle_time, CORE_14_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_15_cycle_time, CORE_15_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_16_cycle_time, CORE_16_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_17_cycle_time, CORE_17_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_18_cycle_time, CORE_18_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_19_cycle_time, CORE_19_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_20_cycle_time, CORE_20_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_21_cycle_time, CORE_21_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_22_cycle_time, CORE_22_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_23_cycle_time, CORE_23_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_24_cycle_time, CORE_24_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_25_cycle_time, CORE_25_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_26_cycle_time, CORE_26_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_27_cycle_time, CORE_27_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_28_cycle_time, CORE_28_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_29_cycle_time, CORE_29_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_30_cycle_time, CORE_30_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_31_cycle_time, CORE_31_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_32_cycle_time, CORE_32_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_33_cycle_time, CORE_33_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_34_cycle_time, CORE_34_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_35_cycle_time, CORE_35_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_36_cycle_time, CORE_36_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_37_cycle_time, CORE_37_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_38_cycle_time, CORE_38_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_39_cycle_time, CORE_39_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_40_cycle_time, CORE_40_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_41_cycle_time, CORE_41_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_42_cycle_time, CORE_42_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_43_cycle_time, CORE_43_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_44_cycle_time, CORE_44_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_45_cycle_time, CORE_45_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_46_cycle_time, CORE_46_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_47_cycle_time, CORE_47_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_48_cycle_time, CORE_48_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_49_cycle_time, CORE_49_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_50_cycle_time, CORE_50_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_51_cycle_time, CORE_51_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_52_cycle_time, CORE_52_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_53_cycle_time, CORE_53_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_54_cycle_time, CORE_54_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_55_cycle_time, CORE_55_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_56_cycle_time, CORE_56_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_57_cycle_time, CORE_57_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_58_cycle_time, CORE_58_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_59_cycle_time, CORE_59_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_60_cycle_time, CORE_60_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_61_cycle_time, CORE_61_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_62_cycle_time, CORE_62_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(core_63_cycle_time, CORE_63_CYCLE_TIME, uns, uns, 312500, )
 
-/********NODE TABLE PARAMETERS********************************************************/
-DEF_PARAM( issue_width              , ISSUE_WIDTH              , uns  , uns  , 4    , )
-DEF_PARAM( rs_fill_width            , RS_FILL_WIDTH            , uns  , uns  , 8    , )
-DEF_PARAM( node_table_size          , NODE_TABLE_SIZE          , uns  , uns  , 256  , )
-DEF_PARAM( node_ret_width           , NODE_RET_WIDTH           , uns  , uns  , 4    , )
-DEF_PARAM( node_retire_rate         , NODE_RETIRE_RATE         , uns  , uns  , 10   , )
+/********NODE TABLE
+ * PARAMETERS********************************************************/
+DEF_PARAM(issue_width, ISSUE_WIDTH, uns, uns, 4, )
+DEF_PARAM(rs_fill_width, RS_FILL_WIDTH, uns, uns, 8, )
+DEF_PARAM(node_table_size, NODE_TABLE_SIZE, uns, uns, 256, )
+DEF_PARAM(node_ret_width, NODE_RET_WIDTH, uns, uns, 4, )
+DEF_PARAM(node_retire_rate, NODE_RETIRE_RATE, uns, uns, 10, )
 
-/********EXEC PORT PARAMETERS*********************************************************/
+/********EXEC PORT
+ * PARAMETERS*********************************************************/
 /*Size of each RS, length should be NUM_RS, Must be type string since it is an
  * array of values, will parse in exec_ports.c. See exec_ports for more info.*/
-DEF_PARAM( rs_sizes                 , RS_SIZES                 , char*,string, "256", )
+DEF_PARAM(rs_sizes, RS_SIZES, char*, string, "256", )
 
 /*Array of BitVectors, length should be NUM_RS, Must be type string since it is
- * an array of values, will parse in exec_ports.c. See exec_ports for more info.*/
-DEF_PARAM( rs_connections           , RS_CONNECTIONS           , char*,string, "xF" , )
+ * an array of values, will parse in exec_ports.c. See exec_ports for more
+ * info.*/
+DEF_PARAM(rs_connections, RS_CONNECTIONS, char*, string, "xF", )
 
 /*Array of BitVectors (0 means all ops), length should be NUM_FUS, Must be type
  * string since it is an array of values, will parse in exec_ports.c. See
  * exec_ports for more info.*/
-DEF_PARAM( fu_types                 , FU_TYPES                 , char*,string, "0, 0, 0, 0", )
+DEF_PARAM(fu_types, FU_TYPES, char*, string, "0, 0, 0, 0", )
 
-/********FRONT END STAGE LATENCIES****************************************************/
-DEF_PARAM( decode_cycles            , DECODE_CYCLES            , uns  , uns  , 1     , ) 
-DEF_PARAM( map_cycles               , MAP_CYCLES               , uns  , uns  , 1     , ) 
+/********FRONT END STAGE
+ * LATENCIES****************************************************/
+DEF_PARAM(decode_cycles, DECODE_CYCLES, uns, uns, 1, )
+DEF_PARAM(map_cycles, MAP_CYCLES, uns, uns, 1, )
 
-DEF_PARAM( extra_recovery_cycles    , EXTRA_RECOVERY_CYCLES    , uns  , uns  , 0     , ) 
-DEF_PARAM( extra_redirect_cycles    , EXTRA_REDIRECT_CYCLES    , uns  , uns  , 0     , ) 
-DEF_PARAM( extra_callsys_cycles     , EXTRA_CALLSYS_CYCLES     , uns  , uns  , 20    , const ) /* const */
-DEF_PARAM( die_on_callsys           , DIE_ON_CALLSYS           , Flag , Flag , FALSE , )
-DEF_PARAM( die_on_ret_stall_thresh  , DIE_ON_RET_STALL_THRESH  , uns  , uns  , 0     , ) 
-DEF_PARAM( die_on_ret_stall_core    , DIE_ON_RET_STALL_CORE    , uns  , uns  , 0     , ) 
-DEF_PARAM( die_on_mem_block_thresh  , DIE_ON_MEM_BLOCK_THRESH  , uns  , uns  , 0     , ) 
-DEF_PARAM( die_on_mem_block_core    , DIE_ON_MEM_BLOCK_CORE    , uns  , uns  , 0     , ) 
+DEF_PARAM(extra_recovery_cycles, EXTRA_RECOVERY_CYCLES, uns, uns, 0, )
+DEF_PARAM(extra_redirect_cycles, EXTRA_REDIRECT_CYCLES, uns, uns, 0, )
+DEF_PARAM(extra_callsys_cycles, EXTRA_CALLSYS_CYCLES, uns, uns, 20,
+          const) /* const */
+DEF_PARAM(die_on_callsys, DIE_ON_CALLSYS, Flag, Flag, FALSE, )
+DEF_PARAM(die_on_ret_stall_thresh, DIE_ON_RET_STALL_THRESH, uns, uns, 0, )
+DEF_PARAM(die_on_ret_stall_core, DIE_ON_RET_STALL_CORE, uns, uns, 0, )
+DEF_PARAM(die_on_mem_block_thresh, DIE_ON_MEM_BLOCK_THRESH, uns, uns, 0, )
+DEF_PARAM(die_on_mem_block_core, DIE_ON_MEM_BLOCK_CORE, uns, uns, 0, )
 
-DEF_PARAM( fetch_across_cache_lines , FETCH_ACROSS_CACHE_LINES , Flag , Flag , FALSE , )
-DEF_PARAM( fetch_off_path_ops       , FETCH_OFF_PATH_OPS       , Flag , Flag , TRUE  , )
-DEF_PARAM( fetch_break_on_taken     , FETCH_BREAK_ON_TAKEN     , Flag , Flag , FALSE , )
-DEF_PARAM( fetch_taken_bubble_cycles, FETCH_TAKEN_BUBBLE_CYCLES, uns  , uns  , 0     , )
-DEF_PARAM( wp_collect_stats         , WP_COLLECT_STATS         , Flag , Flag , FALSE , )
-DEF_PARAM( switch_ic_fetch_on_recovery, SWITCH_IC_FETCH_ON_RECOVERY, Flag , Flag , TRUE  , )
+DEF_PARAM(fetch_across_cache_lines, FETCH_ACROSS_CACHE_LINES, Flag, Flag,
+          FALSE, )
+DEF_PARAM(fetch_off_path_ops, FETCH_OFF_PATH_OPS, Flag, Flag, TRUE, )
+DEF_PARAM(fetch_break_on_taken, FETCH_BREAK_ON_TAKEN, Flag, Flag, FALSE, )
+DEF_PARAM(fetch_taken_bubble_cycles, FETCH_TAKEN_BUBBLE_CYCLES, uns, uns, 0, )
+DEF_PARAM(wp_collect_stats, WP_COLLECT_STATS, Flag, Flag, FALSE, )
+DEF_PARAM(switch_ic_fetch_on_recovery, SWITCH_IC_FETCH_ON_RECOVERY, Flag, Flag,
+          TRUE, )
 
-/* functional unit delays by op_type */		  
+/* functional unit delays by op_type */
 /* note: memory delays correspond to address computation time.  This
    is currently modeled as non-pipelined. */
 /* Default delays for most common ops come from Nehalem/Sandybridge as
    described in http://www.agner.org/optimize/microarchitecture.pdf */
-DEF_PARAM(  op_inv_delay,        OP_INV_DELAY,        int,  int,  1,          ) 
-DEF_PARAM(  op_nop_delay,     	 OP_NOP_DELAY,        int,  int,  1,          ) 
-DEF_PARAM(  op_cf_delay,       	 OP_CF_DELAY,         int,  int,  1,          ) 
-DEF_PARAM(  op_mov_delay,        OP_MOV_DELAY,        int,  int,  1,          ) 
-DEF_PARAM(  op_cmov_delay,     	 OP_CMOV_DELAY,       int,  int,  1,          ) 
-DEF_PARAM(  op_lda_delay,      	 OP_LDA_DELAY,        int,  int,  1,          ) 
-DEF_PARAM(  op_imem_delay,     	 OP_IMEM_DELAY,       int,  int,  1,          ) 
-DEF_PARAM(  op_iadd_delay,     	 OP_IADD_DELAY,       int,  int,  1,          ) 
-DEF_PARAM(  op_imul_delay,     	 OP_IMUL_DELAY,       int,  int,  3,          ) 
-DEF_PARAM(  op_idiv_delay,     	 OP_IDIV_DELAY,       int,  int,  -20,        ) 
-DEF_PARAM(  op_icmp_delay,     	 OP_ICMP_DELAY,       int,  int,  1,          ) 
-DEF_PARAM(  op_logic_delay,    	 OP_LOGIC_DELAY,      int,  int,  1,          ) 
-DEF_PARAM(  op_shift_delay,    	 OP_SHIFT_DELAY,      int,  int,  1,          ) 
-DEF_PARAM(  op_fmem_delay,     	 OP_FMEM_DELAY,       int,  int,  1,          ) 
-DEF_PARAM(  op_fcvt_delay,     	 OP_FCVT_DELAY,       int,  int,  3,          ) 
-DEF_PARAM(  op_fadd_delay,     	 OP_FADD_DELAY,       int,  int,  3,          ) 
-DEF_PARAM(  op_fmul_delay,     	 OP_FMUL_DELAY,       int,  int,  5,          ) 
-DEF_PARAM(  op_fma_delay,     	 OP_FMA_DELAY,        int,  int,  5,          ) 
-DEF_PARAM(  op_fdiv_delay,     	 OP_FDIV_DELAY,       int,  int,  -20,        ) 
-DEF_PARAM(  op_fcmp_delay,     	 OP_FCMP_DELAY,       int,  int,  3,          ) 
-DEF_PARAM(  op_fcmov_delay,    	 OP_FCMOV_DELAY,      int,  int,  1,          ) 
-DEF_PARAM(  op_pipelined_fast_delay,    	   OP_PIPELINED_FAST_DELAY,         int,  int,  2,) 
-DEF_PARAM(  op_pipelined_medium_delay,    	 OP_PIPELINED_MEDIUM_DELAY,       int,  int,  5,) 
-DEF_PARAM(  op_pipelined_slow_delay,    	   OP_PIPELINED_SLOW_DELAY,         int,  int,  10,) 
-DEF_PARAM(  op_notpipelined_medium_delay,    OP_NOTPIPELINED_MEDIUM_DELAY,    int,  int,  -5,) 
-DEF_PARAM(  op_notpipelined_slow_delay,    	 OP_NOTPIPELINED_SLOW_DELAY,      int,  int,  -20,) 
-DEF_PARAM(  op_notpipelined_very_slow_delay, OP_NOTPIPELINED_VERY_SLOW_DELAY, int,  int,  -100,) 
+DEF_PARAM(op_inv_delay, OP_INV_DELAY, int, int, 1, )
+DEF_PARAM(op_nop_delay, OP_NOP_DELAY, int, int, 1, )
+DEF_PARAM(op_cf_delay, OP_CF_DELAY, int, int, 1, )
+DEF_PARAM(op_mov_delay, OP_MOV_DELAY, int, int, 1, )
+DEF_PARAM(op_cmov_delay, OP_CMOV_DELAY, int, int, 1, )
+DEF_PARAM(op_lda_delay, OP_LDA_DELAY, int, int, 1, )
+DEF_PARAM(op_imem_delay, OP_IMEM_DELAY, int, int, 1, )
+DEF_PARAM(op_iadd_delay, OP_IADD_DELAY, int, int, 1, )
+DEF_PARAM(op_imul_delay, OP_IMUL_DELAY, int, int, 3, )
+DEF_PARAM(op_idiv_delay, OP_IDIV_DELAY, int, int, -20, )
+DEF_PARAM(op_icmp_delay, OP_ICMP_DELAY, int, int, 1, )
+DEF_PARAM(op_logic_delay, OP_LOGIC_DELAY, int, int, 1, )
+DEF_PARAM(op_shift_delay, OP_SHIFT_DELAY, int, int, 1, )
+DEF_PARAM(op_fmem_delay, OP_FMEM_DELAY, int, int, 1, )
+DEF_PARAM(op_fcvt_delay, OP_FCVT_DELAY, int, int, 3, )
+DEF_PARAM(op_fadd_delay, OP_FADD_DELAY, int, int, 3, )
+DEF_PARAM(op_fmul_delay, OP_FMUL_DELAY, int, int, 5, )
+DEF_PARAM(op_fma_delay, OP_FMA_DELAY, int, int, 5, )
+DEF_PARAM(op_fdiv_delay, OP_FDIV_DELAY, int, int, -20, )
+DEF_PARAM(op_fcmp_delay, OP_FCMP_DELAY, int, int, 3, )
+DEF_PARAM(op_fcmov_delay, OP_FCMOV_DELAY, int, int, 1, )
+DEF_PARAM(op_gather_delay, OP_GATHER_DELAY, int, int, 12, )
+DEF_PARAM(op_scatter_delay, OP_SCATTER_DELAY, int, int, 18, )
+DEF_PARAM(op_pipelined_fast_delay, OP_PIPELINED_FAST_DELAY, int, int, 2, )
+DEF_PARAM(op_pipelined_medium_delay, OP_PIPELINED_MEDIUM_DELAY, int, int, 5, )
+DEF_PARAM(op_pipelined_slow_delay, OP_PIPELINED_SLOW_DELAY, int, int, 10, )
+DEF_PARAM(op_notpipelined_medium_delay, OP_NOTPIPELINED_MEDIUM_DELAY, int, int,
+          -5, )
+DEF_PARAM(op_notpipelined_slow_delay, OP_NOTPIPELINED_SLOW_DELAY, int, int,
+          -20, )
+DEF_PARAM(op_notpipelined_very_slow_delay, OP_NOTPIPELINED_VERY_SLOW_DELAY, int,
+          int, -100, )
 
-/* if non-zero, overrides above params to specify the same delay for all op types */
-DEF_PARAM(  uniform_op_delay,    UNIFORM_OP_DELAY,    int,  int,  0,          ) 
+/* if non-zero, overrides above params to specify the same delay for all op
+ * types */
+DEF_PARAM(uniform_op_delay, UNIFORM_OP_DELAY, int, int, 0, )
 
-DEF_PARAM(  stall_on_wait_mem,   STALL_ON_WAIT_MEM,   Flag, Flag, TRUE, )
-DEF_PARAM(  stores_do_not_block_window   , STORES_DO_NOT_BLOCK_WINDOW       , Flag   , Flag    , FALSE    ,       )
-DEF_PARAM(  prefs_do_not_block_window    , PREFS_DO_NOT_BLOCK_WINDOW        , Flag   , Flag    , FALSE    ,       )
+DEF_PARAM(stall_on_wait_mem, STALL_ON_WAIT_MEM, Flag, Flag, TRUE, )
+DEF_PARAM(stores_do_not_block_window, STORES_DO_NOT_BLOCK_WINDOW, Flag, Flag,
+          FALSE, )
+DEF_PARAM(prefs_do_not_block_window, PREFS_DO_NOT_BLOCK_WINDOW, Flag, Flag,
+          FALSE, )
 
 /* obey_reg_dep, if false, will cause the map_stage to wipe out all
    the source op information as if the source op had already retired */
-DEF_PARAM(  obey_reg_dep,        OBEY_REG_DEP,       Flag, Flag, TRUE, )
+DEF_PARAM(obey_reg_dep, OBEY_REG_DEP, Flag, Flag, TRUE, )
 
-DEF_PARAM(  oldest_first_sched,      OLDEST_FIRST_SCHED,       Flag, Flag, FALSE, )
-DEF_PARAM(  find_emptiest_rs,        FIND_EMPTIEST_RS,         Flag, Flag, FALSE, )
-DEF_PARAM(  track_l1_miss_deps,      TRACK_L1_MISS_DEPS,       Flag, Flag, FALSE, )
+DEF_PARAM(oldest_first_sched, OLDEST_FIRST_SCHED, Flag, Flag, FALSE, )
+DEF_PARAM(find_emptiest_rs, FIND_EMPTIEST_RS, Flag, Flag, FALSE, )
+DEF_PARAM(track_l1_miss_deps, TRACK_L1_MISS_DEPS, Flag, Flag, FALSE, )
 
-DEF_PARAM(cbp_trace_r0                    , CBP_TRACE_R0                     , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r1                    , CBP_TRACE_R1                     , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r2                    , CBP_TRACE_R2                     , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r3                    , CBP_TRACE_R3                     , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r4                    , CBP_TRACE_R4                     , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r5                    , CBP_TRACE_R5                     , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r6                    , CBP_TRACE_R6                     , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r7                    , CBP_TRACE_R7                     , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r8                    , CBP_TRACE_R8                     , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r9                    , CBP_TRACE_R9                     , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r10                   , CBP_TRACE_R10                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r11                   , CBP_TRACE_R11                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r12                   , CBP_TRACE_R12                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r13                   , CBP_TRACE_R13                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r14                   , CBP_TRACE_R14                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r15                   , CBP_TRACE_R15                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r16                   , CBP_TRACE_R16                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r17                   , CBP_TRACE_R17                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r18                   , CBP_TRACE_R18                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r19                   , CBP_TRACE_R19                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r20                   , CBP_TRACE_R20                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r21                   , CBP_TRACE_R21                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r22                   , CBP_TRACE_R22                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r23                   , CBP_TRACE_R23                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r24                   , CBP_TRACE_R24                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r25                   , CBP_TRACE_R25                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r26                   , CBP_TRACE_R26                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r27                   , CBP_TRACE_R27                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r28                   , CBP_TRACE_R28                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r29                   , CBP_TRACE_R29                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r30                   , CBP_TRACE_R30                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r31                   , CBP_TRACE_R31                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r32                   , CBP_TRACE_R32                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r33                   , CBP_TRACE_R33                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r34                   , CBP_TRACE_R34                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r35                   , CBP_TRACE_R35                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r36                   , CBP_TRACE_R36                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r37                   , CBP_TRACE_R37                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r38                   , CBP_TRACE_R38                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r39                   , CBP_TRACE_R39                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r40                   , CBP_TRACE_R40                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r41                   , CBP_TRACE_R41                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r42                   , CBP_TRACE_R42                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r43                   , CBP_TRACE_R43                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r44                   , CBP_TRACE_R44                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r45                   , CBP_TRACE_R45                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r46                   , CBP_TRACE_R46                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r47                   , CBP_TRACE_R47                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r48                   , CBP_TRACE_R48                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r49                   , CBP_TRACE_R49                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r50                   , CBP_TRACE_R50                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r51                   , CBP_TRACE_R51                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r52                   , CBP_TRACE_R52                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r53                   , CBP_TRACE_R53                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r54                   , CBP_TRACE_R54                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r55                   , CBP_TRACE_R55                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r56                   , CBP_TRACE_R56                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r57                   , CBP_TRACE_R57                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r58                   , CBP_TRACE_R58                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r59                   , CBP_TRACE_R59                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r60                   , CBP_TRACE_R60                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r61                   , CBP_TRACE_R61                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r62                   , CBP_TRACE_R62                    , char * , string    , NULL,            ) 
-DEF_PARAM(cbp_trace_r63                   , CBP_TRACE_R63                    , char * , string    , NULL,            ) 
+DEF_PARAM(cbp_trace_r0, CBP_TRACE_R0, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r1, CBP_TRACE_R1, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r2, CBP_TRACE_R2, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r3, CBP_TRACE_R3, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r4, CBP_TRACE_R4, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r5, CBP_TRACE_R5, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r6, CBP_TRACE_R6, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r7, CBP_TRACE_R7, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r8, CBP_TRACE_R8, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r9, CBP_TRACE_R9, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r10, CBP_TRACE_R10, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r11, CBP_TRACE_R11, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r12, CBP_TRACE_R12, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r13, CBP_TRACE_R13, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r14, CBP_TRACE_R14, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r15, CBP_TRACE_R15, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r16, CBP_TRACE_R16, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r17, CBP_TRACE_R17, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r18, CBP_TRACE_R18, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r19, CBP_TRACE_R19, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r20, CBP_TRACE_R20, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r21, CBP_TRACE_R21, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r22, CBP_TRACE_R22, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r23, CBP_TRACE_R23, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r24, CBP_TRACE_R24, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r25, CBP_TRACE_R25, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r26, CBP_TRACE_R26, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r27, CBP_TRACE_R27, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r28, CBP_TRACE_R28, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r29, CBP_TRACE_R29, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r30, CBP_TRACE_R30, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r31, CBP_TRACE_R31, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r32, CBP_TRACE_R32, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r33, CBP_TRACE_R33, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r34, CBP_TRACE_R34, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r35, CBP_TRACE_R35, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r36, CBP_TRACE_R36, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r37, CBP_TRACE_R37, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r38, CBP_TRACE_R38, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r39, CBP_TRACE_R39, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r40, CBP_TRACE_R40, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r41, CBP_TRACE_R41, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r42, CBP_TRACE_R42, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r43, CBP_TRACE_R43, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r44, CBP_TRACE_R44, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r45, CBP_TRACE_R45, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r46, CBP_TRACE_R46, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r47, CBP_TRACE_R47, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r48, CBP_TRACE_R48, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r49, CBP_TRACE_R49, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r50, CBP_TRACE_R50, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r51, CBP_TRACE_R51, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r52, CBP_TRACE_R52, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r53, CBP_TRACE_R53, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r54, CBP_TRACE_R54, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r55, CBP_TRACE_R55, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r56, CBP_TRACE_R56, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r57, CBP_TRACE_R57, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r58, CBP_TRACE_R58, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r59, CBP_TRACE_R59, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r60, CBP_TRACE_R60, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r61, CBP_TRACE_R61, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r62, CBP_TRACE_R62, char*, string, NULL, )
+DEF_PARAM(cbp_trace_r63, CBP_TRACE_R63, char*, string, NULL, )
 
-DEF_PARAM(dumb_core_on                    , DUMB_CORE_ON                     , Flag    , Flag     , FALSE          , )
-DEF_PARAM(dumb_core                       , DUMB_CORE                        , uns     , uns      , 1              , )
+DEF_PARAM(dumb_core_on, DUMB_CORE_ON, Flag, Flag, FALSE, )
+DEF_PARAM(dumb_core, DUMB_CORE, uns, uns, 1, )

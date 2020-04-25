@@ -68,6 +68,10 @@
     elem(FCMP)  /* floating point compare*/                           \
     elem(FCMOV) /* floating point cond move*/                         \
                                                                       \
+    /* gather and scatter instructions*/                              \
+    elem(GATHER)  /* gather instruction*/                             \
+    elem(SCATTER) /* gather instruction*/                             \
+                                                                      \
     /* all other op types that don't fit existing ops*/               \
     elem(PIPELINED_FAST)         /* i.e. <=2 cycles, pipelined */     \
     elem(PIPELINED_MEDIUM)       /* i.e. <=5 cycles, pipelined */     \

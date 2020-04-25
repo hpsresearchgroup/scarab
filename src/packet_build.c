@@ -103,11 +103,13 @@ void init_packet_build(Pb_Data* pb_data, Packet_Build_Identifier pb_ident) {
           pb_data->fu_info[PB_FU_MF].type |= (OP_FMEM_BIT);
           pb_data->fu_info[PB_FU_MF].max++;
         } else if(!strcmp(buf, "M")) {
-          pb_data->fu_info[PB_FU_M].type |= (OP_IMEM_BIT | OP_FMEM_BIT);
+          pb_data->fu_info[PB_FU_M].type |= (OP_IMEM_BIT | OP_FMEM_BIT |
+                                             OP_GATHER_BIT | OP_SCATTER_BIT);
           pb_data->fu_info[PB_FU_M].max++;
         } else if(!strcmp(buf, "RB")) {
           pb_data->fu_info[PB_FU_RB].type |= (OP_IADD_BIT | OP_IMEM_BIT |
-                                              OP_FMEM_BIT |  // OP_CF_BIT |
+                                              OP_FMEM_BIT | OP_GATHER_BIT |
+                                              OP_SCATTER_BIT |  // OP_CF_BIT |
                                               OP_CMOV_BIT | OP_ICMP_BIT |
                                               OP_LDA_BIT);
           pb_data->fu_info[PB_FU_RB].max++;
