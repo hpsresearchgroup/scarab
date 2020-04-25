@@ -119,6 +119,7 @@ void     insert_analysis_functions(ctype_pin_inst* info, const INS& ins);
 void     print_err_if_invalid(ctype_pin_inst* info, const INS& ins);
 
 void get_opcode(UINT32 opcode);
+void get_gather_scatter_eas(PIN_MULTI_MEM_ACCESS_INFO* mem_access_info);
 void get_ld_ea(ADDRINT addr);
 void get_ld_ea2(ADDRINT addr1, ADDRINT addr2);
 void get_st_ea(ADDRINT addr);
@@ -392,19 +393,24 @@ void insert_analysis_functions(ctype_pin_inst* info, const INS& ins) {
                    INS_Opcode(ins), IARG_END);
   }
 
-  if(INS_IsMemoryRead(ins)) {
-    if(INS_HasMemoryRead2(ins)) {
-      INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)get_ld_ea2,
-                     IARG_MEMORYREAD_EA, IARG_MEMORYREAD2_EA, IARG_END);
-    } else {
-      INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)get_ld_ea, IARG_MEMORYREAD_EA,
-                     IARG_END);
+  if(INS_IsVgather(ins) || INS_IsVscatter(ins)) {
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)get_gather_scatter_eas,
+                   IARG_MULTI_MEMORYACCESS_EA, IARG_END);
+  } else {
+    if(INS_IsMemoryRead(ins)) {
+      if(INS_HasMemoryRead2(ins)) {
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)get_ld_ea2,
+                       IARG_MEMORYREAD_EA, IARG_MEMORYREAD2_EA, IARG_END);
+      } else {
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)get_ld_ea,
+                       IARG_MEMORYREAD_EA, IARG_END);
+      }
     }
-  }
 
-  if(INS_IsMemoryWrite(ins)) {
-    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)get_st_ea, IARG_MEMORYWRITE_EA,
-                   IARG_END);
+    if(INS_IsMemoryWrite(ins)) {
+      INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)get_st_ea,
+                     IARG_MEMORYWRITE_EA, IARG_END);
+    }
   }
 
   if(info->cf_type) {
@@ -494,6 +500,31 @@ void create_compressed_op(ADDRINT iaddr) {
 
 void get_opcode(UINT32 opcode) {
   glb_opcode = opcode;
+}
+
+void get_gather_scatter_eas(PIN_MULTI_MEM_ACCESS_INFO* mem_access_info) {
+  UINT32 numMemOps = mem_access_info->numberOfMemops;
+  for(UINT32 i = 0; i < numMemOps; i++) {
+    ADDRINT        addr = mem_access_info->memop[i].memoryAddress;
+    PIN_MEMOP_ENUM type = mem_access_info->memop[i].memopType;
+
+    // only let Scarab know about it if the memop is not masked away
+    if(mem_access_info->memop[i].maskOn) {
+      if(PIN_MEMOP_LOAD == type) {
+        // TODO: get rid of the print
+        (*glb_err_ostream) << "load memop to address 0x" << std::hex << addr
+                           << std::endl;
+        glb_ld_vaddrs.push_back(addr);
+      } else if(PIN_MEMOP_STORE == type) {
+        // TODO: get rid of the print
+        (*glb_err_ostream) << "store memop to address 0x" << std::hex << addr
+                           << std::endl;
+        glb_st_vaddrs.push_back(addr);
+      } else {
+        assert(false);  // unknown PIN_MEMOP_ENUM type
+      }
+    }
+  }
 }
 
 void get_ld_ea(ADDRINT addr) {
@@ -1093,6 +1124,10 @@ static void init_pin_opcode_convert(void) {
   iclass_to_scarab_map[XED_ICLASS_JRCXZ]    = {OP_IADD, -1, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_JS]       = {OP_IADD, -1, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_JZ]       = {OP_IADD, -1, 1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_KNOTB]    = {OP_LOGIC, 1, 1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_KNOTD]    = {OP_LOGIC, 4, 1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_KNOTQ]    = {OP_LOGIC, 8, 1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_KNOTW]    = {OP_LOGIC, 2, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_KMOVB]    = {OP_MOV, 1, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_KMOVD]    = {OP_MOV, 4, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_KMOVQ]    = {OP_MOV, 8, 1, NONE};
