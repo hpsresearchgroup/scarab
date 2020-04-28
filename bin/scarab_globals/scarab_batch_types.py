@@ -344,4 +344,5 @@ def generate_run_command(job, results_dir, scarab_params):
   cmd.walltime = scarab_params.walltime
   cmd.memory_per_core = scarab_params.memory_per_core
   cmd.cores = scarab_params.cores
+  cmd.snapshot_log_fp = scarab_params.snapshot_log_fp
   return cmd
