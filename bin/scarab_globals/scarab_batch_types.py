@@ -92,7 +92,7 @@ class ScarabParams:
     self.memory_per_core = ScarabParamDefaults.memory_per_core
     self.cores = ScarabParamDefaults.cores
 
-    self.snapshot_log_fp = None
+    self.snapshot_log = None
 
   def __add__(self, rhs):
     if type(rhs) == ScarabParams:
@@ -344,5 +344,5 @@ def generate_run_command(job, results_dir, scarab_params):
   cmd.walltime = scarab_params.walltime
   cmd.memory_per_core = scarab_params.memory_per_core
   cmd.cores = scarab_params.cores
-  cmd.snapshot_log_fp = scarab_params.snapshot_log_fp
+  cmd.snapshot_log = scarab_params.snapshot_log
   return cmd

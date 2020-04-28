@@ -152,19 +152,23 @@ class BatchManager:
     """
     If num_threads is None, Pool() uses number of cores in the system.
     """
-    print("Starting BatchManager: num_cmds={}, num_threads={}".format(len(self.cmds), self.processor_cores_per_node))
-
     phase_id = 0
     for phase in self.phase_list:
       if phase.name:
-        print("\tStarting Phase {}".format(phase.name))
+        print("Starting Phase {}".format(phase.name))
       else:
-        print("\tStarting Phase {}".format(phase_id))
+        print("Starting Phase {}".format(phase_id))
       phase_id += 1
 
       command_list = phase.process_command_list()
+
+      print("Starting BatchManager: num_cmds={num_cmds}, num_threads={num_threads}".format(
+        num_cmds=len(command_list),
+        num_threads=self.processor_cores_per_node
+        ))
+
       with multiprocessing.Pool(self.processor_cores_per_node) as pool:
-        pool.map(JobPoolExecutor.run_command, command_list)
+        pool.map(BatchManager.run_command, command_list)
 
 class PBSBatchManager(BatchManager):
   """Launches jobs on a PBS system. Jobs are all launched at once, but the job dependency information is conveyed to the PBS system.

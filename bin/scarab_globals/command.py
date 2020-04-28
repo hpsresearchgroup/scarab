@@ -46,7 +46,7 @@ class Command:
     self.cmd         = cmd_str
     self.process     = None
     self.name        = name
-    self.snapshot_log_fp = None
+    self.snapshot_log = None
 
     # Batch Variables
     self.walltime        = CommandDefaults.walltime
@@ -111,9 +111,10 @@ class Command:
     f.write('\n')
 
   def write_to_snapshot_log(self, job_id):
-    if self.snapshot_log_fp:
-      print("{job_id}\t{results_dir}".format(job_id=job_id, results_dir=self.results_dir),
-            file=self.snapshot_log_fp)
+    if self.snapshot_log:
+      with open(self.snapshot_log, "a+") as fp:
+        print("{job_id}\t{results_dir}".format(job_id=job_id, results_dir=self.results_dir),
+              file=fp)
 
   def write_to_jobfile(self, jobfile_name="jobfile", jobfile_permissions=0o760, prefix=None, suffix=None):
     if self.name:
