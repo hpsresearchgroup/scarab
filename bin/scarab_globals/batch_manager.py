@@ -142,6 +142,7 @@ class BatchManager:
 
   @staticmethod
   def run_command(cmd):
+    cmd.write_to_snapshot_log(0)
     returncode = cmd.run()
     print("Finished command with return code: {}".format(returncode))
     print(cmd)
@@ -319,6 +320,8 @@ cd $PBS_O_WORKDIR
     proc_out, proc_err = proc.communicate()
     pbs_job_id = proc_out.rstrip().decode('utf-8')
     print(pbs_job_id)
+
+    cmd.write_to_snapshot_log(pbs_job_id)
 
     return pbs_job_id
 
