@@ -1,5 +1,10 @@
 # Compiling Scarab
 
+Before compiling Scarab, the environment variable PIN_ROOT should be set to the
+path to your Intel PIN 3.5 directory. 
+
+> export PIN_ROOT=/absolute/path/to/pin-3.5
+
 All of the Scarab source code is located in the src directory.
 
 To compile Scarab, use the following commands:
