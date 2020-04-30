@@ -50,11 +50,14 @@ Types of BatchManagers:
 """
 
 import os
+import sys
 import subprocess
 import multiprocessing
 import time
 from enum import Enum
 import shlex
+
+sys.path.append(os.path.dirname((__file__)))
 from scarab_batch_types import *
 from command import *
 import object_manager
@@ -120,7 +123,7 @@ class BatchManager:
     trapcommands: a set of Bash commands to run if a job terminates unnaturally (e.g., timeout). (currently not used)
   """
   def __init__(self,
-               phase_list,
+               phase_list=[],
                email=JobDefaults.email,
                walltime=None,
                processor_cores_per_node=None,
