@@ -42,6 +42,10 @@ class ObjectManager:
         self.pool.append(obj)
 
 class ScarabRunManager(ObjectManager):
+    def __init__(self):
+      super().__init__()
+      self.batch_manager = None
+
     def register_batch_manager(self, batch_manager):
       self.batch_manager = batch_manager
 
@@ -50,6 +54,15 @@ class ScarabRunManager(ObjectManager):
         job.make()
 
     def run(self):
+      """
+      If a BatchManager has not been specified, then create a local BatchManager
+      If no phase has been specified, then create a phase and add all known ScarabRuns objects to phase
+      """
+      if not self.batch_manager:
+        self.batch_manager = BatchManager()
+      if len(self.batch_manager.phase_list) == 0:
+        self.batch_manager.phase_list.append(Phase(self.pool))
+
       self.batch_manager.run()
 
     def print_progress(self):
