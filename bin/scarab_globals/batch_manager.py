@@ -56,6 +56,7 @@ import multiprocessing
 import time
 from enum import Enum
 import shlex
+from celery import Celery, signature
 
 sys.path.append(os.path.dirname((__file__)))
 from scarab_batch_types import *
@@ -346,3 +347,87 @@ cd $PBS_O_WORKDIR
     ids = []
     for phase in self.phase_list:
       ids = self.run_phase(phase, ids)
+
+
+class CeleryBatchManager(BatchManager):
+  """Launches jobs on a Celery System
+
+  Args:
+    phase_list: The ordered list of phases. Phases will be run sequentially in the provided order.
+    email: The email to contact when job status updates.
+    walltime: A time limit for each job.
+    process_cores_per_node: the number of cores to use per 1 PBS node.
+    precommands: a set of Bash commands to run before each job begins.
+    postcommands: a set of Bash commands to run at the end of each job.
+    trapcommands: a set of Bash commands to run if a job terminates unnaturally (e.g., timeout).
+  """
+  def __init__(self,
+               phase_list=[],
+               worker_batch_manager=BatchManager(),
+               num_workers=1,
+               email=JobDefaults.email,
+               walltime=JobDefaults.walltime,
+               processor_cores_per_node=PBSJobDefaults.processor_cores_per_node,
+               memory_per_core=PBSJobDefaults.memory_per_core,
+               precommands=JobDefaults.precommands,
+               postcommands=JobDefaults.postcommands,
+               trapcommands=JobDefaults.trapcommands
+              ):
+    super().__init__(phase_list,
+                     email=email,
+                     walltime=walltime,
+                     processor_cores_per_node=processor_cores_per_node,
+                     precommands=precommands,
+                     postcommands=postcommands,
+                     trapcommands=trapcommands
+                    )
+    self.worker_batch_manager = worker_batch_manager
+    self.num_workers=num_workers
+    self.celery_worker_command="celery --concurrency {num_threads} --time-limit={walltime} -A tasks worker --loglevel=info".format(
+      num_threads=process_cores_per_node,
+      walltime=walltime
+    )
+
+  def _run_celery_workers(self):
+    print("Launching {} Celery Workers...".format(self.num_workers))
+    phase = Phase([])
+    for i in range(self.num_workers):
+      phase.append(Command(self.celery_worker_command))
+    self.worker_batch_manager.phase_list.appned(phase)
+    self.worker_batch_manager.run()
+
+  def _enque_phase_commands(self, command_list):
+    for cmd in command_list:
+      self.run_command.delay(cmd)
+
+  def _enque_jobs(self):
+    for phase in self.phase_list:
+      command_list = phase.process_command_list()
+      self._enque_phase_commands(command_list)
+
+  def _setup_celery(self):
+    self.app = Celery('tasks')
+    self.app.conf.update(
+      result_backend = 'file://{}'.format(str(_backend_folder))
+
+      broker_url = 'filesystem://'
+      broker_transport_options = {k: str(f) for k, f in _folders.items()}
+      task_serializer = 'json'
+      persist_results = True
+      result_serializer = 'json'
+      accept_content = ['json']
+      imports = ('tasks',)
+    )
+    self.run_command = signature('tasks.run_command')
+
+  def _terminate_workers():
+    """
+    Send the TERM signal to terminate workers. Workers will not actually terminate until they have finished all work.
+    reference: https://docs.celeryproject.org/en/latest/userguide/workers.html
+    """
+    pass
+
+  def run(self):
+    self._run_celery_workers()
+    self._setup_celery()
+    self._enque_jobs()
