@@ -188,7 +188,7 @@ class PBSBatchManager(BatchManager):
     trapcommands: a set of Bash commands to run if a job terminates unnaturally (e.g., timeout).
   """
   def __init__(self,
-               phase_list,
+               phase_list=[],
                pbs_args=PBSJobDefaults.pbs_args,
                queue=PBSJobDefaults.queue,
                email=JobDefaults.email,
