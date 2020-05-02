@@ -30,7 +30,7 @@
 
 #include "fetch.stat.def"
 #include "bp/bp.stat.def"
-#include "memory.stat.def"
+#include "memory/memory.stat.def"
 #include "core.stat.def"
 #include "inst.stat.def"
 #include "prefetcher/stream.stat.def"

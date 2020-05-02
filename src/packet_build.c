@@ -39,7 +39,7 @@
 #include "bp/bp.param.h"
 #include "core.param.h"
 #include "debug/debug.param.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 #include "packet_build.param.h"
 #include "statistics.h"
 

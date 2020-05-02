@@ -20,7 +20,7 @@
  */
 
 /***************************************************************************************
- * File         : memory.h
+ * File         : memory/memory.h
  * Author       : HPS Research Group
  * Date         : 3/30/2004
  * Description  : An improved memory model with filtering, promotion, and bus
@@ -37,7 +37,7 @@
 #include "libs/hash_lib.h"
 #include "libs/list_lib.h"
 #include "libs/port_lib.h"
-#include "mem_req.h"
+#include "memory/mem_req.h"
 #include "op_info.h"
 //#include "dram.h"
 

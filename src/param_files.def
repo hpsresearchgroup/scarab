@@ -29,7 +29,7 @@
 ***************************************************************************************/
 
 #include "general.param.def"
-#include "memory.param.def"
+#include "memory/memory.param.def"
 #include "ramulator.param.def"
 #include "dvfs/dvfs.param.def"
 #include "core.param.def"

@@ -46,7 +46,7 @@
 #include "debug/debug.param.h"
 #include "dvfs/perf_pred.h"
 #include "general.param.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 #include "statistics.h"
 
 

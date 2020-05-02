@@ -39,9 +39,9 @@
 
 #include "addr_trans.h"
 #include "bp/bp.h"
-#include "cache_part.h"
-#include "mem_req.h"
-#include "memory.h"
+#include "memory/cache_part.h"
+#include "memory/mem_req.h"
+#include "memory/memory.h"
 #include "op.h"
 #include "prefetcher//pref_stream.h"
 
@@ -50,7 +50,7 @@
 #include "debug/debug.param.h"
 #include "dvfs/perf_pred.h"
 #include "icache_stage.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 #include "prefetcher//stream.param.h"
 #include "prefetcher/l2l1pref.h"
 #include "prefetcher/pref.param.h"

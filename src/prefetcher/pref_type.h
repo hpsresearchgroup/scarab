@@ -29,7 +29,7 @@
 #ifndef __PREF_TYPE_H__
 #define __PREF_TYPE_H__
 
-#include "mem_req.h"
+#include "memory/mem_req.h"
 
 typedef struct Mem_Req_Info_Struct {
   uns8         proc_id;

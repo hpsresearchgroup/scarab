@@ -34,7 +34,7 @@
 #include "dvfs.param.h"
 #include "freq.h"
 #include "globals/assert.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 #include "optimizer2.h"
 #include "perf_pred.h"
 #include "power/power.param.h"

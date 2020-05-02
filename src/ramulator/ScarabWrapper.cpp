@@ -1,14 +1,14 @@
 /* Copyright 2020 HPS/SAFARI Research Groups
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -21,67 +21,72 @@
 
 #include <map>
 
-#include "ScarabWrapper.h"
-#include "Request.h"
-#include "MemoryFactory.h"
 #include "Memory.h"
+#include "MemoryFactory.h"
+#include "Request.h"
+#include "ScarabWrapper.h"
 
 #include "DDR3.h"
 #include "DDR4.h"
+#include "GDDR5.h"
+#include "HBM.h"
 #include "LPDDR3.h"
 #include "LPDDR4.h"
-#include "GDDR5.h"
+#include "SALP.h"
 #include "WideIO.h"
 #include "WideIO2.h"
-#include "HBM.h"
-#include "SALP.h"
 
 using namespace ramulator;
 
-static map<string, function<MemoryBase *(const Config&, int, void (*)(int))> > name_to_func = {
-    {"DDR3", &MemoryFactory<DDR3>::create}, {"DDR4", &MemoryFactory<DDR4>::create},
-    {"LPDDR3", &MemoryFactory<LPDDR3>::create}, {"LPDDR4", &MemoryFactory<LPDDR4>::create},
-    {"GDDR5", &MemoryFactory<GDDR5>::create}, 
-    {"WideIO", &MemoryFactory<WideIO>::create}, {"WideIO2", &MemoryFactory<WideIO2>::create},
+static map<string, function<MemoryBase*(const Config&, int, void (*)(int))>>
+  name_to_func = {
+    {"DDR3", &MemoryFactory<DDR3>::create},
+    {"DDR4", &MemoryFactory<DDR4>::create},
+    {"LPDDR3", &MemoryFactory<LPDDR3>::create},
+    {"LPDDR4", &MemoryFactory<LPDDR4>::create},
+    {"GDDR5", &MemoryFactory<GDDR5>::create},
+    {"WideIO", &MemoryFactory<WideIO>::create},
+    {"WideIO2", &MemoryFactory<WideIO2>::create},
     {"HBM", &MemoryFactory<HBM>::create},
-    {"SALP-1", &MemoryFactory<SALP>::create}, {"SALP-2", &MemoryFactory<SALP>::create}, {"SALP-MASA", &MemoryFactory<SALP>::create},
+    {"SALP-1", &MemoryFactory<SALP>::create},
+    {"SALP-2", &MemoryFactory<SALP>::create},
+    {"SALP-MASA", &MemoryFactory<SALP>::create},
 };
 
 
-ScarabWrapper::ScarabWrapper(const Config& configs, const unsigned int cacheline,
-                               void (*stats_callback)(int))
-{
-    const string& std_name = configs["standard"];
-    assert(name_to_func.find(std_name) != name_to_func.end() && "unrecognized standard name");
-    mem = name_to_func[std_name](configs, cacheline, stats_callback);
-    //tCK = mem->clk_ns();
-    Stats::statlist.output(configs["output_dir"] + "/ramulator.stat.out");
+ScarabWrapper::ScarabWrapper(const Config&      configs,
+                             const unsigned int cacheline,
+                             void (*stats_callback)(int)) {
+  const string& std_name = configs["standard"];
+  assert(name_to_func.find(std_name) != name_to_func.end() &&
+         "unrecognized standard name");
+  mem = name_to_func[std_name](configs, cacheline, stats_callback);
+  // tCK = mem->clk_ns();
+  Stats::statlist.output(configs["output_dir"] + "/ramulator.stat.out");
 }
 
 
 ScarabWrapper::~ScarabWrapper() {
-    delete mem;
+  delete mem;
 }
 
-void ScarabWrapper::tick()
-{
-    mem->tick();
+void ScarabWrapper::tick() {
+  mem->tick();
 }
 
-bool ScarabWrapper::send(Request req)
-{
-    return mem->send(req);
+bool ScarabWrapper::send(Request req) {
+  return mem->send(req);
 }
 
 void ScarabWrapper::finish(void) {
-    mem->finish();
-    Stats::statlist.printall();
+  mem->finish();
+  Stats::statlist.printall();
 }
 
 int ScarabWrapper::get_chip_width() {
-    return mem->get_chip_width();
+  return mem->get_chip_width();
 }
 
 int ScarabWrapper::get_chip_size() {
-    return mem->get_chip_size();
+  return mem->get_chip_size();
 }

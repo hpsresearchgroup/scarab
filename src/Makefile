@@ -154,7 +154,7 @@ endef
 # **************************************************************************************
 # Generate all of the file lists
 
-SRC_DIRS := globals isa libs frontend debug power dvfs prefetcher bp
+SRC_DIRS := globals isa libs frontend debug power dvfs prefetcher bp memory
 
 CSRC_BASE:= $(wildcard *.c) $(foreach d, $(SRC_DIRS), $(wildcard $d/*.c))
 CSRC     := $(CSRC_BASE)

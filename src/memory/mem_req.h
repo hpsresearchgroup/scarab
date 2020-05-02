@@ -20,7 +20,7 @@
  */
 
 /***************************************************************************************
- * File         : mem_req.h
+ * File         : memory/mem_req.h
  * Author       : HPS Research Group
  * Date         : 8/14/2013
  * Description  : Memory request

@@ -28,15 +28,15 @@
 
 #include <math.h>
 
-#include "cache_part.h"
 #include "core.param.h"
 #include "debug/debug_macros.h"
 #include "globals/assert.h"
 #include "globals/global_types.h"
 #include "libs/cache_lib.h"
-#include "mem_req.h"
-#include "memory.h"
-#include "memory.param.h"
+#include "memory/cache_part.h"
+#include "memory/mem_req.h"
+#include "memory/memory.h"
+#include "memory/memory.param.h"
 #include "stat_mon.h"
 #include "statistics.h"
 #include "trigger.h"
