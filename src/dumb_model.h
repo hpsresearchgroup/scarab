@@ -30,7 +30,7 @@
 #ifndef __DUMB_MODEL_H__
 #define __DUMB_MODEL_H__
 
-#include "memory.h"
+#include "memory/memory.h"
 
 /**************************************************************************************/
 /* dumb model data  */

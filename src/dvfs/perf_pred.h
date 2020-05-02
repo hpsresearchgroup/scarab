@@ -31,7 +31,7 @@
 #define __PERF_PRED_H__
 
 #include "globals/enum.h"
-#include "mem_req.h"
+#include "memory/mem_req.h"
 
 #define PERF_PRED_MECH_LIST(ELEM) \
   ELEM(LEADING_LOADS)             \

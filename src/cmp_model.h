@@ -38,7 +38,7 @@
 #include "icache_stage.h"
 #include "map.h"
 #include "map_stage.h"
-#include "memory.h"
+#include "memory/memory.h"
 #include "node_stage.h"
 #include "thread.h"
 

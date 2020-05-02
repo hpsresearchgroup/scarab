@@ -41,7 +41,7 @@
 #include "bp/bp.h"
 #include "exec_ports.h"
 #include "frontend/frontend.h"
-#include "memory.h"
+#include "memory/memory.h"
 #include "node_stage.h"
 #include "thread.h"
 
@@ -49,7 +49,7 @@
 #include "core.param.h"
 #include "debug/debug.param.h"
 #include "map.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 #include "sim.h"
 #include "statistics.h"
 

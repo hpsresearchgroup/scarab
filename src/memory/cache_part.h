@@ -20,7 +20,7 @@
  */
 
 /***************************************************************************************
- * File         : cache_part.h
+ * File         : memory/cache_part.h
  * Author       : HPS Research Group
  * Date         : 2/19/2014
  * Description  : Shared cache partitioning mechanisms

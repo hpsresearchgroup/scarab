@@ -33,8 +33,8 @@
 #include "general.param.h"
 #include "globals/assert.h"
 #include "globals/global_types.h"
-#include "memory.h"
-#include "memory.param.h"
+#include "memory/memory.h"
+#include "memory/memory.param.h"
 #include "ramulator.param.h"
 #include "trigger.h"
 

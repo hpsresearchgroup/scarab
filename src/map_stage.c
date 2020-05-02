@@ -33,7 +33,7 @@
 #include "globals/global_types.h"
 #include "globals/global_vars.h"
 #include "globals/utils.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 #include "op_pool.h"
 
 #include "bp/bp.h"

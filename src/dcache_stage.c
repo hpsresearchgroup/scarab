@@ -41,7 +41,7 @@
 
 #include "core.param.h"
 #include "debug/debug.param.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 #include "prefetcher//stream.param.h"
 #include "prefetcher/pref.param.h"
 #include "prefetcher/pref_common.h"

@@ -29,7 +29,7 @@
 #ifndef __PREF_COMMON_H__
 #define __PREF_COMMON_H__
 
-#include "mem_req.h"
+#include "memory/mem_req.h"
 
 #define PREF_TRACKERS_NUM 16
 

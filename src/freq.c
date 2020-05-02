@@ -31,7 +31,7 @@
 #include "debug/debug_macros.h"
 #include "globals/assert.h"
 #include "globals/global_defs.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 #include "ramulator.param.h"
 #include "statistics.h"
 

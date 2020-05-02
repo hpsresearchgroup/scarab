@@ -38,7 +38,7 @@
 #include "debug/debug.param.h"
 #include "general.param.h"
 #include "libs/cache_lib.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 
 // DeleteMe
 #define ideal_num_entries 256

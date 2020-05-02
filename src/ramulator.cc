@@ -38,8 +38,8 @@
 extern "C" {
 #include "general.param.h"
 #include "globals/assert.h"
-#include "memory.h"
-#include "memory.param.h"
+#include "memory/memory.h"
+#include "memory/memory.param.h"
 #include "ramulator.h"
 #include "ramulator.param.h"
 #include "statistics.h"

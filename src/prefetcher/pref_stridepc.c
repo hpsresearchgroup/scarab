@@ -41,7 +41,7 @@
 #include "general.param.h"
 #include "libs/hash_lib.h"
 #include "libs/list_lib.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 #include "prefetcher//pref_stridepc.h"
 #include "prefetcher//pref_stridepc.param.h"
 #include "prefetcher/pref_common.h"

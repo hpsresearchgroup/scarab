@@ -20,7 +20,7 @@
  */
 
 /***************************************************************************************
- * File         : memory.param.h
+ * File         : memory/memory.param.h
  * Author       : HPS Research Group
  * Date         : 9/18/1998
  * Description  :

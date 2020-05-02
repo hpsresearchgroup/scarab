@@ -26,7 +26,7 @@
  * Description  : Memory request
  ***************************************************************************************/
 
-#include "mem_req.h"
+#include "memory/mem_req.h"
 #include "core.param.h"
 #include "globals/enum.h"
 
