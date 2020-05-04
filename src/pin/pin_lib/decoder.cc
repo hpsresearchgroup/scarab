@@ -451,6 +451,7 @@ void print_err_if_invalid(ctype_pin_inst* info, const INS& ins) {
 
 // int64_t heartbeat = 0;
 void create_compressed_op(ADDRINT iaddr) {
+  std::cout << "analysis func\n";
   if(!fast_forward_count) {
     assert(inst_info_storage.count(iaddr) == 1);
     filled_inst_info = inst_info_storage[iaddr];

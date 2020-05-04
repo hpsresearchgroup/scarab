@@ -214,7 +214,8 @@ TEST(Wrongpath_Nop_Mode, JumpToNearBoundary) {
   ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_until_first_control_flow());
 
   const auto redirect_uid  = fake_scarab.get_latest_inst_uid();
-  const auto redirect_addr = 0x401000;
+  //const auto redirect_addr = 0x401000;
+  const auto redirect_addr = 0x400ffe;
   ASSERT_NO_FATAL_FAILURE(fake_scarab.redirect(redirect_addr));
 
   ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions_in_wrongpath_nop_mode(

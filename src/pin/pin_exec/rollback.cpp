@@ -170,6 +170,36 @@ VOID save_context(CONTEXT* ctxt) {
   PIN_SaveContext(ctxt, &checkpoints.get_tail().ctxt);
 }
 
+void inject_byte(void* addr, char byte) {
+  const auto pid = PIN_GetPid();
+
+  OS_MEMORY_AT_ADDR_INFORMATION memory_info;
+  const auto query_ret_code = OS_QueryMemory(pid, addr, &memory_info);
+  ASSERTM(0, query_ret_code.generic_err == OS_RETURN_CODE_NO_ERROR,
+          "Query Error: %d", query_ret_code.generic_err);
+
+  bool added_write_permission;
+  if(!(memory_info.Protection & OS_PAGE_PROTECTION_TYPE_WRITE)) {
+    const auto protect_ret_code = OS_ProtectMemory(
+      pid, memory_info.BaseAddress, memory_info.MapSize,
+      memory_info.Protection | OS_PAGE_PROTECTION_TYPE_WRITE);
+    ASSERTM(0, protect_ret_code.generic_err == OS_RETURN_CODE_NO_ERROR,
+            "Protect Error: %d", query_ret_code.generic_err);
+    added_write_permission = true;
+  }
+
+  const auto copied = PIN_SafeCopy(addr, &byte, 1);
+  ASSERTM(0, copied == 1, "Copied %lu byte(s) instead of 1 bytes", copied);
+
+  if(added_write_permission) {
+    const auto protect_ret_code = OS_ProtectMemory(
+      pid, memory_info.BaseAddress, memory_info.MapSize,
+      memory_info.Protection);
+    ASSERTM(0, protect_ret_code.generic_err == OS_RETURN_CODE_NO_ERROR,
+            "Protect Error: %d", query_ret_code.generic_err);
+  }
+}
+
 VOID check_if_region_written_to(ADDRINT write_addr) {
   pageTableEntryStruct* p_entry = NULL;
   if(on_wrongpath) {
@@ -731,6 +761,7 @@ VOID redirect_to_inst(ADDRINT inst_addr, CONTEXT* ctxt, UINT64 uid) {
   PIN_SetContextRegval(&last_ctxt, REG_INST_PTR, (const UINT8*)(&inst_addr));
 
   on_wrongpath = true;  // redirect ALWAYS sets to wrongpath==true
+  /* TODO
   if(on_wrongpath && instrumented_eips.count(inst_addr) == 0) {
     on_wrongpath_nop_mode     = true;
     wrongpath_nop_mode_reason = WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED;
@@ -738,6 +769,7 @@ VOID redirect_to_inst(ADDRINT inst_addr, CONTEXT* ctxt, UINT64 uid) {
               "Entering from redirect WPNM targetaddr=%" PRIx64 "\n",
               (uint64_t)inst_addr);
   }
+  */
   if(on_wrongpath_nop_mode) {
     next_eip = ADDR_MASK(inst_addr);
   } else {
@@ -855,23 +887,25 @@ VOID check_ret_control_ins(ADDRINT read_addr, UINT32 read_size, CONTEXT* ctxt) {
     char  buf[8];
     VOID* prev_data = buf;
     PIN_SafeCopy(prev_data, (VOID*)read_addr, read_size);
-    ADDRINT target_addr = *((UINT64*)prev_data);
-    DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-              "Ret Control targetaddr=%" PRIx64 "\n", (uint64_t)target_addr);
+    // ADDRINT target_addr = *((UINT64*)prev_data);
+    // DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
+    //          "Ret Control targetaddr=%" PRIx64 "\n", (uint64_t)target_addr);
 
-    if(on_wrongpath && (instrumented_eips.count(target_addr) == 0)) {
-      DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                "Entering from ret WPNM targetaddr=%" PRIx64 "\n",
-                (uint64_t)target_addr);
-      on_wrongpath_nop_mode     = true;
-      wrongpath_nop_mode_reason = WPNM_REASON_RETURN_TO_NOT_INSTRUMENTED;
-      target_addr = ADDR_MASK(target_addr);  // 48 bit canonical VA
-      if(!target_addr) {
-        next_eip = 1;
-      } else {
-        next_eip = ADDR_MASK(target_addr);
+    /* TODO
+      if(on_wrongpath && (instrumented_eips.count(target_addr) == 0)) {
+        DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
+                  "Entering from ret WPNM targetaddr=%" PRIx64 "\n",
+                  (uint64_t)target_addr);
+        on_wrongpath_nop_mode     = true;
+        wrongpath_nop_mode_reason = WPNM_REASON_RETURN_TO_NOT_INSTRUMENTED;
+        target_addr = ADDR_MASK(target_addr);  // 48 bit canonical VA
+        if(!target_addr) {
+          next_eip = 1;
+        } else {
+          next_eip = ADDR_MASK(target_addr);
+        }
       }
-    }
+      */
 #endif
   }
 }
@@ -882,19 +916,21 @@ VOID check_nonret_control_ins(BOOL taken, ADDRINT target_addr) {
     DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
               "Non Ret Control targetaddr=%" PRIx64 "\n",
               (uint64_t)target_addr);
-    if(on_wrongpath && taken && (instrumented_eips.count(target_addr) == 0)) {
-      DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                "Entering from nonret WPNM targetaddr=%" PRIx64 "\n",
-                (uint64_t)target_addr);
-      on_wrongpath_nop_mode     = true;
-      wrongpath_nop_mode_reason = WPNM_REASON_NONRET_CF_TO_NOT_INSTRUMENTED;
-      target_addr = ADDR_MASK(target_addr);  // 48 bit canonical VA
-      if(!target_addr) {
-        next_eip = 1;
-      } else {
-        next_eip = ADDR_MASK(target_addr);
+    /* TODO
+      if(on_wrongpath && taken && (instrumented_eips.count(target_addr) == 0)) {
+        DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
+                  "Entering from nonret WPNM targetaddr=%" PRIx64 "\n",
+                  (uint64_t)target_addr);
+        on_wrongpath_nop_mode     = true;
+        wrongpath_nop_mode_reason = WPNM_REASON_NONRET_CF_TO_NOT_INSTRUMENTED;
+        target_addr = ADDR_MASK(target_addr);  // 48 bit canonical VA
+        if(!target_addr) {
+          next_eip = 1;
+        } else {
+          next_eip = ADDR_MASK(target_addr);
+        }
       }
-    }
+    */
   }
 }
 
@@ -939,6 +975,7 @@ VOID logging(ADDRINT n_eip, ADDRINT curr_eip, BOOL check_next_addr,
       *out << "Heartbeat (uid=" << uid_ctr << ")" << endl;
     }
 
+    /* TODO
     if(on_wrongpath && check_next_addr && !taken &&
        (0 == instrumented_eips.count(n_eip))) {
       // if we're currently on the wrong path and we somehow
@@ -949,6 +986,7 @@ VOID logging(ADDRINT n_eip, ADDRINT curr_eip, BOOL check_next_addr,
       on_wrongpath_nop_mode     = true;
       wrongpath_nop_mode_reason = WPNM_REASON_NOT_TAKEN_TO_NOT_INSTRUMENTED;
     }
+    */
 
     DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
               "Curr EIP=%" PRIx64 ", next EIP=%" PRIx64 ", Curr uid=%" PRIu64
@@ -1273,9 +1311,24 @@ BOOL signal_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, BOOL hasHandler,
             "signalhandler curr_uid=%" PRIu64 ", curr_eip=%" PRIx64
             ", sig=%d, wp=%d\n",
             uid_ctr, (uint64_t)curr_eip, sig, on_wrongpath);
+  std::cout << "exception: " << PIN_ExceptionToString(pExceptInfo) << "\n";
   if(!fast_forward_count || on_wrongpath) {
     if(on_wrongpath || TESTING_WRONGPATH) {
-      if(sig == SIGFPE || sig == SIGSEGV || sig == SIGBUS) {
+      const auto exception_code = PIN_GetExceptionCode(pExceptInfo);
+      const auto access_type    = PIN_GetFaultyAccessType(pExceptInfo);
+
+      const bool invalid_addr = (exception_code ==
+                                 EXCEPTCODE_ACCESS_INVALID_ADDRESS);
+      const bool unknown_type = (access_type == FAULTY_ACCESS_TYPE_UNKNOWN);
+      const bool execute      = (access_type == FAULTY_ACCESS_EXECUTE);
+      const bool faulty_fetch = invalid_addr && (unknown_type || execute);
+
+
+      if(faulty_fetch) {
+        char nop = 0x90;
+        inject_byte((void*)curr_eip, nop);
+        return false;
+      } else if(sig == SIGFPE || sig == SIGSEGV || sig == SIGBUS) {
         PIN_SetContextRegval(ctxt, REG_INST_PTR, (const UINT8*)(&next_eip));
 
         // mark the checkpoint for the excepting instruction as unretireable
