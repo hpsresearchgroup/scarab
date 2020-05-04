@@ -97,22 +97,6 @@ INT32 Usage() {
   return -1;
 }
 
-#define SCARAB_MARKERS_PIN_BEGIN (1)
-#define SCARAB_MARKERS_PIN_END (2)
-void HandleScarabMarker(THREADID tid, ADDRINT op) {
-  switch(op) {
-    case SCARAB_MARKERS_PIN_BEGIN:
-      fast_forward_to_pin_start = (fast_forward_count = 0);
-      break;
-    case SCARAB_MARKERS_PIN_END:
-      fast_forward_to_pin_start = (fast_forward_count = 1);
-      break;
-    default:
-      *out << "Error: Found Scarab Marker that does not have known code."
-           << endl;
-  }
-}
-
 void debug_analysis(uint32_t number) {
   DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
             "debug_analysis=%u\n", number);
@@ -144,7 +128,7 @@ void Instruction(INS ins, void* v) {
 
       if(INS_IsXchg(ins) && INS_OperandReg(ins, 0) == REG_GCX &&
          INS_OperandReg(ins, 1) == REG_GCX) {
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)HandleScarabMarker,
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)handle_scarab_marker,
                        IARG_THREAD_ID, IARG_REG_VALUE, REG_ECX, IARG_END);
       }
 
