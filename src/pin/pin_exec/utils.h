@@ -19,8 +19,8 @@
  * SOFTWARE.
  */
 
-#ifndef _ROLLBACK_STRUCTS
-#define _ROLLBACK_STRUCTS
+#ifndef PIN_EXEC_UTILS_H__
+#define PIN_EXEC_UTILS_H__
 
 #include <cinttypes>
 #include <stdio.h>
@@ -34,13 +34,7 @@
 #undef UNUSED
 #undef WARNING
 
-#if defined(TARGET_IA32E)
-#define EXIT_SYSCALL_NUM1 231
-#define EXIT_SYSCALL_NUM2 60
-#else
-#define EXIT_SYSCALL_NUM1 1
-#define EXIT_SYSCALL_NUM2 1
-#endif
+#define ADDR_MASK(x) ((x)&0x0000FFFFFFFFFFFFULL)
 
 #ifdef DEBUG_PRINT
 #define DBG_PRINT(uid, start_print_uid, end_print_uid, ...)  \
@@ -251,4 +245,4 @@ class CirBuf {
   }
 };
 
-#endif
+#endif  // PIN_EXEC_UTILS_H__

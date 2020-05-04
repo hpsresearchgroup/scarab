@@ -14,7 +14,7 @@
 #include <vector>
 
 #ifndef PIN_EXEC_TOOL_PATH
-#define PIN_EXEC_TOOL_PATH "../obj-intel64/rollback.so"
+#define PIN_EXEC_TOOL_PATH "../obj-intel64/pin_exec.so"
 #endif
 
 namespace scarab {
