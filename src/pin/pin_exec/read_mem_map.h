@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cassert>
 #include <fstream>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <vector>

@@ -36,7 +36,6 @@
 #undef WARNING
 
 #include "pin_fe_globals.h"
-#include "pintool_test_functions.h"
 #include "read_mem_map.h"
 #include "rollback_structs.h"
 
@@ -255,14 +254,6 @@ VOID undo_mem(const ProcState& undo_state) {
 
 void finish_before_ins_all(CONTEXT* ctxt, bool from_syscall) {
   entered_wpnm = false;
-  if(!from_syscall) {
-#if TESTING_RECOVER
-    ADDRINT eip;
-    PIN_GetContextRegval(&checkpoints.get_tail().ctxt, REG_INST_PTR,
-                         (UINT8*)&eip);
-    printf("Add EIP:0x%" PRIx64 " UID:%" PRIu64 "\n", (uint64_t)eip, uid_ctr);
-#endif
-  }
   while(on_wrongpath_nop_mode) {
     entered_wpnm = true;
     DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
@@ -444,11 +435,7 @@ Scarab_To_Pin_Msg get_scarab_cmd() {
 
   DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
             "START: Receiving from Scarab\n");
-#if TESTING_RETIRE || TESTING_REDIRECT || TESTING_RECOVER || TESTING_EXCEPTION
-  cmd = test_fake_scarab();
-#else
   cmd = scarab->receive<Scarab_To_Pin_Msg>();
-#endif
   DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
             "END: %d Received from Scarab\n", cmd.type);
 
@@ -467,15 +454,12 @@ bool scarab_buffer_full() {
 }
 
 void scarab_send_buffer() {
-#if !(TESTING_RETIRE || TESTING_REDIRECT || TESTING_RECOVER || \
-      TESTING_EXCEPTION)
   Message<ScarabOpBuffer_type> message = scarab_op_buffer;
   DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
             "START: Sending message to Scarab.\n");
   scarab->send(message);
   DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
             "END: Sending message to Scarab.\n");
-#endif
   scarab_op_buffer.clear();
 }
 
@@ -568,12 +552,6 @@ VOID do_fe_fetch_op(bool& syscall_has_been_sent_to_scarab) {
   pending_fetch_op = true;
 
   if(syscall_has_been_sent_to_scarab) {
-#if TESTING_RETIRE || TESTING_REDIRECT || TESTING_RECOVER || TESTING_EXCEPTION
-    if(!skip_main_loop_retire) {
-      printf("TEST main_loop is retiring older checkpoints.\n");
-      retire_older_checkpoints(uid_ctr - 1);
-    }
-#endif
     // syscall is finished when we recieve the first FETCH_OP after sending the
     // syscall to scarab
     ASSERTM(0, checkpoints.empty(),
@@ -760,10 +738,6 @@ VOID recover_to_past_checkpoint(UINT64 uid, bool is_redirect_recover,
 
       ADDRINT this_eip;
 
-#if TESTING_RECOVER
-      PIN_GetContextRegval(&last_ctxt, REG_INST_PTR, (UINT8*)&this_eip);
-      printf("Rec EIP:0x%" PRIx64 "\n", (uint64_t)this_eip);
-#endif
       on_wrongpath          = checkpoints[idx].wrongpath;
       on_wrongpath_nop_mode = checkpoints[idx].wrongpath_nop_mode;
       generate_dummy_nops   = (generate_dummy_nops && on_wrongpath_nop_mode);
@@ -801,11 +775,6 @@ VOID recover_to_past_checkpoint(UINT64 uid, bool is_redirect_recover,
       PIN_SaveContext(&(checkpoints[idx].ctxt), &last_ctxt);
     }
 
-#if TESTING_RECOVER
-    ADDRINT eip;
-    PIN_GetContextRegval(&last_ctxt, REG_INST_PTR, (UINT8*)&eip);
-    printf("Rem EIP:0x%" PRIx64 "\n", (uint64_t)eip);
-#endif
     idx = checkpoints.remove_from_cir_buf_tail();
   }
   ASSERTM(0, false, "Checkpoint %" PRIu64 " not found. \n", uid);
@@ -819,11 +788,8 @@ VOID retire_older_checkpoints(UINT64 uid) {
   bool  found_uid = false;
   while(!checkpoints.empty()) {
     if(checkpoints[idx].uid <= uid) {
-#if !TESTING_REDIRECT && !TESTING_WRONGPATH
       ASSERTM(0, !checkpoints[idx].wrongpath,
               "Tried to retire wrongpath op %" PRIu64 ".\n", uid);
-#endif
-#if !TESTING_EXCEPTION
       if(checkpoints[idx].unretireable_instruction) {
         ADDRINT eip;
         PIN_GetContextRegval(&(checkpoints[idx].ctxt), REG_INST_PTR,
@@ -832,7 +798,6 @@ VOID retire_older_checkpoints(UINT64 uid) {
                 "Exception by program caused at address 0x%" PRIx64 "\n",
                 (uint64_t)eip);
       }
-#endif
       if(checkpoints[idx].uid == uid) {
         found_uid = true;
       }
@@ -1162,13 +1127,10 @@ VOID Trace(TRACE trace, VOID* v) {
 }
 
 VOID Fini(INT32 code, VOID* v) {
-#if !(TESTING_RETIRE || TESTING_REDIRECT || TESTING_RECOVER || \
-      TESTING_EXCEPTION)
   DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
             "Fini reached, app exit code=%d\n.", code);
   *out << "End of program reached, disconnect from Scarab.\n" << endl;
   scarab->disconnect();
-#endif
   *out << "Pintool Fini Reached.\n" << endl;
 }
 
@@ -1274,7 +1236,7 @@ BOOL signal_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, BOOL hasHandler,
             ", sig=%d, wp=%d\n",
             uid_ctr, (uint64_t)curr_eip, sig, on_wrongpath);
   if(!fast_forward_count || on_wrongpath) {
-    if(on_wrongpath || TESTING_WRONGPATH) {
+    if(on_wrongpath) {
       if(sig == SIGFPE || sig == SIGSEGV || sig == SIGBUS) {
         PIN_SetContextRegval(ctxt, REG_INST_PTR, (const UINT8*)(&next_eip));
 
@@ -1303,13 +1265,6 @@ BOOL signal_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, BOOL hasHandler,
                   "signalhandler return false\n");
         return false;
       } else if(sig == SIGILL) {
-#if TESTING_EXCEPTION
-        skip_main_loop_retire = true;
-#if TESTING_RETIRE_ILLOP
-        found_illop = true;
-#endif
-        printf("Found Illegal Opcode\n");
-#endif
         DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
                   "Fail to detect ILLOP at %" PRIx64 "\n", curr_eip);
         pending_syscall = true;  // Treat illegal ops as syscalls (fetch barrier
@@ -1378,9 +1333,6 @@ int main(int argc, char* argv[]) {
 #if DEBUG_PRINT
   setbuf(stdout, NULL);
 #endif
-#if TESTING_RETIRE || TESTING_REDIRECT || TESTING_RECOVER || TESTING_EXCEPTION
-  setbuf(stdout, NULL);
-#endif
 
   // Read memmap for process
   page_table = new pageTableStruct();
@@ -1427,17 +1379,6 @@ int main(int argc, char* argv[]) {
 
   pin_decoder_init(true, out);
 
-#if TESTING_RETIRE || TESTING_REDIRECT || TESTING_RECOVER
-  if(TESTING_RETIRE)
-    INS_AddInstrumentFunction(TestRetire, 0);
-
-  if(TESTING_RECOVER)
-    INS_AddInstrumentFunction(TestRecover, 0);
-
-  if(TESTING_REDIRECT)
-    INS_AddInstrumentFunction(TestRedirect, 0);
-#endif
-
   // Intercept signals to see exceptions
   PIN_InterceptSignal(SIGFPE, signal_handler, 0);
   PIN_InterceptSignal(SIGILL, signal_handler, 0);
@@ -1482,10 +1423,7 @@ int main(int argc, char* argv[]) {
   // Register function to be called when the application exits
   PIN_AddFiniFunction(Fini, 0);
 
-#if !(TESTING_RETIRE || TESTING_REDIRECT || TESTING_RECOVER || \
-      TESTING_EXCEPTION)
   scarab = new Client(KnobSocketPath, KnobCoreId);
-#endif
 
   // Start the program, never returns
   PIN_StartProgram();
