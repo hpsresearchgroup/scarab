@@ -108,8 +108,7 @@ void Instruction(INS ins, void* v) {
                    IARG_END);
   } else {
     if(!hyper_ff) {
-      instrumented_eips.insert(
-        std::make_pair<ADDRINT, bool>(INS_Address(ins), true));
+      instrumented_rip_tracker.insert(INS_Address(ins));
 
       DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
                 "Instrument from Instruction() eip=%" PRIx64 "\n",

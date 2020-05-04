@@ -40,7 +40,7 @@
 // Global Variables
 extern std::ostream* out;
 
-extern std::unordered_map<ADDRINT, bool> instrumented_eips;
+extern Address_Tracker instrumented_rip_tracker;
 
 const int checkpoints_init_capacity = 512;
 extern CirBuf<ProcState, checkpoints_init_capacity> checkpoints;

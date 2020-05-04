@@ -345,7 +345,7 @@ void logging(ADDRINT n_eip, ADDRINT curr_eip, BOOL check_next_addr,
     }
 
     if(on_wrongpath && check_next_addr && !taken &&
-       (0 == instrumented_eips.count(n_eip))) {
+       !instrumented_rip_tracker.contains(n_eip)) {
       // if we're currently on the wrong path and we somehow
       // about to come across an instruction that was never
       // instrumented, then go in WPNM right away to avoid the
@@ -359,7 +359,8 @@ void logging(ADDRINT n_eip, ADDRINT curr_eip, BOOL check_next_addr,
               "Curr EIP=%" PRIx64 ", next EIP=%" PRIx64 ", Curr uid=%" PRIu64
               ", wrongpath=%d, wpnm=%d, instrumented=%zu\n",
               (uint64_t)curr_eip, (uint64_t)n_eip, uid_ctr, on_wrongpath,
-              on_wrongpath_nop_mode, instrumented_eips.count(next_eip));
+              on_wrongpath_nop_mode,
+              instrumented_rip_tracker.contains(next_eip));
   }
 }
 
@@ -378,7 +379,7 @@ void check_ret_control_ins(ADDRINT read_addr, UINT32 read_size, CONTEXT* ctxt) {
     DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
               "Ret Control targetaddr=%" PRIx64 "\n", (uint64_t)target_addr);
 
-    if(on_wrongpath && (instrumented_eips.count(target_addr) == 0)) {
+    if(on_wrongpath && !instrumented_rip_tracker.contains(target_addr)) {
       DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
                 "Entering from ret WPNM targetaddr=%" PRIx64 "\n",
                 (uint64_t)target_addr);
@@ -401,7 +402,8 @@ void check_nonret_control_ins(BOOL taken, ADDRINT target_addr) {
     DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
               "Non Ret Control targetaddr=%" PRIx64 "\n",
               (uint64_t)target_addr);
-    if(on_wrongpath && taken && (instrumented_eips.count(target_addr) == 0)) {
+    if(on_wrongpath && taken &&
+       !instrumented_rip_tracker.contains(target_addr)) {
       DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
                 "Entering from nonret WPNM targetaddr=%" PRIx64 "\n",
                 (uint64_t)target_addr);
