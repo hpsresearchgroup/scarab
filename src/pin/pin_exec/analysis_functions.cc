@@ -431,3 +431,19 @@ void check_nonret_control_mem_target(BOOL taken, ADDRINT addr, UINT32 ld_size) {
     check_nonret_control_ins(taken, target_addr);
   }
 }
+
+#define SCARAB_MARKERS_PIN_BEGIN (1)
+#define SCARAB_MARKERS_PIN_END (2)
+void handle_scarab_marker(ADDRINT op) {
+  switch(op) {
+    case SCARAB_MARKERS_PIN_BEGIN:
+      fast_forward_to_pin_start = (fast_forward_count = 0);
+      break;
+    case SCARAB_MARKERS_PIN_END:
+      fast_forward_to_pin_start = (fast_forward_count = 1);
+      break;
+    default:
+      *out << "Error: Found Scarab Marker that does not have known code."
+           << endl;
+  }
+}
