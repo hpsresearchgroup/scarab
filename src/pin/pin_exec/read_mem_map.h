@@ -19,6 +19,8 @@
  * SOFTWARE.
  */
 
+#ifndef PIN_EXEC_READ_MEM_MAP_H__
+#define PIN_EXEC_READ_MEM_MAP_H__
 
 #include <algorithm>
 #include <cassert>
@@ -130,7 +132,7 @@ struct pageTableStruct {
 };
 
 
-void update_page_table(pageTableStruct* ptable) {
+inline void update_page_table(pageTableStruct* ptable) {
   ptable->clear();
   ifstream* ptable_file = new ifstream("/proc/self/maps");
   string    line;
@@ -177,3 +179,5 @@ void update_page_table(pageTableStruct* ptable) {
 
   ptable_file->clear();
 }
+
+#endif  // PIN_EXEC_READ_MEM_MAP_H__

@@ -1,7 +1,7 @@
 COMMON_LIB_DIR = ../../pin_lib
 PIN_EXEC_DIR = ..
 SCARAB_DIR = $(abspath ../../..)
-PIN_EXEC_TOOL_PATH = $(abspath $(PIN_EXEC_DIR)/obj-intel64/rollback.so)
+PIN_EXEC_TOOL_PATH = $(abspath $(PIN_EXEC_DIR)/obj-intel64/pin_exec.so)
 TEST_BINARY = test_binary
 SIMPLE_LOOP_BINARY = $(abspath ./simple_loop)
 NOP_MODE_RET_BINARY = $(abspath ./nop_mode_ret)
@@ -53,7 +53,7 @@ pin_lib:
 	make -C $(COMMON_LIB_DIR)
 
 pin_exec:
-	make -C $(PIN_EXEC_DIR) rollback
+	make -C $(PIN_EXEC_DIR) pin_exec
 
 clean:
 	rm -f $(TEST_BINARY) $(TEST_BINARIES)
