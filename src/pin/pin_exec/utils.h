@@ -24,7 +24,7 @@
 
 #include <cinttypes>
 #include <stdio.h>
-#include <vector>
+#include <unordered_map>
 
 #undef UNUSED
 #undef WARNING
@@ -65,8 +65,6 @@
       exit(15);                                                             \
     }                                                                       \
   } while(0)
-
-using std::vector;
 
 struct MemState {
   ADDRINT mem_addr;
@@ -244,5 +242,22 @@ class CirBuf {
     check_cir_buf_invariant();
   }
 };
+
+class Address_Tracker {
+ public:
+  void insert(ADDRINT new_address) {
+    tracked_addresses.insert({new_address, true});
+  }
+
+  bool contains(ADDRINT address) {
+    return tracked_addresses.count(address) > 0;
+  }
+
+ private:
+  // Using std::unordered_map instead of std::unordered_set because PinCRT is
+  // incomplete.
+  std::unordered_map<ADDRINT, bool> tracked_addresses;
+};
+
 
 #endif  // PIN_EXEC_UTILS_H__

@@ -23,7 +23,7 @@
 
 std::ostream* out = &cerr;
 
-std::unordered_map<ADDRINT, bool> instrumented_eips;
+Address_Tracker instrumented_rip_tracker;
 
 CirBuf<ProcState, checkpoints_init_capacity> checkpoints =
   CirBuf<ProcState, checkpoints_init_capacity>();

@@ -22,8 +22,9 @@
 #ifndef PIN_EXEC_SCARAB_INTERFACE_H
 #define PIN_EXEC_SCARAB_INTERFACE_H
 
-#include "../pin_lib/pin_scarab_common_lib.h"
 #include "globals.h"
+
+#include "../pin_lib/pin_scarab_common_lib.h"
 
 Scarab_To_Pin_Msg get_scarab_cmd();
 void              insert_scarab_op_in_buffer(compressed_op& cop);

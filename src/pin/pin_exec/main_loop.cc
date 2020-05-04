@@ -96,7 +96,7 @@ void redirect_to_inst(ADDRINT inst_addr, CONTEXT* ctxt, UINT64 uid) {
   PIN_SetContextRegval(&last_ctxt, REG_INST_PTR, (const UINT8*)(&inst_addr));
 
   on_wrongpath = true;  // redirect ALWAYS sets to wrongpath==true
-  if(on_wrongpath && instrumented_eips.count(inst_addr) == 0) {
+  if(on_wrongpath && !instrumented_rip_tracker.contains(inst_addr)) {
     on_wrongpath_nop_mode     = true;
     wrongpath_nop_mode_reason = WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED;
     DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
