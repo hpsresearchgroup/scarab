@@ -91,127 +91,96 @@ KNOB<UINT64> KnobStartRip(KNOB_MODE_WRITEONCE, "pintool", "rip", "0",
 /* ===================================================================== */
 /* ===================================================================== */
 
+namespace {
+
 INT32 Usage() {
   cerr << "Pintool based exec frontend for scarab simulator" << endl << endl;
   cerr << KNOB_BASE::StringKnobSummary() << endl;
   return -1;
 }
 
-void debug_analysis(uint32_t number) {
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-            "debug_analysis=%u\n", number);
-}
-
-void Instruction(INS ins, void* v) {
-  if(!started) {
-    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)redirect, IARG_CONTEXT,
+void insert_logging(const INS& ins) {
+  if(INS_Category(ins) == XED_CATEGORY_COND_BR) {
+    INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(logging), IARG_ADDRINT,
+                   INS_NextAddress(ins), IARG_ADDRINT, INS_Address(ins),
+                   IARG_BOOL, INS_HasFallThrough(ins), IARG_BRANCH_TAKEN,
                    IARG_END);
   } else {
-    if(!hyper_ff) {
-      instrumented_rip_tracker.insert(INS_Address(ins));
+    INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(logging), IARG_ADDRINT,
+                   INS_NextAddress(ins), IARG_ADDRINT, INS_Address(ins),
+                   IARG_BOOL, INS_HasFallThrough(ins), IARG_BOOL, false,
+                   IARG_END);
+  }
+}
 
-      DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                "Instrument from Instruction() eip=%" PRIx64 "\n",
-                (uint64_t)INS_Address(ins));
+void insert_check_for_magic_instructions(const INS& ins) {
+  if(INS_IsXchg(ins) && INS_OperandReg(ins, 0) == REG_GCX &&
+     INS_OperandReg(ins, 1) == REG_GCX) {
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)handle_scarab_marker,
+                   IARG_THREAD_ID, IARG_REG_VALUE, REG_ECX, IARG_END);
+  }
+}
+
+void insert_processing_for_syscalls(const INS& ins) {
+  INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(process_syscall), IARG_INST_PTR,
+                 IARG_SYSCALL_NUMBER, IARG_SYSARG_VALUE, 0, IARG_SYSARG_VALUE,
+                 1, IARG_SYSARG_VALUE, 2, IARG_SYSARG_VALUE, 3,
+                 IARG_SYSARG_VALUE, 4, IARG_SYSARG_VALUE, 5, IARG_CONTEXT,
+                 IARG_BOOL, INS_IsSyscall(ins), IARG_END);
+}
+
+void insert_checks_for_control_flow(const INS& ins) {
+  if(INS_IsRet(ins)) {
+    INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(check_ret_control_ins),
+                   IARG_MEMORYREAD_EA, IARG_MEMORYREAD_SIZE, IARG_CONTEXT,
+                   IARG_END);
+  } else if(INS_IsBranchOrCall(ins)) {
+    if(INS_IsDirectBranchOrCall(ins)) {
       if(INS_Category(ins) == XED_CATEGORY_COND_BR) {
-        INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(logging), IARG_ADDRINT,
-                       INS_NextAddress(ins), IARG_ADDRINT, INS_Address(ins),
-                       IARG_BOOL, INS_HasFallThrough(ins), IARG_BRANCH_TAKEN,
-                       IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(check_nonret_control_ins),
+                       IARG_BRANCH_TAKEN, IARG_ADDRINT,
+                       INS_DirectBranchOrCallTargetAddress(ins), IARG_END);
       } else {
-        INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(logging), IARG_ADDRINT,
-                       INS_NextAddress(ins), IARG_ADDRINT, INS_Address(ins),
-                       IARG_BOOL, INS_HasFallThrough(ins), IARG_BOOL, false,
-                       IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(check_nonret_control_ins),
+                       IARG_BOOL, true, IARG_ADDRINT,
+                       INS_DirectBranchOrCallTargetAddress(ins), IARG_END);
       }
-
-      if(INS_IsXchg(ins) && INS_OperandReg(ins, 0) == REG_GCX &&
-         INS_OperandReg(ins, 1) == REG_GCX) {
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)handle_scarab_marker,
-                       IARG_THREAD_ID, IARG_REG_VALUE, REG_ECX, IARG_END);
-      }
-
-      // Inserting functions to create a compressed op
-      pin_decoder_insert_analysis_functions(ins);
-
-      if(INS_IsSyscall(ins) || is_ifetch_barrier(ins)) {
-        INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(is_syscall), IARG_INST_PTR,
-                       IARG_SYSCALL_NUMBER, IARG_SYSARG_VALUE, 0,
-                       IARG_SYSARG_VALUE, 1, IARG_SYSARG_VALUE, 2,
-                       IARG_SYSARG_VALUE, 3, IARG_SYSARG_VALUE, 4,
-                       IARG_SYSARG_VALUE, 5, IARG_CONTEXT, IARG_BOOL,
-                       INS_IsSyscall(ins), IARG_END);
-      } else {
-        if(INS_IsRet(ins)) {
-          INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(check_ret_control_ins),
-                         IARG_MEMORYREAD_EA, IARG_MEMORYREAD_SIZE, IARG_CONTEXT,
-                         IARG_END);
-        } else if(INS_IsBranchOrCall(ins)) {
-          if(INS_IsDirectBranchOrCall(ins)) {
-            if(INS_Category(ins) == XED_CATEGORY_COND_BR) {
-              INS_InsertCall(
-                ins, IPOINT_BEFORE, AFUNPTR(check_nonret_control_ins),
-                IARG_BRANCH_TAKEN, IARG_ADDRINT,
-                INS_DirectBranchOrCallTargetAddress(ins), IARG_END);
-            } else {
-              INS_InsertCall(
-                ins, IPOINT_BEFORE, AFUNPTR(check_nonret_control_ins),
-                IARG_BOOL, true, IARG_ADDRINT,
-                INS_DirectBranchOrCallTargetAddress(ins), IARG_END);
-            }
-          } else if(INS_IsMemoryRead(ins)) {
-            INS_InsertCall(ins, IPOINT_BEFORE,
-                           AFUNPTR(check_nonret_control_mem_target), IARG_BOOL,
-                           true, IARG_MEMORYREAD_EA, IARG_MEMORYREAD_SIZE,
-                           IARG_END);
-          } else if(INS_MaxNumRRegs(ins) > 0) {
-            INS_InsertCall(ins, IPOINT_BEFORE,
-                           AFUNPTR(check_nonret_control_ins), IARG_BOOL, true,
-                           IARG_REG_VALUE, INS_RegR(ins, 0), IARG_END);
-          } else {
-            // Force WPNM
-            INS_InsertCall(ins, IPOINT_BEFORE,
-                           AFUNPTR(check_nonret_control_mem_target), IARG_BOOL,
-                           true, IARG_ADDRINT, 0, IARG_UINT32, 0, IARG_END);
-          }
-        }
-
-        bool changes_mem = INS_IsMemoryWrite(ins);
-        if(!changes_mem) {
-          INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_no_mem,
-                         IARG_CONTEXT, IARG_END);
-        } else {
-          if(INS_hasKnownMemorySize(ins)) {
-            // Single memory op
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_one_mem,
-                           IARG_CONTEXT, IARG_MEMORYWRITE_EA,
-                           IARG_MEMORYWRITE_SIZE, IARG_END);
-          } else {
-            // Multiple memory ops
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_multi_mem,
-                           IARG_CONTEXT, IARG_MULTI_MEMORYACCESS_EA, IARG_END);
-          }
-        }
-      }
-#ifdef DEBUG_PRINT
-      stringstream ss;
-      if(INS_IsDirectBranchOrCall(ins)) {
-        ss << "0x" << hex << INS_DirectBranchOrCallTargetAddress(ins);
-      } else {
-        ss << "(not a direct branch or call)";
-      }
-
-      DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                "Leaving Instrument from Instruction() eip=%" PRIx64
-                ", %s, direct target: %s\n",
-                (uint64_t)INS_Address(ins), INS_Mnemonic(ins).c_str(),
-                ss.str().c_str());
-#endif
+    } else if(INS_IsMemoryRead(ins)) {
+      INS_InsertCall(ins, IPOINT_BEFORE,
+                     AFUNPTR(check_nonret_control_mem_target), IARG_BOOL, true,
+                     IARG_MEMORYREAD_EA, IARG_MEMORYREAD_SIZE, IARG_END);
+    } else if(INS_MaxNumRRegs(ins) > 0) {
+      INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(check_nonret_control_ins),
+                     IARG_BOOL, true, IARG_REG_VALUE, INS_RegR(ins, 0),
+                     IARG_END);
+    } else {
+      // Force WPNM
+      INS_InsertCall(ins, IPOINT_BEFORE,
+                     AFUNPTR(check_nonret_control_mem_target), IARG_BOOL, true,
+                     IARG_ADDRINT, 0, IARG_UINT32, 0, IARG_END);
     }
   }
 }
 
-void Trace(TRACE trace, void* v) {
+void insert_processing_for_nonsyscall_instructions(const INS& ins) {
+  if(!INS_IsMemoryWrite(ins)) {
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_no_mem, IARG_CONTEXT,
+                   IARG_END);
+  } else {
+    if(INS_hasKnownMemorySize(ins)) {
+      // Single memory op
+      INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_one_mem,
+                     IARG_CONTEXT, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE,
+                     IARG_END);
+    } else {
+      // Multiple memory ops
+      INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_multi_mem,
+                     IARG_CONTEXT, IARG_MULTI_MEMORYACCESS_EA, IARG_END);
+    }
+  }
+}
+
+void instrumentation_func_per_trace(TRACE trace, void* v) {
 #ifdef DEBUG_PRINT
   stringstream instructions_ss;
 
@@ -235,6 +204,52 @@ void Trace(TRACE trace, void* v) {
     }
   }
 }
+
+
+void instrumentation_func_per_instruction(INS ins, void* v) {
+  if(!started) {
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)redirect, IARG_CONTEXT,
+                   IARG_END);
+  } else {
+    if(!hyper_ff) {
+      instrumented_rip_tracker.insert(INS_Address(ins));
+
+      DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
+                "Instrument from Instruction() eip=%" PRIx64 "\n",
+                (uint64_t)INS_Address(ins));
+
+      insert_logging(ins);
+      insert_check_for_magic_instructions(ins);
+
+      // Inserting functions to create a compressed op
+      pin_decoder_insert_analysis_functions(ins);
+
+      if(INS_IsSyscall(ins) || is_ifetch_barrier(ins)) {
+        insert_processing_for_syscalls(ins);
+      } else {
+        insert_checks_for_control_flow(ins);
+        insert_processing_for_nonsyscall_instructions(ins);
+      }
+
+#ifdef DEBUG_PRINT
+      stringstream ss;
+      if(INS_IsDirectBranchOrCall(ins)) {
+        ss << "0x" << hex << INS_DirectBranchOrCallTargetAddress(ins);
+      } else {
+        ss << "(not a direct branch or call)";
+      }
+
+      DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
+                "Leaving Instrument from Instruction() eip=%" PRIx64
+                ", %s, direct target: %s\n",
+                (uint64_t)INS_Address(ins), INS_Mnemonic(ins).c_str(),
+                ss.str().c_str());
+#endif
+    }
+  }
+}
+
+}  // namespace
 
 void Fini(INT32 code, void* v) {
   DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
@@ -301,8 +316,8 @@ int main(int argc, char* argv[]) {
   pin_decoder_init(true, out);
 
   // Register function to be called to instrument traces
-  TRACE_AddInstrumentFunction(Trace, 0);
-  INS_AddInstrumentFunction(Instruction, 0);
+  TRACE_AddInstrumentFunction(instrumentation_func_per_trace, 0);
+  INS_AddInstrumentFunction(instrumentation_func_per_instruction, 0);
 
   // Register function to be called when the application exits
   PIN_AddFiniFunction(Fini, 0);
