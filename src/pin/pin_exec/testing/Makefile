@@ -29,12 +29,13 @@ CC_FLAGS += -DSIMPLE_C_PROGRAM=\"$(SIMPLE_C_PROGRAM)\"
 CC_FLAGS += -DJUMP_NEAR_BOUNDARY_BINARY=\"$(JUMP_NEAR_BOUNDARY_BINARY)\"
 
 ASSEMBLY_SOURCES=$(wildcard *.s)
-C_SOURCES=$(wildcard *.C)
+C_SOURCES=$(wildcard *.c)
 CC_SOURCES=$(wildcard *.cc)
 CC_HEADERS=$(wildcard *.h)
 TEST_BINARIES=$(patsubst %.s,%,$(ASSEMBLY_SOURCES)) $(patsubst %.c,%,$(C_SOURCES))
 
 all: $(TEST_BINARY) $(TEST_BINARIES) pin_exec ## Builds and runs all the unit tests 
+	@echo $(TEST_BINARIES)
 	./$(TEST_BINARY)
 
 %:%.s

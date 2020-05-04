@@ -17,7 +17,7 @@
 # This defines tests which run tools of the same name.  This is simply for convenience to avoid
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
-TEST_TOOL_ROOTS := rollback rollback_retire_test rollback_recover_test rollback_redirect_test rollback_exception_test rollback_illop_test
+TEST_TOOL_ROOTS := rollback
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
@@ -60,42 +60,6 @@ SCARAB_DIR ?= ../../
 TOOL_CXXFLAGS += -std=c++14 -g3 -static -I$(SCARAB_DIR)
 TOOL_LDFLAGS += -std=c++14
 
-# TEST_CXXFLAGS := -static 
-
-
-##############################################################
-#
-# Test recipes
-#
-##############################################################
-
-# This section contains recipes for tests other than the default.
-# See makefile.default.rules for the default test rules.
-# All tests in this section should adhere to the naming convention: <testname>.test
-
-test_retire = -DTESTING_RETIRE=true -DTESTING_RECOVER=false -DTESTING_REDIRECT=false -DTESTING_EXCEPTION=false -DTESTING_RETIRE_ILLOP=false -DTESTING_WRONGPATH=false
-test_recover = -DTESTING_RETIRE=false -DTESTING_RECOVER=true -DTESTING_REDIRECT=false -DTESTING_EXCEPTION=false -DTESTING_RETIRE_ILLOP=false -DTESTING_WRONGPATH=false
-test_redirect = -DTESTING_RETIRE=false -DTESTING_RECOVER=false -DTESTING_REDIRECT=true -DTESTING_EXCEPTION=false -DTESTING_RETIRE_ILLOP=false -DTESTING_WRONGPATH=false
-test_exception = -DTESTING_RETIRE=false -DTESTING_RECOVER=false -DTESTING_REDIRECT=false -DTESTING_EXCEPTION=true -DTESTING_RETIRE_ILLOP=false -DTESTING_WRONGPATH=true
-test_retire_illop = -DTESTING_RETIRE=false -DTESTING_RECOVER=false -DTESTING_REDIRECT=false -DTESTING_EXCEPTION=true -DTESTING_RETIRE_ILLOP=true -DTESTING_WRONGPATH=true
-no_test = -DTESTING_RETIRE=false -DTESTING_RECOVER=false -DTESTING_REDIRECT=false -DTESTING_EXCEPTION=false -DTESTING_RETIRE_ILLOP=false -DTESTING_WRONGPATH=false
-
-$(OBJDIR)rollback_retire_test$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(test_retire)
-
-$(OBJDIR)rollback_recover_test$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(test_recover)
-
-$(OBJDIR)rollback_redirect_test$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(test_redirect)
-
-$(OBJDIR)rollback_exception_test$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(test_exception)
-
-$(OBJDIR)rollback_illop_test$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(test_retire_illop)
-
-
 ##############################################################
 #
 # Build rules
@@ -134,26 +98,6 @@ $(OBJDIR)roll%$(PINTOOL_SUFFIX): $(OBJDIR)roll%$(OBJ_SUFFIX) commonlibs
 
 
 $(OBJDIR)rollback$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(no_test) -DPIN_COMPILE
-
-$(OBJDIR)retire_test$(EXE_SUFFIX):retire_test.c
-	gcc $(TEST_CXXFLAGS) retire_test.c $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@
-
-$(OBJDIR)recover_test$(EXE_SUFFIX):recover_test.c
-	gcc $(TEST_CXXFLAGS) recover_test.c $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@
-
-$(OBJDIR)redirect_test$(EXE_SUFFIX):redirect_test.c
-	gcc $(TEST_CXXFLAGS) redirect_test.c $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@
-
-$(OBJDIR)exception_test$(EXE_SUFFIX):exception_test.c
-	gcc $(TEST_CXXFLAGS) exception_test.c $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@
-
-$(OBJDIR)illop_test$(EXE_SUFFIX):illop_test.c
-	gcc $(TEST_CXXFLAGS) illop_test.c $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@
+	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD -DPIN_COMPILE
 
 -include $(OBJDIR)rollback.d
--include $(OBJDIR)rollback_redirect_test.d
--include $(OBJDIR)rollback_retire_test.d
--include $(OBJDIR)rollback_recover_test.d
--include $(OBJDIR)rollback_exception_test.d
--include $(OBJDIR)rollback_illop_test.d
