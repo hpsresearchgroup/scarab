@@ -67,9 +67,9 @@ void PIN_FAST_ANALYSIS_CALL docount(UINT32 c) {
 #define EXIT_SYSCALL_NUM2 1
 #endif
 
-void is_syscall(ADDRINT ip, ADDRINT num, ADDRINT arg0, ADDRINT arg1,
-                ADDRINT arg2, ADDRINT arg3, ADDRINT arg4, ADDRINT arg5,
-                CONTEXT* ctxt, bool real_syscall) {
+void process_syscall(ADDRINT ip, ADDRINT num, ADDRINT arg0, ADDRINT arg1,
+                     ADDRINT arg2, ADDRINT arg3, ADDRINT arg4, ADDRINT arg5,
+                     CONTEXT* ctxt, bool real_syscall) {
   if(!fast_forward_count) {
     pending_syscall = true;
     if(real_syscall &&
