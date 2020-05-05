@@ -30,18 +30,6 @@ void process_syscall(ADDRINT ip, ADDRINT num, ADDRINT arg0, ADDRINT arg1,
                      ADDRINT arg2, ADDRINT arg3, ADDRINT arg4, ADDRINT arg5,
                      CONTEXT* ctxt, bool real_syscall);
 
-void save_context(CONTEXT* ctxt);
-
-void check_if_region_written_to(ADDRINT write_addr);
-
-void save_mem(ADDRINT write_addr, UINT32 write_size, UINT write_index);
-
-void undo_mem(const ProcState& undo_state);
-
-void finish_before_ins_all(CONTEXT* ctxt, bool from_syscall);
-
-void add_right_path_exec_br(CONTEXT* ctxt);
-
 void before_ins_no_mem(CONTEXT* ctxt);
 
 void before_ins_one_mem(CONTEXT* ctxt, ADDRINT write_addr, UINT32 write_size);

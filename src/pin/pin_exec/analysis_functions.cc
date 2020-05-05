@@ -26,78 +26,7 @@
 #include "../pin_lib/decoder.h"
 #include "../pin_lib/gather_scatter_addresses.h"
 
-#define ENABLE_HYPER_FF_HEARTBEAT
-void PIN_FAST_ANALYSIS_CALL docount(UINT32 c) {
-  int64_t temp = hyper_fast_forward_count - c;
-  // Saturating subtract: temp &= -(temp <= hyper_fast_forward_count);
-  hyper_fast_forward_count = temp;
-
-#ifdef ENABLE_HYPER_FF_HEARTBEAT
-  total_ff_count += c;
-  if(!(total_ff_count & 0x7FFFFFF0)) {
-    *out << "Hyper FF Heartbeat: inst_count=" << total_ff_count << " ("
-         << setprecision(2)
-         << (100.0 *
-             (orig_hyper_fast_forward_count - hyper_fast_forward_count)) /
-              orig_hyper_fast_forward_count
-         << "%)" << endl;
-  }
-#endif
-
-  if(hyper_fast_forward_count <= 0) {
-    hyper_ff = false;
-    *out << "Exiting Hyper Fast Forward Mode." << endl;
-
-    if(hyper_fast_forward_delta > 0) {
-      fast_forward_count += (hyper_fast_forward_count +
-                             hyper_fast_forward_delta);
-      if(fast_forward_count > 0) {
-        *out << "Entering Fast Forward Mode: " << fast_forward_count
-             << " ins remaining" << endl;
-      }
-    }
-    PIN_RemoveInstrumentation();
-  }
-}
-
-#if defined(TARGET_IA32E)
-#define EXIT_SYSCALL_NUM1 231
-#define EXIT_SYSCALL_NUM2 60
-#else
-#define EXIT_SYSCALL_NUM1 1
-#define EXIT_SYSCALL_NUM2 1
-#endif
-
-void process_syscall(ADDRINT ip, ADDRINT num, ADDRINT arg0, ADDRINT arg1,
-                     ADDRINT arg2, ADDRINT arg3, ADDRINT arg4, ADDRINT arg5,
-                     CONTEXT* ctxt, bool real_syscall) {
-  if(!fast_forward_count) {
-    pending_syscall = true;
-    if(real_syscall &&
-       ((EXIT_SYSCALL_NUM1 == num) || (EXIT_SYSCALL_NUM2 == num))) {
-      exit_syscall_found = true;
-    }
-
-    next_eip = ADDR_MASK(next_eip);
-
-    checkpoints.append_to_cir_buf();
-    checkpoints.get_tail().init(uid_ctr, false, on_wrongpath,
-                                on_wrongpath_nop_mode, next_eip, 0);
-#ifndef ASSUME_PERFECT
-    save_context(ctxt);
-#endif
-    // Because syscalls uniquely are sent to scarab BEFORE their execution,
-    // we do NOT update the global uid_ctr until the syscall compressed_op
-    // is actually created and buffered for sending.
-
-    main_loop(ctxt);
-    finish_before_ins_all(ctxt, true);
-  }
-}
-
-void save_context(CONTEXT* ctxt) {
-  PIN_SaveContext(ctxt, &checkpoints.get_tail().ctxt);
-}
+namespace {
 
 void check_if_region_written_to(ADDRINT write_addr) {
   pageTableEntryStruct* p_entry = NULL;
@@ -169,35 +98,8 @@ void save_mem(ADDRINT write_addr, UINT32 write_size, UINT write_index) {
 #endif
 }
 
-void finish_before_ins_all(CONTEXT* ctxt, bool from_syscall) {
-  entered_wpnm = false;
-  while(on_wrongpath_nop_mode) {
-    entered_wpnm = true;
-    DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-              "WPNM Curr uid=%" PRIu64 ", wrongpath=%d\n", uid_ctr,
-              on_wrongpath);
-    generate_dummy_nops = true;
-    main_loop(ctxt);
-    if(!wpnm_skip_ckp) {
-      next_eip = ADDR_MASK(next_eip);
-
-      checkpoints.append_to_cir_buf();
-      checkpoints.get_tail().init(uid_ctr, false, on_wrongpath,
-                                  on_wrongpath_nop_mode, next_eip, 0);
-      uid_ctr++;
-      save_context(ctxt);
-      PIN_SetContextRegval(&(checkpoints.get_tail().ctxt), REG_INST_PTR,
-                           (const UINT8*)(&next_eip));
-      next_eip = ADDR_MASK(next_eip + 1);
-    }
-    wpnm_skip_ckp = false;
-  }
-  if(entered_wpnm) {
-    ASSERTM(0, false, "Entered WPNM, but did not recover (uid=%" PRIu64 ")\n",
-            uid_ctr);
-  }
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-            "Falling into application\n");
+void save_context(CONTEXT* ctxt) {
+  PIN_SaveContext(ctxt, &checkpoints.get_tail().ctxt);
 }
 
 void add_right_path_exec_br(CONTEXT* ctxt) {
@@ -230,110 +132,173 @@ void add_right_path_exec_br(CONTEXT* ctxt) {
 #endif
 }
 
-void before_ins_no_mem(CONTEXT* ctxt) {
-  if(!fast_forward_count) {
-    if(seen_rightpath_exc_mode) {
-      add_right_path_exec_br(ctxt);
-      seen_rightpath_exc_mode = false;
-      saved_excp_eip          = 0;
-    }
+void process_nonsyscall_instruction(CONTEXT* ctxt, int num_mem_ops) {
+  if(seen_rightpath_exc_mode) {
+    add_right_path_exec_br(ctxt);
+    seen_rightpath_exc_mode = false;
+    saved_excp_eip          = 0;
+  }
 
+  main_loop(ctxt);
+
+  next_eip = ADDR_MASK(next_eip);
+  checkpoints.append_to_cir_buf();
+  checkpoints.get_tail().init(uid_ctr, false, on_wrongpath,
+                              on_wrongpath_nop_mode, next_eip, num_mem_ops);
+  uid_ctr++;
+#ifndef ASSUME_PERFECT
+  save_context(ctxt);
+#endif
+}
+
+void enter_wrongpath_nop_mode_if_needed(CONTEXT* ctxt, bool from_syscall) {
+  entered_wpnm = false;
+  while(on_wrongpath_nop_mode) {
+    entered_wpnm = true;
+    DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
+              "WPNM Curr uid=%" PRIu64 ", wrongpath=%d\n", uid_ctr,
+              on_wrongpath);
+    generate_dummy_nops = true;
     main_loop(ctxt);
+    if(!wpnm_skip_ckp) {
+      next_eip = ADDR_MASK(next_eip);
+
+      checkpoints.append_to_cir_buf();
+      checkpoints.get_tail().init(uid_ctr, false, on_wrongpath,
+                                  on_wrongpath_nop_mode, next_eip, 0);
+      uid_ctr++;
+      save_context(ctxt);
+      PIN_SetContextRegval(&(checkpoints.get_tail().ctxt), REG_INST_PTR,
+                           (const UINT8*)(&next_eip));
+      next_eip = ADDR_MASK(next_eip + 1);
+    }
+    wpnm_skip_ckp = false;
+  }
+  if(entered_wpnm) {
+    ASSERTM(0, false, "Entered WPNM, but did not recover (uid=%" PRIu64 ")\n",
+            uid_ctr);
+  }
+  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
+            "Falling into application\n");
+}
+
+}  // namespace
+
+
+#define ENABLE_HYPER_FF_HEARTBEAT
+void PIN_FAST_ANALYSIS_CALL docount(UINT32 c) {
+  int64_t temp = hyper_fast_forward_count - c;
+  // Saturating subtract: temp &= -(temp <= hyper_fast_forward_count);
+  hyper_fast_forward_count = temp;
+
+#ifdef ENABLE_HYPER_FF_HEARTBEAT
+  total_ff_count += c;
+  if(!(total_ff_count & 0x7FFFFFF0)) {
+    *out << "Hyper FF Heartbeat: inst_count=" << total_ff_count << " ("
+         << setprecision(2)
+         << (100.0 *
+             (orig_hyper_fast_forward_count - hyper_fast_forward_count)) /
+              orig_hyper_fast_forward_count
+         << "%)" << endl;
+  }
+#endif
+
+  if(hyper_fast_forward_count <= 0) {
+    hyper_ff = false;
+    *out << "Exiting Hyper Fast Forward Mode." << endl;
+
+    if(hyper_fast_forward_delta > 0) {
+      fast_forward_count += (hyper_fast_forward_count +
+                             hyper_fast_forward_delta);
+      if(fast_forward_count > 0) {
+        *out << "Entering Fast Forward Mode: " << fast_forward_count
+             << " ins remaining" << endl;
+      }
+    }
+    PIN_RemoveInstrumentation();
+  }
+}
+
+#if defined(TARGET_IA32E)
+#define EXIT_SYSCALL_NUM1 231
+#define EXIT_SYSCALL_NUM2 60
+#else
+#define EXIT_SYSCALL_NUM1 1
+#define EXIT_SYSCALL_NUM2 1
+#endif
+void process_syscall(ADDRINT ip, ADDRINT num, ADDRINT arg0, ADDRINT arg1,
+                     ADDRINT arg2, ADDRINT arg3, ADDRINT arg4, ADDRINT arg5,
+                     CONTEXT* ctxt, bool real_syscall) {
+  if(!fast_forward_count) {
+    pending_syscall = true;
+    if(real_syscall &&
+       ((EXIT_SYSCALL_NUM1 == num) || (EXIT_SYSCALL_NUM2 == num))) {
+      exit_syscall_found = true;
+    }
 
     next_eip = ADDR_MASK(next_eip);
 
     checkpoints.append_to_cir_buf();
     checkpoints.get_tail().init(uid_ctr, false, on_wrongpath,
                                 on_wrongpath_nop_mode, next_eip, 0);
-    uid_ctr++;
 #ifndef ASSUME_PERFECT
     save_context(ctxt);
 #endif
-    finish_before_ins_all(ctxt, false);
+    // Because syscalls uniquely are sent to scarab BEFORE their execution,
+    // we do NOT update the global uid_ctr until the syscall compressed_op
+    // is actually created and buffered for sending.
+
+    main_loop(ctxt);
+    enter_wrongpath_nop_mode_if_needed(ctxt, true);
   }
 }
 
-void before_ins_one_mem(CONTEXT* ctxt, ADDRINT write_addr, UINT32 write_size) {
+void before_ins_no_mem(CONTEXT* ctxt) {
+  if(!fast_forward_count) {
+    process_nonsyscall_instruction(ctxt, 0);
+    enter_wrongpath_nop_mode_if_needed(ctxt, false);
+  }
+}
+
+VOID before_ins_one_mem(CONTEXT* ctxt, ADDRINT write_addr, UINT32 write_size) {
   write_addr = ADDR_MASK(write_addr);
   if(!fast_forward_count) {
-    if(seen_rightpath_exc_mode) {
-      add_right_path_exec_br(ctxt);
-      seen_rightpath_exc_mode = false;
-      saved_excp_eip          = 0;
-    }
-
-    main_loop(ctxt);
-
-    next_eip = ADDR_MASK(next_eip);
-
-    checkpoints.append_to_cir_buf();
-    checkpoints.get_tail().init(uid_ctr, false, on_wrongpath,
-                                on_wrongpath_nop_mode, next_eip, 1);
-    uid_ctr++;
-#ifndef ASSUME_PERFECT
-    save_context(ctxt);
-#endif
+    process_nonsyscall_instruction(ctxt, 1);
     save_mem(write_addr, write_size, 0);
-    finish_before_ins_all(ctxt, false);
+    enter_wrongpath_nop_mode_if_needed(ctxt, false);
   }
 }
 
-void before_ins_multi_mem(CONTEXT*                   ctxt,
-                          PIN_MULTI_MEM_ACCESS_INFO* mem_access_info_from_pin,
+VOID before_ins_multi_mem(CONTEXT*                   ctxt,
+                          PIN_MULTI_MEM_ACCESS_INFO* mem_access_info,
                           bool                       is_scatter) {
   if(!fast_forward_count) {
-    if(seen_rightpath_exc_mode) {
-      add_right_path_exec_br(ctxt);
-      seen_rightpath_exc_mode = false;
-      saved_excp_eip          = 0;
-    }
-
-    main_loop(ctxt);
-
-    next_eip = ADDR_MASK(next_eip);
-
-    UINT32                      numMemOps;
     vector<PIN_MEM_ACCESS_INFO> scatter_maskon_mem_access_info;
-
     if(is_scatter) {
       // don't care about stores in lanes that are disabled by k mask
       for(auto mem_access :
           get_gather_scatter_mem_access_infos_from_gather_scatter_info(
-            ctxt, mem_access_info_from_pin)) {
+            ctxt, mem_access_info)) {
         if(mem_access.maskOn) {
           scatter_maskon_mem_access_info.push_back(mem_access);
         }
       }
-      numMemOps = scatter_maskon_mem_access_info.size();
-    } else {
-      numMemOps = mem_access_info_from_pin->numberOfMemops;
     }
-
-    checkpoints.append_to_cir_buf();
-    checkpoints.get_tail().init(uid_ctr, false, on_wrongpath,
-                                on_wrongpath_nop_mode, next_eip, numMemOps);
-    uid_ctr++;
-#ifndef ASSUME_PERFECT
-    save_context(ctxt);
-#endif
+    UINT32 numMemOps = is_scatter ? scatter_maskon_mem_access_info.size() :
+                                    mem_access_info->numberOfMemops;
+    process_nonsyscall_instruction(ctxt, numMemOps);
     for(UINT32 i = 0; i < numMemOps; i++) {
-      ADDRINT write_addr;
-      UINT32  write_size;
-
       if(is_scatter) {
         ASSERTX(PIN_MEMOP_STORE == scatter_maskon_mem_access_info[i].memopType);
         ASSERTX(scatter_maskon_mem_access_info[i].maskOn);
-        write_addr = ADDR_MASK(scatter_maskon_mem_access_info[i].memoryAddress);
-        write_size = scatter_maskon_mem_access_info[i].bytesAccessed;
-      } else {
-        write_addr = ADDR_MASK(
-          mem_access_info_from_pin->memop[i].memoryAddress);
-        write_size = mem_access_info_from_pin->memop[i].bytesAccessed;
       }
-
+      const auto& mem_info = is_scatter ? scatter_maskon_mem_access_info[i] :
+                                          mem_access_info->memop[i];
+      ADDRINT write_addr = ADDR_MASK(mem_info.memoryAddress);
+      UINT32  write_size = mem_info.bytesAccessed;
       save_mem(write_addr, write_size, i);
     }
-    finish_before_ins_all(ctxt, false);
+    enter_wrongpath_nop_mode_if_needed(ctxt, false);
   }
 }
 
