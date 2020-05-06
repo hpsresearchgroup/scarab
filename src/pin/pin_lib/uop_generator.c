@@ -736,6 +736,9 @@ void convert_pinuop_to_t_uop(uns8 proc_id, ctype_pin_inst* pi,
           info->fake_inst        = TRUE;
           info->fake_inst_reason = pi->fake_inst_reason;
         } else {
+          // GATHER: what if there are more than 8
+          // uops due to gather/scatters? Do we
+          // need to change the << 3?
           key_addr = ((pi->instruction_addr << 3) + ii);
           info = (Inst_Info*)hash_table_access_create(&inst_info_hash[proc_id],
                                                       key_addr, &new_entry);
