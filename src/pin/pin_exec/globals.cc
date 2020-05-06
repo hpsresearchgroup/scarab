@@ -21,27 +21,21 @@
 
 #include "globals.h"
 
-std::ostream* out = &cerr;
-
 Address_Tracker instrumented_rip_tracker;
 
 CirBuf<ProcState, checkpoints_init_capacity> checkpoints =
   CirBuf<ProcState, checkpoints_init_capacity>();
 
-UINT64 uid_ctr = 0;
 UINT64 dbg_print_start_uid;
 UINT64 dbg_print_end_uid;
 UINT64 heartbeat = 0;
 
-CONTEXT last_ctxt;
-ADDRINT next_eip;
+Client*             scarab;
+ScarabOpBuffer_type scarab_op_buffer;
+compressed_op       op_mailbox;
+bool                op_mailbox_full = false;
 
-Client*                   scarab;
-ScarabOpBuffer_type       scarab_op_buffer;
-compressed_op             op_mailbox;
-bool                      op_mailbox_full           = false;
-bool                      pending_fetch_op          = false;
-bool                      pending_syscall           = false;
+/*
 bool                      pending_exception         = false;
 bool                      on_wrongpath              = false;
 bool                      on_wrongpath_nop_mode     = false;
@@ -49,13 +43,14 @@ Wrongpath_Nop_Mode_Reason wrongpath_nop_mode_reason = WPNM_NOT_IN_WPNM;
 bool                      generate_dummy_nops       = false;
 bool                      wpnm_skip_ckp             = false;
 bool                      entered_wpnm              = false;
-bool                      exit_syscall_found        = false;
-bool                      buffer_sentinel           = false;
-bool                      started                   = false;
+*/
+
+bool started = false;
 
 pageTableStruct* page_table;
 
 // Excpetion handling
+/*
 bool              seen_rightpath_exc_mode = false;
 ADDRINT           saved_excp_eip          = 0;
 ADDRINT           saved_excp_next_eip     = 0;
@@ -63,6 +58,7 @@ Scarab_To_Pin_Msg saved_cmd;
 bool              excp_rewind_msg = false;
 bool              found_syscall   = false;
 bool              excp_ff         = false;
+*/
 
 // TODO_b: this name could be better?
 bool     fast_forward_to_pin_start = false;
@@ -76,3 +72,5 @@ int64_t  orig_hyper_fast_forward_count;
 bool     heartbeat_enabled;
 uint32_t max_buffer_size;
 uint64_t start_rip;
+
+Pintool_State pintool_state;

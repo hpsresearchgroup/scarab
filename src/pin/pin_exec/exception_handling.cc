@@ -24,6 +24,43 @@
 #include "main_loop.h"
 #include "scarab_interface.h"
 
+#include "../pin_lib/decoder.h"
+
+namespace {
+
+/*
+void excp_do_fe_null() {
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+dbg_print_end_uid, "fenull curr_uid=%" PRIu64 "\n",
+pintool_state.get_curr_inst_uid()); compressed_op* cop; ASSERTM(0,
+!generate_dummy_nops, "Dummy NOP generated exception @uid %" PRIu64 ".\n",
+pintool_state.get_curr_inst_uid()); ASSERTM(0, op_mailbox_full, "Expected full
+mailbox for exc @ %" PRIu64 ".\n", pintool_state.get_curr_inst_uid());
+
+  cop                    = &op_mailbox;
+  op_mailbox_full        = false;
+  cop->cf_type           = CF_SYS;
+  cop->is_ifetch_barrier = 1;
+  // cop->fake_inst = 1;
+  cop->instruction_next_addr = saved_excp_next_eip;
+
+  op_mailbox.instruction_next_addr = cop->instruction_addr;
+  if(op_mailbox.cf_type && op_mailbox.actually_taken) {
+    op_mailbox.branch_target = cop->instruction_addr;
+  }
+  insert_scarab_op_in_buffer(op_mailbox);
+  op_mailbox_full = false;
+
+  insert_scarab_op_in_buffer(*cop);
+
+  // only syscalls create checkpoints BEFORE being sent,
+  // so we update pintool_state.get_curr_inst_uid() here to prep. for next
+instruction pintool_state.get_curr_inst_uid()++;
+}
+*/
+
+}  // namespace
+
 void register_signal_handlers() {
   // Intercept signals to see exceptions
   PIN_InterceptSignal(SIGFPE, signal_handler, 0);
@@ -64,9 +101,10 @@ bool dummy_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, bool hasHandler,
 #ifdef DEBUG_PRINT
   ADDRINT curr_eip;
   PIN_GetContextRegval(ctxt, REG_INST_PTR, (UINT8*)&curr_eip);
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+            dbg_print_end_uid,
             "dummyhandler curr_uid=%" PRIu64 ", curr_eip=%" PRIx64 ", sig=%d\n",
-            uid_ctr, (uint64_t)curr_eip, sig);
+            pintool_state.get_curr_inst_uid(), (uint64_t)curr_eip, sig);
 #endif
 
   return true;
@@ -74,14 +112,15 @@ bool dummy_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, bool hasHandler,
 
 bool signal_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, bool hasHandler,
                     const EXCEPTION_INFO* pExceptInfo, void* v) {
+  return true;
+  /*
   ADDRINT curr_eip;
   PIN_GetContextRegval(ctxt, REG_INST_PTR, (UINT8*)&curr_eip);
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-            "signalhandler curr_uid=%" PRIu64 ", curr_eip=%" PRIx64
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+  dbg_print_end_uid, "signalhandler curr_uid=%" PRIu64 ", curr_eip=%" PRIx64
             ", sig=%d, wp=%d\n",
-            uid_ctr, (uint64_t)curr_eip, sig, on_wrongpath);
-  if(!fast_forward_count || on_wrongpath) {
-    if(on_wrongpath) {
+            pintool_state.get_curr_inst_uid(), (uint64_t)curr_eip, sig,
+  on_wrongpath); if(!fast_forward_count || on_wrongpath) { if(on_wrongpath) {
       if(sig == SIGFPE || sig == SIGSEGV || sig == SIGBUS) {
         PIN_SetContextRegval(ctxt, REG_INST_PTR, (const UINT8*)(&next_eip));
 
@@ -90,7 +129,7 @@ bool signal_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, bool hasHandler,
         INT64 n   = checkpoints.get_size();
 
         bool   found_uid = false;
-        UINT64 uid       = uid_ctr - 1;
+        UINT64 uid       = pintool_state.get_curr_inst_uid() - 1;
 
         if(!fast_forward_count) {
           while(n > 0) {
@@ -106,13 +145,12 @@ bool signal_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, bool hasHandler,
           ASSERTM(0, found_uid, "Checkpoint %" PRIu64 " not found. \n", uid);
         }
 
-        DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                  "signalhandler return false\n");
-        return false;
-      } else if(sig == SIGILL) {
-        DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                  "Fail to detect ILLOP at %" PRIx64 "\n", curr_eip);
-        pending_syscall = true;  // Treat illegal ops as syscalls (fetch barrier
+        DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+  dbg_print_end_uid, "signalhandler return false\n"); return false; } else
+  if(sig == SIGILL) { DBG_PRINT(pintool_state.get_curr_inst_uid(),
+  dbg_print_start_uid, dbg_print_end_uid, "Fail to detect ILLOP at %" PRIx64
+  "\n", curr_eip); pending_syscall = true;  // Treat illegal ops as syscalls
+  (fetch barrier
                                  // behavior)
         pending_exception = true;
 
@@ -138,8 +176,8 @@ bool signal_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, bool hasHandler,
 
         saved_excp_eip      = curr_eip;
         saved_excp_next_eip = next_eip;
-        DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                  "Found rightpath excp at %" PRIx64 "\n", curr_eip);
+        DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+  dbg_print_end_uid, "Found rightpath excp at %" PRIx64 "\n", curr_eip);
 
         // Before starting the handler, wait for scarab to retire all ops.
         // If it turns out scarab wait to redirect/recover, then this is
@@ -168,17 +206,22 @@ bool signal_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, bool hasHandler,
     fprintf(stderr, "PIN: Found exception sig=%d on rightpath\n", sig);
     return true;
   }
+  */
 }
 
 bool excp_main_loop(int sig) {
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-            "excp main loop next_eip=%" PRIx64 "\n", (uint64_t)next_eip);
+  return true;
+  /*
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+  dbg_print_end_uid, "excp main loop next_eip=%" PRIx64 "\n",
+  (uint64_t)next_eip);
 
   bool buffer_ready                    = false;
   bool syscall_has_been_sent_to_scarab = false;
   bool have_consumed_op                = false;
   bool need_scarab_cmd                 = false;
 
+  excp_do_fe_null();
   while(true) {
     Scarab_To_Pin_Msg cmd;
     cmd.type = FE_NULL;
@@ -198,9 +241,8 @@ bool excp_main_loop(int sig) {
       return false;
     } else if(cmd.type == FE_RETIRE) {
       if(do_fe_retire(cmd)) {
-        DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                  "term retire in exec\n");
-        excp_rewind_msg   = false;
+        DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+  dbg_print_end_uid, "term retire in exec\n"); excp_rewind_msg   = false;
         pending_exception = false;
         pending_syscall   = false;
         fprintf(stderr, "PIN: Found exception sig=%d on rightpath\n", sig);
@@ -209,13 +251,11 @@ bool excp_main_loop(int sig) {
       }
       // Once all instruction upto the excpeting instructions are retired, take
       // the exception
-      if(cmd.inst_uid + 1 == uid_ctr && !on_wrongpath) {
-        DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                  "execute rightpath exception handler\n");
-        fprintf(stderr, "PIN: Found exception sig=%d on rightpath\n", sig);
-        excp_rewind_msg         = false;
-        pending_exception       = false;
-        pending_syscall         = false;
+      if(cmd.inst_uid + 1 == pintool_state.get_curr_inst_uid() && !on_wrongpath)
+  { DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+  dbg_print_end_uid, "execute rightpath exception handler\n"); fprintf(stderr,
+  "PIN: Found exception sig=%d on rightpath\n", sig); excp_rewind_msg         =
+  false; pending_exception       = false; pending_syscall         = false;
         seen_rightpath_exc_mode = true;
         return true;
       }
@@ -223,11 +263,8 @@ bool excp_main_loop(int sig) {
       do_fe_fetch_op(syscall_has_been_sent_to_scarab);
     } else if(cmd.type == FE_NULL) {
       // If a syscall causes an exception, it has already been sent to scarab
-      if(found_syscall)
-        have_consumed_op = true;
-      else
-        do_fe_null(have_consumed_op);
     }
+
     // We always have a scarab command
     buffer_ready               = scarab_buffer_full() || pending_syscall;
     bool send_buffer_to_scarab = buffer_ready && pending_fetch_op &&
@@ -242,4 +279,5 @@ bool excp_main_loop(int sig) {
     if(have_consumed_op)
       need_scarab_cmd = true;
   }
+  */
 }

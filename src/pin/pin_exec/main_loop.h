@@ -25,12 +25,11 @@
 #include "globals.h"
 
 // Communicates with scarab, and performs the requested actions
-void main_loop(CONTEXT* ctxt);
+void main_loop(CONTEXT* ctxt, Mem_Writes_Info mem_writes_info, bool is_syscall,
+               bool is_exit_syscall);
 
-bool do_fe_retire(Scarab_To_Pin_Msg& cmd);
+void do_fe_retire(Scarab_To_Pin_Msg& cmd);
 
-void do_fe_fetch_op(bool& syscall_has_been_sent_to_scarab);
-
-void do_fe_null(bool& have_consumed_op);
+void do_fe_fetch_op();
 
 #endif  // PIN_EXEC_MAIN_LOOP_H__

@@ -25,6 +25,9 @@
 #include <cinttypes>
 #include <stdio.h>
 #include <unordered_map>
+#include <utility>
+
+#include "../pin_lib/gather_scatter_addresses.h"
 
 #undef UNUSED
 #undef WARNING
@@ -65,6 +68,91 @@
       exit(15);                                                             \
     }                                                                       \
   } while(0)
+
+struct Mem_Writes_Info {
+  enum class Type { NO_WRITE, ONE_WRITE, MULTI_WRITE, MULTI_WRITE_SCATTER };
+
+  Mem_Writes_Info() : type(Type::NO_WRITE) {}
+
+  Mem_Writes_Info(ADDRINT addr, uint32_t size) :
+      type(Type::ONE_WRITE), single_write_addr(addr), single_write_size(size) {}
+
+  Mem_Writes_Info(const PIN_MULTI_MEM_ACCESS_INFO* const multi_mem_access_info,
+                  CONTEXT* ctxt, bool is_scatter) :
+      type(is_scatter ? Type::MULTI_WRITE_SCATTER : Type::MULTI_WRITE),
+      multi_mem_access_info(multi_mem_access_info),
+      scatter_maskon_mem_access_info(
+        produce_scatter_access_info(multi_mem_access_info, ctxt, is_scatter)) {}
+
+  uint32_t get_num_mem_writes() {
+    switch(type) {
+      case Type::NO_WRITE:
+        return 0;
+      case Type::ONE_WRITE:
+        return 1;
+      case Type::MULTI_WRITE:
+        return multi_mem_access_info->numberOfMemops;
+      case Type::MULTI_WRITE_SCATTER:
+        return scatter_maskon_mem_access_info.size();
+    }
+    ASSERTM(0, false, "Bad Mem Write Info");
+    return 0;
+  }
+
+  std::pair<ADDRINT, uint32_t> get_write_addr_size(int i) {
+    switch(type) {
+      case Type::NO_WRITE:
+        ASSERTM(0, false, "Attempted to save a write when it doesn't exist");
+        return {};
+      case Type::ONE_WRITE:
+        ASSERTM(0, i == 0,
+                "Write info %d out of range (ONE_WRITE). Must be < 1", i);
+        return {single_write_addr, single_write_size};
+
+      case Type::MULTI_WRITE:
+      case Type::MULTI_WRITE_SCATTER:
+        int max = (type == Type::MULTI_WRITE) ?
+                    multi_mem_access_info->numberOfMemops :
+                    scatter_maskon_mem_access_info.size();
+        ASSERTM(0, i < max,
+                "Write info %d out of range (MULTI_WRITE). Must be < %d. Is "
+                "Scatter: %d",
+                i, multi_mem_access_info->numberOfMemops,
+                type == Type::MULTI_WRITE_SCATTER);
+
+        const auto& info = (type == Type::MULTI_WRITE) ?
+                             multi_mem_access_info->memop[i] :
+                             scatter_maskon_mem_access_info[i];
+        return {info.memoryAddress, info.bytesAccessed};
+    }
+    ASSERTM(0, false, "Bad Mem Write Info");
+    return {};
+  }
+
+  const Type                             type;
+  const ADDRINT                          single_write_addr     = 0;
+  const uint32_t                         single_write_size     = 0;
+  const PIN_MULTI_MEM_ACCESS_INFO* const multi_mem_access_info = nullptr;
+  const std::vector<PIN_MEM_ACCESS_INFO> scatter_maskon_mem_access_info;
+
+ private:
+  static std::vector<PIN_MEM_ACCESS_INFO> produce_scatter_access_info(
+    const PIN_MULTI_MEM_ACCESS_INFO* multi_mem_info, CONTEXT* ctxt,
+    bool is_scatter) {
+    std::vector<PIN_MEM_ACCESS_INFO> scatter_mem_infos;
+    if(is_scatter) {
+      // don't care about stores in lanes that are disabled by k mask
+      for(auto mem_access :
+          get_gather_scatter_mem_access_infos_from_gather_scatter_info(
+            ctxt, multi_mem_info)) {
+        if(mem_access.maskOn) {
+          scatter_mem_infos.push_back(mem_access);
+        }
+      }
+    }
+    return scatter_mem_infos;
+  }
+};
 
 struct MemState {
   ADDRINT mem_addr;
@@ -111,13 +199,18 @@ struct ProcState {
 
   ProcState() : mem_state_list(NULL), num_mem_state(0) {}
 
-  void init(UINT64 _uid, bool _u_i, bool _wrongpath, bool _wrongpath_nop_mode,
-            ADDRINT _wpnm_eip, UINT _num_mem_state) {
+  void update(CONTEXT* _ctxt, UINT64 _uid, bool _u_i, bool _wrongpath,
+              bool _wrongpath_nop_mode, ADDRINT _wpnm_eip,
+              Mem_Writes_Info _mem_write_info) {
     uid                      = _uid;
     unretireable_instruction = _u_i;
     wrongpath                = _wrongpath;
     wrongpath_nop_mode       = _wrongpath_nop_mode;
     wpnm_eip                 = _wpnm_eip;
+
+    PIN_SaveContext(_ctxt, &ctxt);
+
+    uint32_t _num_mem_state = _mem_write_info.get_num_mem_writes();
 
     if(_num_mem_state > num_mem_state) {
       if(NULL != mem_state_list) {
@@ -128,6 +221,19 @@ struct ProcState {
     }
 
     num_mem_state = _num_mem_state;
+
+    auto save_mem = [](MemState* mem_state, ADDRINT write_addr,
+                       uint32_t write_size) {
+      ADDRINT masked_write_addr = ADDR_MASK(write_addr);
+      mem_state->init(masked_write_addr, write_size);
+      PIN_SafeCopy(mem_state->mem_data_ptr, (void*)masked_write_addr,
+                   write_size);
+    };
+
+    for(uint32_t i = 0; i < _num_mem_state; ++i) {
+      auto addr_size_pair = _mem_write_info.get_write_addr_size(i);
+      save_mem(&mem_state_list[i], addr_size_pair.first, addr_size_pair.second);
+    }
   }
 
   ~ProcState() {
@@ -257,6 +363,44 @@ class Address_Tracker {
   // Using std::unordered_map instead of std::unordered_set because PinCRT is
   // incomplete.
   std::unordered_map<ADDRINT, bool> tracked_addresses;
+};
+
+class Pintool_State {
+ public:
+  Pintool_State() { clear_changing_control_flow(); }
+
+  // ******  Methods for checking the pintool state  ********
+  bool skip_further_processing() { return should_change_control_flow(); }
+
+  bool should_change_control_flow() { return should_change_control_flow_; }
+
+  uint64_t get_next_inst_uid() { return uid_ctr++; }
+
+  uint64_t get_curr_inst_uid() { return uid_ctr; }
+
+  // ***********************  Setters  **********************
+  void clear_changing_control_flow() { should_change_control_flow_ = false; }
+
+  void set_next_state_for_changing_control_flow(CONTEXT* next_state,
+                                                bool     redirect_rip,
+                                                uint64_t next_rip) {
+    should_change_control_flow_ = true;
+    PIN_SaveContext(next_state, &next_pintool_state_);
+    if(redirect_rip) {
+      PIN_SetContextReg(&next_pintool_state_, REG_INST_PTR, next_rip);
+    }
+  }
+
+  // **********************  Accessors  *********************
+  CONTEXT* get_context_for_changing_control_flow() {
+    return &next_pintool_state_;
+  }
+
+ private:
+  bool    should_change_control_flow_;
+  CONTEXT next_pintool_state_;
+
+  uint64_t uid_ctr = 0;
 };
 
 
