@@ -30,30 +30,26 @@
 #undef WARNING  // there is a name conflict between PIN and Scarab
 #include "../../ctype_pin_inst.h"
 
-void add_to_scatter_info_storage(ADDRINT iaddr);
-void analyze_scatter_regs(ADDRINT iaddr, REG pin_reg, bool operandRead,
-                          bool operandWritten);
-void analyze_scatter_memory_operand(ADDRINT iaddr, REG pin_base_reg,
-                                    REG pin_index_reg, ADDRDELTA displacement,
-                                    UINT32 scale);
+void add_to_gather_scatter_info_storage(ADDRINT iaddr, bool is_gather,
+                                        bool is_scatter);
+void set_gather_scatter_reg_operand_info(ADDRINT iaddr, REG pin_reg,
+                                         bool operandRead, bool operandWritten);
+void set_gather_scatter_memory_operand_info(ADDRINT iaddr, REG pin_base_reg,
+                                            REG       pin_index_reg,
+                                            ADDRDELTA displacement,
+                                            UINT32 scale, bool operandReadOnly,
+                                            bool operandWritenOnly);
 void finalize_scatter_info(ADDRINT iaddr, ctype_pin_inst* info);
 
-class scatter_info {
- private:
-  UINT32    _data_vector_reg_total_width_bytes;
-  UINT32    _data_lane_width_bytes;
-  REG       _kmask_reg;
-  REG       _base_reg;
-  REG       _index_reg;
-  ADDRDELTA _displacement;
-  UINT32    _scale;
-  UINT32    _index_lane_width_bytes;
-  UINT32    _num_stores;
-
+class gather_scatter_info {
  public:
-  scatter_info();
-  ~scatter_info();
-  friend ostream& operator<<(ostream& os, const scatter_info& sinfo);
+  enum type { INVALID, GATHER, SCATTER };
+
+  gather_scatter_info();
+  gather_scatter_info(type given_type);
+  ~gather_scatter_info();
+
+  gather_scatter_info::type get_type();
 
   void set_data_reg_total_width(REG pin_reg);
   void set_data_lane_width_bytes(UINT32 st_lane_width);
@@ -63,6 +59,24 @@ class scatter_info {
   void set_displacement(ADDRDELTA displacement);
   void set_scale(UINT32 scale);
   void set_index_lane_width_bytes(UINT32 idx_lane_width);
+  void compute_num_mem_ops();
+
+  friend ostream& operator<<(ostream& os, const gather_scatter_info& sinfo);
+
+ private:
+  gather_scatter_info::type _type;
+  UINT32                    _data_vector_reg_total_width_bytes;
+  UINT32                    _data_lane_width_bytes;
+  REG                       _kmask_reg;
+  REG                       _base_reg;
+  REG                       _index_reg;
+  ADDRDELTA                 _displacement;
+  UINT32                    _scale;
+  UINT32                    _index_lane_width_bytes;
+  UINT32                    _num_mem_ops;
+
+  bool   is_non_zero_and_powerof2(UINT32 v);
+  UINT32 pin_xyzmm_reg_width_in_bytes(REG pin_xyzmm_reg);
 };
 
 #endif  // __SCATTER_H__

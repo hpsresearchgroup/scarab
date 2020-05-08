@@ -143,12 +143,13 @@ void pin_decoder_init(bool translate_x87_regs, std::ostream* err_ostream) {
 void pin_decoder_insert_analysis_functions(const INS& ins) {
   ctype_pin_inst* info = get_inst_info_obj(ins);
   fill_in_basic_info(info, ins);
-  if(INS_IsVscatter(ins)) {
-    add_to_scatter_info_storage(INS_Address(ins));
+  if(INS_IsVgather(ins) || INS_IsVscatter(ins)) {
+    add_to_gather_scatter_info_storage(INS_Address(ins), INS_IsVgather(ins),
+                                       INS_IsVscatter(ins));
   }
   uint32_t max_op_width = add_dependency_info(info, ins);
   fill_in_simd_info(info, ins, max_op_width);
-  if(INS_IsVscatter(ins)) {
+  if(INS_IsVgather(ins) || INS_IsVscatter(ins)) {
     finalize_scatter_info(INS_Address(ins), info);
   }
   apply_x87_bug_workaround(info, ins);
@@ -251,6 +252,7 @@ void fill_in_basic_info(ctype_pin_inst* info, const INS& ins) {
 uint32_t add_dependency_info(ctype_pin_inst* info, const INS& ins) {
   uint32_t      max_op_width = 0;
   const ADDRINT iaddr        = INS_Address(ins);
+  bool is_gather_or_scatter  = INS_IsVgather(ins) || INS_IsVscatter(ins);
   if(info->op_type != OP_NOP) {
     for(UINT32 ii = 0; ii < INS_OperandCount(ins); ii++) {
       if(INS_OperandIsReg(ins, ii)) {
@@ -269,11 +271,12 @@ uint32_t add_dependency_info(ctype_pin_inst* info, const INS& ins) {
         if(scarab_reg != SCARAB_REG_ZPS) {
           max_op_width = std::max(max_op_width, INS_OperandWidth(ins, ii));
         }
-        if(INS_IsVscatter(ins)) {
-          analyze_scatter_regs(iaddr, pin_reg, operandRead, operandWritten);
+        if(is_gather_or_scatter) {
+          set_gather_scatter_reg_operand_info(iaddr, pin_reg, operandRead,
+                                              operandWritten);
         }
       } else if(INS_OperandIsAddressGenerator(ins, ii)) {  // LEA
-        ASSERTX(!INS_IsVscatter(ins));
+        ASSERTX(!is_gather_or_scatter);
         uint8_t scarab_base_reg = (uint8_t)reg_compress(
           INS_OperandMemoryBaseReg(ins, ii), iaddr);
         uint8_t scarab_index_reg = (uint8_t)reg_compress(
@@ -285,11 +288,12 @@ uint32_t add_dependency_info(ctype_pin_inst* info, const INS& ins) {
         uint8_t scarab_base_reg  = (uint8_t)reg_compress(pin_base_reg, iaddr);
         REG     pin_index_reg    = INS_OperandMemoryIndexReg(ins, ii);
         uint8_t scarab_index_reg = (uint8_t)reg_compress(pin_index_reg, iaddr);
-        if(INS_IsVscatter(ins)) {
-          analyze_scatter_memory_operand(iaddr, pin_base_reg, pin_index_reg,
-                                         INS_OperandMemoryDisplacement(ins, ii),
-                                         INS_OperandMemoryScale(ins, ii));
-          ASSERTX(INS_OperandWrittenOnly(ins, ii));
+        if(is_gather_or_scatter) {
+          set_gather_scatter_memory_operand_info(
+            iaddr, pin_base_reg, pin_index_reg,
+            INS_OperandMemoryDisplacement(ins, ii),
+            INS_OperandMemoryScale(ins, ii), INS_OperandReadOnly(ins, ii),
+            INS_OperandWrittenOnly(ins, ii));
         }
         if(INS_OperandRead(ins, ii)) {
           ASSERTX(info->num_ld < MAX_LD_NUM);
@@ -311,7 +315,7 @@ uint32_t add_dependency_info(ctype_pin_inst* info, const INS& ins) {
         }
       }
       info->has_immediate |= INS_OperandIsImmediate(ins, ii);
-      if(INS_IsVscatter(ins)) {
+      if(is_gather_or_scatter) {
         ASSERTX(!(info->has_immediate));
       }
     }
