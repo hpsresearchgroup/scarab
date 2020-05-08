@@ -35,6 +35,7 @@
 #include "../../ctype_pin_inst.h"
 #include "../../op_info.h"
 #include "stdint.h"
+#include <array>
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,7 +57,7 @@ struct Scarab_To_Pin_Msg {
   Addr              inst_addr;
 } __attribute__((packed));
 
-typedef std::deque<compressed_op> ScarabOpBuffer_type;
+typedef std::array<compressed_op, 100> ScarabOpBuffer_type;
 
 Flag is_sentinal_op(compressed_op* op);
 

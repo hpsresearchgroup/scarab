@@ -88,7 +88,7 @@ DEBUG_FLAGS = -DNO_DEBUG
 # well. Also setting -D_REENTRANT since -pthread implies it.
 # -- spruett: I removed the liberty library from below command.
 # --  used to be: LIBS	    = -lm -liberty -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lz
-LIBS	    = -lm -lpin_fe -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lz -lramulator
+LIBS	    = -lm -lpin_fe -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lz -lramulator -lrt
 CXXFLAGS    = -I$(GNUDIR)/$(OS)/include -I.
 OPTLDFLAGS  = -L$(GNUDIR)/$(OS)/lib -L./pin/pin_lib/obj -L./ramulator/ -rdynamic
 DBGLDFLAGS  = -L$(GNUDIR)/$(OS)/lib -L./pin/pin_lib/obj -L./ramulator/ -rdynamic
@@ -154,7 +154,7 @@ endef
 # **************************************************************************************
 # Generate all of the file lists
 
-SRC_DIRS := globals isa libs frontend debug power dvfs prefetcher bp memory
+SRC_DIRS := globals isa libs frontend debug power dvfs prefetcher bp memory shared_mem_queue
 
 CSRC_BASE:= $(wildcard *.c) $(foreach d, $(SRC_DIRS), $(wildcard $d/*.c))
 CSRC     := $(CSRC_BASE)
