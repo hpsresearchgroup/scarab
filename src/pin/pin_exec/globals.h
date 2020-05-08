@@ -78,7 +78,10 @@ extern bool              found_syscall;
 extern bool              excp_ff;
 */
 
+
+extern uint64_t fast_forward_count;
 // TODO_b: this name could be better?
+
 extern bool     fast_forward_to_pin_start;
 extern uint64_t total_ff_count;
 extern bool     hyper_ff;

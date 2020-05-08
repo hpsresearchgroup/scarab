@@ -37,7 +37,7 @@
 #undef UNUSED
 #undef WARNING
 
-#define ADDR_MASK(x) ((x)&0x0000FFFFFFFFFFFFULL)
+#define ADDR_MASK(x) ((x)&0x0000FFFFFFFFFFFFUL)
 
 #ifdef DEBUG_PRINT
 #define DBG_PRINT(uid, start_print_uid, end_print_uid, ...)  \
@@ -195,18 +195,20 @@ struct ProcState {
   bool      unretireable_instruction;
   bool      wrongpath;
   bool      wrongpath_nop_mode;
+  bool      is_syscall;
   ADDRINT   wpnm_eip;
 
   ProcState() : mem_state_list(NULL), num_mem_state(0) {}
 
   void update(CONTEXT* _ctxt, UINT64 _uid, bool _u_i, bool _wrongpath,
               bool _wrongpath_nop_mode, ADDRINT _wpnm_eip,
-              Mem_Writes_Info _mem_write_info) {
+              Mem_Writes_Info _mem_write_info, bool _is_syscall) {
     uid                      = _uid;
     unretireable_instruction = _u_i;
     wrongpath                = _wrongpath;
     wrongpath_nop_mode       = _wrongpath_nop_mode;
     wpnm_eip                 = _wpnm_eip;
+    is_syscall               = _is_syscall;
 
     PIN_SaveContext(_ctxt, &ctxt);
 
@@ -369,38 +371,50 @@ class Pintool_State {
  public:
   Pintool_State() { clear_changing_control_flow(); }
 
-  // ******  Methods for checking the pintool state  ********
+  // ***********************  Getters  **********************
   bool skip_further_processing() { return should_change_control_flow(); }
 
   bool should_change_control_flow() { return should_change_control_flow_; }
+
+  bool should_skip_next_instruction() { return should_skip_next_instruction_; }
 
   uint64_t get_next_inst_uid() { return uid_ctr++; }
 
   uint64_t get_curr_inst_uid() { return uid_ctr; }
 
-  // ***********************  Setters  **********************
-  void clear_changing_control_flow() { should_change_control_flow_ = false; }
+  CONTEXT* get_context_for_changing_control_flow() {
+    return &next_pintool_state_;
+  }
 
-  void set_next_state_for_changing_control_flow(CONTEXT* next_state,
-                                                bool     redirect_rip,
-                                                uint64_t next_rip) {
+  bool is_on_wrongpath() { return on_wrongpath_; }
+
+  // ***********************  Setters  **********************
+  void clear_changing_control_flow() {
+    should_change_control_flow_   = false;
+    should_skip_next_instruction_ = false;
+  }
+
+  void set_next_state_for_changing_control_flow(const CONTEXT* next_state,
+                                                bool           redirect_rip,
+                                                uint64_t       next_rip,
+                                                bool skip_next_instruction) {
     should_change_control_flow_ = true;
     PIN_SaveContext(next_state, &next_pintool_state_);
     if(redirect_rip) {
       PIN_SetContextReg(&next_pintool_state_, REG_INST_PTR, next_rip);
     }
+    should_skip_next_instruction_ = skip_next_instruction;
   }
 
-  // **********************  Accessors  *********************
-  CONTEXT* get_context_for_changing_control_flow() {
-    return &next_pintool_state_;
-  }
+  void set_wrongpath(bool on_wrongpath) { on_wrongpath_ = on_wrongpath; }
 
  private:
   bool    should_change_control_flow_;
+  bool    should_skip_next_instruction_;
   CONTEXT next_pintool_state_;
 
-  uint64_t uid_ctr = 0;
+  uint64_t uid_ctr       = 0;
+  bool     on_wrongpath_ = false;
 };
 
 

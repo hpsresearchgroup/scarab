@@ -60,6 +60,9 @@ bool              found_syscall   = false;
 bool              excp_ff         = false;
 */
 
+// pin skips (fast_forward_count - 1) instructions
+uint64_t fast_forward_count = 0;
+
 // TODO_b: this name could be better?
 bool     fast_forward_to_pin_start = false;
 uint64_t total_ff_count            = 0;

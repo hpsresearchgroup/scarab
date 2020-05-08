@@ -232,7 +232,16 @@ works
             */
 }
 
-void change_pintool_control_flow_if_needed(CONTEXT* ctxt) {}
+void change_pintool_control_flow_if_needed(CONTEXT* ctxt) {
+  if(pintool_state.should_change_control_flow()) {
+    CONTEXT* new_ctxt = pintool_state.get_context_for_changing_control_flow();
+    if(pintool_state.should_skip_next_instruction()) {
+      fast_forward_count = 2;
+    }
+    pintool_state.clear_changing_control_flow();
+    PIN_ExecuteAt(new_ctxt);
+  }
+}
 
 void redirect(CONTEXT* ctx) {
   std::cout << "Inside redirect analysis\n";
@@ -271,8 +280,9 @@ void logging(ADDRINT next_rip, ADDRINT curr_rip, bool check_next_addr,
       pintool_state.get_curr_inst_uid(), dbg_print_start_uid, dbg_print_end_uid,
       "Curr EIP=%" PRIx64 ", next EIP=%" PRIx64 ", Curr uid=%" PRIu64
       ", wrongpath=%d, instrumented=%d\n",
-      ADDR_MASK(curr_eip), ADDR_MASK(n_eip), pintool_state.get_curr_inst_uid(),
-      0, instrumented_rip_tracker.contains(next_eip));
+      ADDR_MASK(curr_rip), ADDR_MASK(next_rip),
+      pintool_state.get_curr_inst_uid(), pintool_state.is_on_wrongpath(),
+      instrumented_rip_tracker.contains(ADDR_MASK(next_rip)));
 
     /*
     if(on_wrongpath && check_next_addr && !taken &&
