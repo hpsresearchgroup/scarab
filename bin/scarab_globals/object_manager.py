@@ -79,13 +79,9 @@ class ScarabRunManager(ObjectManager):
       for job in self.pool:
         job.print_commands()
 
-class ProgramManager(ObjectManager):
-    pass
-
-class CheckpointManager(ObjectManager):
-    pass
-
 # Declare global objects:
 scarab_run_manager = ScarabRunManager()
-program_manager = ProgramManager()
-checkpoint_manager = CheckpointManager()
+program_manager = ObjectManager()
+checkpoint_manager = ObjectManager()
+mix_manager = ObjectManager()
+collection_manager = ObjectManager()

@@ -190,6 +190,9 @@ class Checkpoint(Executable):
     super().__init__(name, path, scarab_args, pintool_args, weight)
     checkpoint_manager.register(self)
 
+  def typestr(self):
+    return "Checkpoint"
+
 class Program(Executable):
   def __init__(self, name, run_cmd, path=None, scarab_args="", pintool_args="", weight=1.0, copy=False):
     super().__init__(name, path, scarab_args, pintool_args, weight)
@@ -197,9 +200,8 @@ class Program(Executable):
     self.copy = copy
     program_manager.register(self)
 
-  def _run_program_at_path(self):
-    """Returns True if PIN process needs to be run at directory specified by path attribute."""
-    return self.path and not self.copy
+  def typestr(self):
+    return "Program"
 
   def make(self, basename):
     super().make(basename)
@@ -223,6 +225,10 @@ class Mix(Executable):
     self.pintool_args = pintool_args
     self.num_cores = len(self.mix_list)
     self.weight = 1.0
+    mix_manager.register(self)
+
+  def typestr(self):
+    return "Checkpoint"
 
   def make(self, basename):
     super().make(basename)
@@ -242,9 +248,10 @@ class Collection:
     -name: The name of the benchmark. Used for the results directory.
     -bench_list: The list of Checkpoints and/or Programs.
   """
-  def __init__(self, name, exec_list):
+  def __init__(self, name, exec_list, weight=1.0):
     self.name = name
     self.exec_list = exec_list
+    collection_manager.register(self)
 
   def _results_dir(self, basename):
     return os.path.join(os.path.abspath(basename), self.name)
@@ -282,6 +289,9 @@ class Benchmark(Collection):
   A Benchmark is a collection of weighted checkpoints or programs. When stats are collected,
   the weighted average of stats must be collected
   """
+  def typestr(self):
+    return "Benchmark"
+
   def get_stats(self, basename):
     stat_list = super().get_stats(basename)
     bench_stat = scarab_stats.BenchmarkStat(label=self.name, collection=stat_list)
@@ -292,6 +302,9 @@ class Suite(Collection):
   A Suite is a collection of checkpoints, programs, mixes, or benchmarks. When stats are
   collected, the stats should be reported together as a group
   """
+  def typestr(self):
+    return "Suite"
+
   def get_stats(self, basename):
     bench_list = super().get_stats(basename)
     suite_stat = scarab_stats.SuiteStat(label=self.name, collection=bench_list)
