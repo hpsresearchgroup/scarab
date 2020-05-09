@@ -23,6 +23,7 @@
 #define __SCATTER_H__
 
 #include <unordered_map>
+#include <vector>
 #undef UNUSED   // there is a name conflict between PIN and Scarab
 #undef WARNING  // there is a name conflict between PIN and Scarab
 #include "pin.H"
@@ -40,16 +41,20 @@ void set_gather_scatter_memory_operand_info(ADDRINT iaddr, REG pin_base_reg,
                                             UINT32 scale, bool operandReadOnly,
                                             bool operandWritenOnly);
 void finalize_scatter_info(ADDRINT iaddr, ctype_pin_inst* info);
+vector<PIN_MEM_ACCESS_INFO>
+  get_gather_scatter_mem_access_infos_from_gather_scatter_info(
+    const CONTEXT* ctxt, const PIN_MULTI_MEM_ACCESS_INFO* infos_from_pin);
 
 class gather_scatter_info {
  public:
-  enum type { INVALID, GATHER, SCATTER };
+  enum type { INVALID, GATHER, SCATTER, NUM_TYPES };
+  std::string type_to_string[NUM_TYPES] = {"INVALID", "GATHER", "SCATTER"};
 
   gather_scatter_info();
   gather_scatter_info(type given_type);
   ~gather_scatter_info();
 
-  gather_scatter_info::type get_type();
+  gather_scatter_info::type get_type() const;
 
   void set_data_reg_total_width(REG pin_reg);
   void set_data_lane_width_bytes(UINT32 st_lane_width);
@@ -60,6 +65,10 @@ class gather_scatter_info {
   void set_scale(UINT32 scale);
   void set_index_lane_width_bytes(UINT32 idx_lane_width);
   void compute_num_mem_ops();
+  void verify_fields_for_mem_access_info_generation() const;
+  vector<PIN_MEM_ACCESS_INFO> compute_mem_access_infos(
+    const CONTEXT* ctxt) const;
+  bool base_reg_is_gr32() const;
 
   friend ostream& operator<<(ostream& os, const gather_scatter_info& sinfo);
 
@@ -75,8 +84,12 @@ class gather_scatter_info {
   UINT32                    _index_lane_width_bytes;
   UINT32                    _num_mem_ops;
 
-  bool   is_non_zero_and_powerof2(UINT32 v);
-  UINT32 pin_xyzmm_reg_width_in_bytes(REG pin_xyzmm_reg);
+  bool      is_non_zero_and_powerof2(UINT32 v) const;
+  UINT32    pin_xyzmm_reg_width_in_bytes(REG pin_xyzmm_reg) const;
+  ADDRDELTA compute_base_reg_addr_contribution(const CONTEXT* ctxt) const;
+  ADDRDELTA compute_base_index_addr_contribution(
+    const PIN_REGISTER& vector_index_reg_val, UINT32 lane_id) const;
+  PIN_MEMOP_ENUM type_to_PIN_MEMOP_ENUM() const;
 };
 
 #endif  // __SCATTER_H__

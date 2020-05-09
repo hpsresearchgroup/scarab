@@ -540,23 +540,28 @@ void get_gather_scatter_eas(bool is_gather, CONTEXT* ctxt,
   // TODO: compute the gather and scatter addresses manually and add them to
   // glb_st_vaddrs glb_st_vaddrs.push_back(addr);
 
-  UINT32 numMemOps = mem_access_info->numberOfMemops;
+  const vector<PIN_MEM_ACCESS_INFO> gather_scatter_mem_access_infos =
+    get_gather_scatter_mem_access_infos_from_gather_scatter_info(
+      ctxt, mem_access_info);
+
+  UINT32 num_mem_accesses = gather_scatter_mem_access_infos.size();
+
   // TODO: get rid of print
-  (*glb_err_ostream) << "numberOfMemops is " << std::dec << numMemOps
-                     << std::endl;
-  for(UINT32 i = 0; i < numMemOps; i++) {
-    ADDRINT        addr = mem_access_info->memop[i].memoryAddress;
-    PIN_MEMOP_ENUM type = mem_access_info->memop[i].memopType;
-    UINT32         size = mem_access_info->memop[i].bytesAccessed;
+  (*glb_err_ostream) << "number of memory accesses is " << std::dec
+                     << num_mem_accesses << std::endl;
+  for(UINT32 i = 0; i < num_mem_accesses; i++) {
+    ADDRINT        addr    = gather_scatter_mem_access_infos[i].memoryAddress;
+    PIN_MEMOP_ENUM type    = gather_scatter_mem_access_infos[i].memopType;
+    UINT32         size    = gather_scatter_mem_access_infos[i].bytesAccessed;
+    bool           mask_on = gather_scatter_mem_access_infos[i].maskOn;
 
     ASSERTX(type == (is_gather ? PIN_MEMOP_LOAD : PIN_MEMOP_STORE));
     // only let Scarab know about it if the memop is not masked away
     // TODO: get rid of the print
-    (*glb_err_ostream) << ((mem_access_info->memop[i].maskOn) ? "(mask on) " :
-                                                                "(mask off)  ")
-                       << (is_gather ? "load" : "store") << " memop to "
-                       << std::dec << size << "@" << StringFromAddrint(addr)
-                       << std::endl;
+    (*glb_err_ostream) << (mask_on ? "(mask on) " : "(mask off)  ")
+                       << ((type == PIN_MEMOP_LOAD) ? "load" : "store")
+                       << " memop to " << std::dec << size << "@"
+                       << StringFromAddrint(addr) << std::endl;
   }
 }
 
