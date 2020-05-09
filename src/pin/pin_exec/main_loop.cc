@@ -36,8 +36,22 @@ void undo_mem(const ProcState& undo_state) {
   }
 }
 
-void undo_checkpoints_past_uid(UINT64 uid) {
-  INT64 idx = checkpoints.get_tail_index();
+void undo_checkpoints_until_one_after_uid(UINT64 uid) {
+  auto idx      = checkpoints.get_tail_index();
+  auto head_idx = checkpoints.get_head_index();
+  while(!checkpoints.empty() && idx > head_idx) {
+    if(checkpoints[idx - 1].uid == uid) {
+      return;
+    }
+
+    undo_mem(checkpoints[idx]);
+    idx = checkpoints.remove_from_cir_buf_tail();
+  }
+  ASSERTM(0, false, "Checkpoint %" PRIu64 " not found. \n", uid);
+}
+
+void undo_checkpoints_until_uid(UINT64 uid) {
+  auto idx = checkpoints.get_tail_index();
   while(!checkpoints.empty()) {
     if(checkpoints[idx].uid == uid) {
       return;
@@ -49,87 +63,71 @@ void undo_checkpoints_past_uid(UINT64 uid) {
   ASSERTM(0, false, "Checkpoint %" PRIu64 " not found. \n", uid);
 }
 
-/*
-void recover_to_past_checkpoint(UINT64 uid, bool is_redirect_recover,
-                                bool enter_ff) {
-  undo_checkpoints_past_uid(uid);
-  INT64 idx = checkpoints.get_tail_index();
+void record_written_regions(Mem_Writes_Info mem_writes_info) {
+  mem_writes_info.for_each_mem([](ADDRINT addr, uint32_t) {
+    pageTableEntryStruct* p_entry = NULL;
 
-  scarab_clear_all_buffers();
+    bool hitInPageTable = page_table->get_entry(addr, &p_entry);
+    if(!hitInPageTable) {
+      pageTableStruct* new_page_table = new pageTableStruct();
+      update_page_table(new_page_table);
 
-  while(!checkpoints.empty()) {
-    if(checkpoints[idx].uid == uid) {
-      // Resumes execution at the saved context
+      hitInPageTable = new_page_table->get_entry(addr, &p_entry);
+      // some applications like gcc will store to an unmapped address on the
+      // right path, so we will not hit
 
-      ADDRINT this_eip;
+      // check if each new entry has overlapping entries in the old page_table
+      for(auto new_entry = new_page_table->entries.begin();
+          new_entry != new_page_table->entries.end(); ++new_entry) {
+        bool foundOverlapping = false;
+        bool allWrittenTo     = true;
+        bool allPathsMatch    = true;
 
-      on_wrongpath          = checkpoints[idx].wrongpath;
-      on_wrongpath_nop_mode = checkpoints[idx].wrongpath_nop_mode;
-      generate_dummy_nops   = (generate_dummy_nops && on_wrongpath_nop_mode);
-      if(is_redirect_recover) {
-        return;
-      } else {
-        undo_mem(checkpoints[idx]);
-        PIN_SaveContext(&(checkpoints[idx].ctxt), &last_ctxt);
+        auto overlapping_old_entries = equal_range(
+          page_table->entries.begin(), page_table->entries.end(), *new_entry);
 
-        if(!on_wrongpath_nop_mode) {
-          if(enter_ff) {
-            excp_ff = true;
-            fast_forward_count += 2;
-            // pin skips (ffc - 1) instructions
-          } else {
-            idx = checkpoints.remove_from_cir_buf_tail();
-          }
-          PIN_ExecuteAt(&last_ctxt);
-          ASSERTM(0, false, "PIN_ExecuteAt did not redirect execution.\n");
-        } else {
-          ADDRINT prev_eip;
-          PIN_GetContextRegval(&last_ctxt, REG_INST_PTR, (UINT8*)&prev_eip);
-          this_eip = checkpoints[idx].wpnm_eip;
-          next_eip = ADDR_MASK(enter_ff ? this_eip : prev_eip);
-          return;
+        for(auto old_entry = overlapping_old_entries.first;
+            old_entry != overlapping_old_entries.second; ++old_entry) {
+          foundOverlapping = true;
+
+          allWrittenTo &= old_entry->writtenToOnRightPath;
+          allPathsMatch &= (new_entry->path == old_entry->path);
+        }
+
+        if(foundOverlapping && allWrittenTo && allPathsMatch) {
+          new_entry->writtenToOnRightPath = true;
         }
       }
-      ASSERTM(0, false,
-              "Recover: found uid %" PRIu64 ", but eip not changed.\n", uid);
+
+      delete page_table;
+      page_table = new_page_table;
     }
-
-    undo_mem(checkpoints[idx]);
-
-    if(is_redirect_recover && (checkpoints[idx].uid == (uid + 1))) {
-      PIN_SaveContext(&(checkpoints[idx].ctxt), &last_ctxt);
+    if(hitInPageTable) {
+      p_entry->writtenToOnRightPath = true;
     }
-
-    idx = checkpoints.remove_from_cir_buf_tail();
-  }
-  ASSERTM(0, false, "Checkpoint %" PRIu64 " not found. \n", uid);
+  });
 }
-*/
 
-/*
-void redirect_to_inst(ADDRINT inst_addr, CONTEXT* ctxt, UINT64 uid) {
-  scarab_clear_all_buffers();
-  undo_checkpoints_past_uid(cmd.inst_uid);
-  PIN_SetContextRegval(&last_ctxt, REG_INST_PTR, (const UINT8*)(&inst_addr));
+void trigger_wrongpath_nop_mode_if_writing_to_new_region(
+  Mem_Writes_Info mem_writes_info, uint64_t next_rip) {
+  bool writing_to_new_region = false;
+  mem_writes_info.for_each_mem(
+    [&writing_to_new_region](ADDRINT addr, uint32_t) {
+      pageTableEntryStruct* p_entry = NULL;
+      if(page_table->get_entry(addr, &p_entry)) {
+        if(!p_entry->writtenToOnRightPath) {
+          if(p_entry->permissions & 2) {
+            writing_to_new_region = true;
+          }
+        }
+      }
+    });
 
-  on_wrongpath = true;  // redirect ALWAYS sets to wrongpath==true
-  if(on_wrongpath && !instrumented_rip_tracker.contains(inst_addr)) {
-    on_wrongpath_nop_mode     = true;
-    wrongpath_nop_mode_reason = WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED;
-    DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
-              dbg_print_end_uid,
-              "Entering from redirect WPNM targetaddr=%" PRIx64 "\n",
-              (uint64_t)inst_addr);
-  }
-  if(on_wrongpath_nop_mode) {
-    next_eip = ADDR_MASK(inst_addr);
-  } else {
-    PIN_ExecuteAt(&last_ctxt);
-    ASSERTM(0, false, "PIN_ExecuteAt did not redirect execution.\n");
+  if(writing_to_new_region) {
+    pintool_state.set_wrongpath_nop_mode(
+      WPNM_REASON_WRONG_PATH_STORE_TO_NEW_REGION, next_rip);
   }
 }
-*/
-
 
 // Retire all instrution upto and including uid
 void retire_older_checkpoints(UINT64 uid) {
@@ -169,7 +167,12 @@ void do_fe_recover(Scarab_To_Pin_Msg& cmd, CONTEXT* ctxt) {
           pintool_state.get_curr_inst_uid() - 1);
 
   scarab_clear_all_buffers();
-  undo_checkpoints_past_uid(cmd.inst_uid);
+  undo_checkpoints_until_uid(cmd.inst_uid);
+
+  undo_mem(checkpoints.get_tail());
+  if(cmd.type == FE_RECOVER_BEFORE) {
+    checkpoints.remove_from_cir_buf_tail();
+  }
 
   const ProcState& checkpoint = checkpoints.get_tail();
   ASSERTM(0, !checkpoint.is_syscall,
@@ -177,6 +180,9 @@ void do_fe_recover(Scarab_To_Pin_Msg& cmd, CONTEXT* ctxt) {
           checkpoint.uid);
 
   pintool_state.set_wrongpath(checkpoint.wrongpath);
+  ASSERTM(0, !checkpoint.wrongpath_nop_mode,
+          "Cannot recover to a dummy checkpoint created in Wrongpath NOP mode");
+  pintool_state.set_wrongpath_nop_mode(WPNM_NOT_IN_WPNM, 0);
 
   bool should_skip_an_instruction_after_recovery = cmd.type == FE_RECOVER_AFTER;
   pintool_state.set_next_state_for_changing_control_flow(
@@ -202,64 +208,48 @@ void do_fe_redirect(Scarab_To_Pin_Msg& cmd, CONTEXT* ctxt) {
     pintool_state.get_curr_inst_uid(), cmd.inst_uid, cmd.inst_addr);
 
   scarab_clear_all_buffers();
-  undo_checkpoints_past_uid(cmd.inst_uid);
+  undo_checkpoints_until_one_after_uid(cmd.inst_uid);
+
+  pintool_state.set_next_state_for_changing_control_flow(
+    &checkpoints.get_tail().ctxt,
+    /*redirect=*/true, cmd.inst_addr,
+    /*skip_next_instruction=*/false);
+
+  undo_mem(checkpoints.get_tail());
+  checkpoints.remove_from_cir_buf_tail();
 
   const ProcState& checkpoint = checkpoints.get_tail();
   ASSERTM(0, !checkpoint.is_syscall,
           "Unexpected Redirect to current syscall inst @uid=%" PRIu64 "\n",
           checkpoint.uid);
-
-  pintool_state.set_next_state_for_changing_control_flow(
-    &checkpoint.ctxt,
-    /*redirect=*/true, cmd.inst_addr,
-    /*skip_next_instruction=*/false);
+  ASSERTM(0, !checkpoint.wrongpath_nop_mode,
+          "Cannot redirect a dummy instruction created in Wrongpath NOP mode");
 
   // redirect by definition switches to wrongpath
   pintool_state.set_wrongpath(true);
 
-  /*
-  if(on_wrongpath && !instrumented_rip_tracker.contains(inst_addr)) {
-    on_wrongpath_nop_mode     = true;
-    wrongpath_nop_mode_reason = WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED;
+  if(!instrumented_rip_tracker.contains(cmd.inst_addr)) {
     DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
               dbg_print_end_uid,
               "Entering from redirect WPNM targetaddr=%" PRIx64 "\n",
-              (uint64_t)inst_addr);
+              (uint64_t)cmd.inst_addr);
+    pintool_state.set_wrongpath_nop_mode(
+      WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED, cmd.inst_addr);
+    pintool_state.clear_changing_control_flow();
   }
-  if(on_wrongpath_nop_mode) {
-    next_eip = ADDR_MASK(inst_addr);
-  } else {
-    PIN_ExecuteAt(&last_ctxt);
-    ASSERTM(0, false, "PIN_ExecuteAt did not redirect execution.\n");
-  }
-
-  if(on_wrongpath_nop_mode) {
-    if(entered_wpnm) {
-      wpnm_skip_ckp = true;
-    }
-  } else {
-    ASSERTM(0, false,
-            "Redirect cmd did not change execution (uid=%" PRIu64 ")\n",
-            pintool_state.get_curr_inst_uid());
-  }
-  return on_wrongpath_nop_mode;
-  */
 }
 
-void buffer_next_instruction(CONTEXT* ctxt, Mem_Writes_Info mem_writes_info,
-                             bool is_syscall, bool is_exit_syscall) {
+void buffer_next_instruction(CONTEXT* ctxt, compressed_op* cop,
+                             Mem_Writes_Info mem_writes_info, bool is_syscall,
+                             bool is_exit_syscall, bool wrongpath_nop_mode) {
   const auto inst_uid = pintool_state.get_next_inst_uid();
-
-  auto cop      = pin_decoder_get_latest_inst();
-  cop->inst_uid = inst_uid;
+  cop->inst_uid       = inst_uid;
 
   checkpoints.append_to_cir_buf();
-  bool on_wrongpath_nop_mode_deleteme = false;
 
   checkpoints.get_tail().update(
-    ctxt, inst_uid, false, pintool_state.is_on_wrongpath(),
-    on_wrongpath_nop_mode_deleteme, cop->instruction_addr + cop->size,
-    mem_writes_info, is_syscall);
+    ctxt, inst_uid, false, pintool_state.is_on_wrongpath(), wrongpath_nop_mode,
+    cop->instruction_addr + cop->size, mem_writes_info, is_syscall);
 
   DBG_PRINT(inst_uid, dbg_print_start_uid, dbg_print_end_uid,
             "fenull curr_uid=%" PRIu64 "\n", inst_uid);
@@ -282,6 +272,12 @@ void buffer_next_instruction(CONTEXT* ctxt, Mem_Writes_Info mem_writes_info,
             cop->cf_type, cop->op_type, cop->num_ld, cop->num_st, cop->exit,
             cop->size);
 
+  if(pintool_state.is_on_wrongpath()) {
+    trigger_wrongpath_nop_mode_if_writing_to_new_region(
+      mem_writes_info, cop->instruction_addr + cop->size);
+  } else {
+    record_written_regions(mem_writes_info);
+  }
 
   if(op_mailbox_full) {
     op_mailbox.instruction_next_addr = cop->instruction_addr;
@@ -340,8 +336,8 @@ void wait_until_scarab_retires_the_syscall(CONTEXT* ctxt) {
   process_scarab_cmds_until(ctxt, [](const Scarab_To_Pin_Msg& cmd) {
     if(cmd.type == FE_FETCH_OP) {
       ASSERTM(0, false,
-              "Scarab sent a fetch command before retiring the syscall in the "
-              "pipelin");
+              "Scarab sent a fetch command after a syscall was fetched and "
+              "before the syscall was retired");
     }
     return cmd.type == FE_RETIRE && checkpoints.empty();
   });
@@ -374,7 +370,8 @@ void do_fe_fetch_op() {
 // Communicates with scarab, and performs the requested actions
 void main_loop(CONTEXT* ctxt, Mem_Writes_Info mem_writes_info, bool is_syscall,
                bool is_exit_syscall) {
-  buffer_next_instruction(ctxt, mem_writes_info, is_syscall, is_exit_syscall);
+  buffer_next_instruction(ctxt, pin_decoder_get_latest_inst(), mem_writes_info,
+                          is_syscall, is_exit_syscall, false);
 
   if(scarab_buffer_full() || is_syscall) {
     wait_until_scarab_sends_fetch_op(ctxt);
@@ -387,5 +384,32 @@ void main_loop(CONTEXT* ctxt, Mem_Writes_Info mem_writes_info, bool is_syscall,
     if(is_syscall) {
       wait_until_scarab_retires_the_syscall(ctxt);
     }
+  }
+}
+
+void wrongpath_nop_mode_main_loop() {
+  CONTEXT         dummy_ctxt;
+  Mem_Writes_Info empty_write_info;
+  uint64_t        next_rip = pintool_state.get_next_rip();
+
+  while(true) {
+    compressed_op dummy_nop = create_dummy_nop(
+      next_rip, pintool_state.get_wrongpath_nop_mode_reason());
+    buffer_next_instruction(&dummy_ctxt, &dummy_nop, empty_write_info, false,
+                            false, true);
+    if(scarab_buffer_full()) {
+      wait_until_scarab_sends_fetch_op(&dummy_ctxt);
+      DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+                dbg_print_end_uid, "============ %d =============\n",
+                (int)pintool_state.skip_further_processing());
+      if(pintool_state.skip_further_processing()) {
+        return;
+      }
+      scarab_send_buffer();
+    }
+
+    ++next_rip;
+    if(!next_rip)
+      next_rip = 0;
   }
 }

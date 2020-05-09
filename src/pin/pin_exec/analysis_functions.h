@@ -38,7 +38,7 @@ void process_instruction_one_mem_write(CONTEXT* ctxt, ADDRINT write_addr,
 void process_instruction_multi_mem_write(
   CONTEXT* ctxt, PIN_MULTI_MEM_ACCESS_INFO* mem_access_info, bool is_scatter);
 
-void enter_wrongpath_nop_mode_if_needed(CONTEXT* ctxt);
+void enter_wrongpath_nop_mode_if_needed();
 
 void change_pintool_control_flow_if_needed(CONTEXT* ctxt);
 

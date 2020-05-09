@@ -28,65 +28,6 @@
 namespace {
 
 /*
-void check_if_region_written_to(ADDRINT write_addr) {
-  pageTableEntryStruct* p_entry = NULL;
-  if(on_wrongpath) {
-    if(page_table->get_entry(write_addr, &p_entry)) {
-      if(!p_entry->writtenToOnRightPath) {
-        if(p_entry->permissions & 2) {
-          // here is where we detect it's a wrong path
-          // write to a previously unwritten region
-          on_wrongpath_nop_mode = true;
-          wrongpath_nop_mode_reason =
-            WPNM_REASON_WRONG_PATH_STORE_TO_NEW_REGION;
-        }
-      }
-    }
-  } else {
-    bool hitInPageTable = page_table->get_entry(write_addr, &p_entry);
-    if(!hitInPageTable) {
-      pageTableStruct* new_page_table = new pageTableStruct();
-      update_page_table(new_page_table);
-
-      hitInPageTable = new_page_table->get_entry(write_addr, &p_entry);
-      // some applications like gcc will store to an unmapped address on the
-      // right path, so we will not hit
-
-      // check if each new entry has overlapping entries in the old page_table
-      for(auto new_entry = new_page_table->entries.begin();
-          new_entry != new_page_table->entries.end(); ++new_entry) {
-        bool foundOverlapping = false;
-        bool allWrittenTo     = true;
-        bool allPathsMatch    = true;
-
-        auto overlapping_old_entries = equal_range(
-          page_table->entries.begin(), page_table->entries.end(), *new_entry);
-
-        for(auto old_entry = overlapping_old_entries.first;
-            old_entry != overlapping_old_entries.second; ++old_entry) {
-          foundOverlapping = true;
-
-          allWrittenTo &= old_entry->writtenToOnRightPath;
-          allPathsMatch &= (new_entry->path == old_entry->path);
-        }
-
-        if(foundOverlapping && allWrittenTo && allPathsMatch) {
-          new_entry->writtenToOnRightPath = true;
-        }
-      }
-
-      delete page_table;
-      page_table = new_page_table;
-    }
-
-    if(hitInPageTable) {
-      p_entry->writtenToOnRightPath = true;
-    }
-  }
-}
-*/
-
-/*
 void add_right_path_exec_br(CONTEXT* ctxt) {
   // Create dummy jmp
   ADDRINT eip;
@@ -112,9 +53,7 @@ dbg_print_end_uid, "At EIP %" PRIx64 "\n", eip);
   checkpoints.get_tail().init(pintool_state.get_curr_inst_uid(), false,
 on_wrongpath, on_wrongpath_nop_mode, next_eip, 0);
   //pintool_state.get_curr_inst_uid()++;
-#ifndef ASSUME_PERFECT
   save_context(ctxt);
-#endif
 }
 */
 
@@ -196,40 +135,10 @@ void process_instruction_multi_mem_write(
   }
 }
 
-void enter_wrongpath_nop_mode_if_needed(CONTEXT* ctxt) {
-  /*
-  entered_wpnm = false;
-  while(on_wrongpath_nop_mode) {
-    entered_wpnm = true;
-    DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
-              dbg_print_end_uid, "WPNM Curr uid=%" PRIu64 ", wrongpath=%d\n",
-              pintool_state.get_curr_inst_uid(), on_wrongpath);
-    generate_dummy_nops = true;
-    main_loop(ctxt, 0, false, false);
-    if(!wpnm_skip_ckp) {
-      next_eip = ADDR_MASK(next_eip);
-
-      checkpoints.append_to_cir_buf();
-      checkpoints.get_tail().init(pintool_state.get_curr_inst_uid(), false,
-                                  on_wrongpath, on_wrongpath_nop_mode, next_eip,
-                                  0);
-      // pintool_state.get_curr_inst_uid()++;
-      save_context(ctxt);
-      PIN_SetContextRegval(&(checkpoints.get_tail().ctxt), REG_INST_PTR,
-                           (const UINT8*)(&next_eip));
-      next_eip = ADDR_MASK(next_eip + 1);
->>>>>>> WIP commit: reorganizing pin_exec pintool, but only rightpath execution
-works
-    }
-    wpnm_skip_ckp = false;
+void enter_wrongpath_nop_mode_if_needed() {
+  if(!fast_forward_count && pintool_state.is_on_wrongpath_nop_mode()) {
+    wrongpath_nop_mode_main_loop();
   }
-  if(entered_wpnm) {
-    ASSERTM(0, false, "Entered WPNM, but did not recover (uid=%" PRIu64 ")\n",
-            pintool_state.get_curr_inst_uid());
-  }
-  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
-            dbg_print_end_uid, "Falling into application\n");
-            */
 }
 
 void change_pintool_control_flow_if_needed(CONTEXT* ctxt) {
@@ -284,18 +193,18 @@ void logging(ADDRINT next_rip, ADDRINT curr_rip, bool check_next_addr,
       pintool_state.get_curr_inst_uid(), pintool_state.is_on_wrongpath(),
       instrumented_rip_tracker.contains(ADDR_MASK(next_rip)));
 
-    /*
-    if(on_wrongpath && check_next_addr && !taken &&
-       !instrumented_rip_tracker.contains(n_eip)) {
+    if(pintool_state.is_on_wrongpath() && check_next_addr && !taken &&
+       !instrumented_rip_tracker.contains(next_rip)) {
       // if we're currently on the wrong path and we somehow
       // about to come across an instruction that was never
       // instrumented, then go in WPNM right away to avoid the
       // possibility of PIN going off and instrumenting wrong
       // path code that might crash PIN
-      on_wrongpath_nop_mode     = true;
-      wrongpath_nop_mode_reason = WPNM_REASON_NOT_TAKEN_TO_NOT_INSTRUMENTED;
+      pintool_state.set_wrongpath_nop_mode(
+        WPNM_REASON_NOT_TAKEN_TO_NOT_INSTRUMENTED, next_rip);
     }
 
+    /*
     DBG_PRINT(
       pintool_state.get_curr_inst_uid(), dbg_print_start_uid, dbg_print_end_uid,
       "Curr EIP=%" PRIx64 ", next EIP=%" PRIx64 ", Curr uid=%" PRIu64
@@ -307,80 +216,62 @@ void logging(ADDRINT next_rip, ADDRINT curr_rip, bool check_next_addr,
   }
 }
 
-  /*
-  void check_ret_control_ins(ADDRINT read_addr, UINT32 read_size, CONTEXT* ctxt)
-  { read_addr = ADDR_MASK(read_addr); if(!fast_forward_count) { ASSERTM(0,
-  read_size <= 8, "RET pops more than 8 bytes off the stack as ESP: %" PRIx64
-              ", size: %u\n",
-              (uint64_t)read_addr, read_size);
-  #ifndef ASSUME_PERFECT
-      char  buf[8];
-      void* prev_data = buf;
-      PIN_SafeCopy(prev_data, (void*)read_addr, read_size);
-      ADDRINT target_addr = *((UINT64*)prev_data);
-      DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
-                dbg_print_end_uid, "Ret Control targetaddr=%" PRIx64 "\n",
-                (uint64_t)target_addr);
-
-      if(on_wrongpath && !instrumented_rip_tracker.contains(target_addr)) {
-        DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
-                  dbg_print_end_uid,
-                  "Entering from ret WPNM targetaddr=%" PRIx64 "\n",
-                  (uint64_t)target_addr);
-        on_wrongpath_nop_mode     = true;
-        wrongpath_nop_mode_reason = WPNM_REASON_RETURN_TO_NOT_INSTRUMENTED;
-        target_addr = ADDR_MASK(target_addr);  // 48 bit canonical VA
-        if(!target_addr) {
-          next_eip = 1;
-        } else {
-          next_eip = ADDR_MASK(target_addr);
-        }
-      }
-  #endif
-    }
-  }
-  */
-
-  /*
-  void check_nonret_control_ins(bool taken, ADDRINT target_addr) {
+void check_ret_control_ins(ADDRINT read_addr, UINT32 read_size, CONTEXT* ctxt) {
+  if(!fast_forward_count) {
+    read_addr = ADDR_MASK(read_addr);
+    ASSERTM(0, read_size == 8,
+            "RET should pop exactly 8 bytes off the stack. RSP: %" PRIx64
+            ", size: %u\n",
+            (uint64_t)read_addr, read_size);
+    uint64_t target_addr;
+    PIN_SafeCopy(&target_addr, (void*)read_addr, read_size);
     target_addr = ADDR_MASK(target_addr);
-    if(!fast_forward_count) {
-      DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
-                dbg_print_end_uid, "Non Ret Control targetaddr=%" PRIx64 "\n",
-                (uint64_t)target_addr);
-      if(on_wrongpath && taken &&
-         !instrumented_rip_tracker.contains(target_addr)) {
-        DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
-                  dbg_print_end_uid,
-                  "Entering from nonret WPNM targetaddr=%" PRIx64 "\n",
-                  (uint64_t)target_addr);
-        on_wrongpath_nop_mode     = true;
-        wrongpath_nop_mode_reason = WPNM_REASON_NONRET_CF_TO_NOT_INSTRUMENTED;
-        target_addr = ADDR_MASK(target_addr);  // 48 bit canonical VA
-        if(!target_addr) {
-          next_eip = 1;
-        } else {
-          next_eip = ADDR_MASK(target_addr);
-        }
-      }
-    }
-  }
-  */
+    DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+              dbg_print_end_uid, "Ret Control targetaddr=%" PRIx64 "\n",
+              (uint64_t)target_addr);
 
-  /*
-  void check_nonret_control_mem_target(bool taken, ADDRINT addr, UINT32 ld_size)
-  { addr = ADDR_MASK(addr); if(!fast_forward_count) { ADDRINT target_addr;
-      if(ld_size != 8) {
-        target_addr = 0;
-      } else {
-  #ifndef ASSUME_PERFECT
-        PIN_SafeCopy(&target_addr, (void*)addr, ld_size);
-  #endif
-      }
-      check_nonret_control_ins(taken, target_addr);
+    if(pintool_state.is_on_wrongpath() &&
+       !instrumented_rip_tracker.contains(target_addr)) {
+      DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+                dbg_print_end_uid,
+                "Entering from ret WPNM targetaddr=%" PRIx64 "\n",
+                (uint64_t)target_addr);
+      pintool_state.set_wrongpath_nop_mode(
+        WPNM_REASON_RETURN_TO_NOT_INSTRUMENTED, target_addr);
     }
   }
-  */
+}
+
+void check_nonret_control_ins(bool taken, ADDRINT target_addr) {
+  if(!fast_forward_count) {
+    target_addr = ADDR_MASK(target_addr);
+    DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+              dbg_print_end_uid, "Non Ret Control targetaddr=%" PRIx64 "\n",
+              (uint64_t)target_addr);
+    if(pintool_state.is_on_wrongpath() && taken &&
+       !instrumented_rip_tracker.contains(target_addr)) {
+      DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+                dbg_print_end_uid,
+                "Entering from nonret WPNM targetaddr=%" PRIx64 "\n",
+                (uint64_t)target_addr);
+      pintool_state.set_wrongpath_nop_mode(
+        WPNM_REASON_NONRET_CF_TO_NOT_INSTRUMENTED, target_addr);
+    }
+  }
+}
+
+void check_nonret_control_mem_target(bool taken, ADDRINT addr, UINT32 ld_size) {
+  if(!fast_forward_count) {
+    addr = ADDR_MASK(addr);
+    ADDRINT target_addr;
+    if(ld_size != 8) {
+      target_addr = 0;
+    } else {
+      PIN_SafeCopy(&target_addr, (void*)addr, ld_size);
+    }
+    check_nonret_control_ins(taken, target_addr);
+  }
+}
 
 #define SCARAB_MARKERS_PIN_BEGIN (1)
 #define SCARAB_MARKERS_PIN_END (2)

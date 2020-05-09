@@ -52,16 +52,12 @@ extern ScarabOpBuffer_type scarab_op_buffer;
 extern compressed_op       op_mailbox;
 extern bool                op_mailbox_full;
 
-/*
 extern bool                      pending_exception;
-extern bool                      on_wrongpath;
-extern bool                      on_wrongpath_nop_mode;
 extern Wrongpath_Nop_Mode_Reason wrongpath_nop_mode_reason;
 extern bool                      generate_dummy_nops;
 extern bool                      wpnm_skip_ckp;
 extern bool                      entered_wpnm;
 extern bool                      exit_syscall_found;
-*/
 
 extern bool started;
 

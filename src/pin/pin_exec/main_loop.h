@@ -28,6 +28,8 @@
 void main_loop(CONTEXT* ctxt, Mem_Writes_Info mem_writes_info, bool is_syscall,
                bool is_exit_syscall);
 
+void wrongpath_nop_mode_main_loop();
+
 void do_fe_retire(Scarab_To_Pin_Msg& cmd);
 
 void do_fe_fetch_op();

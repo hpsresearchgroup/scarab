@@ -37,8 +37,6 @@ bool                op_mailbox_full = false;
 
 /*
 bool                      pending_exception         = false;
-bool                      on_wrongpath              = false;
-bool                      on_wrongpath_nop_mode     = false;
 Wrongpath_Nop_Mode_Reason wrongpath_nop_mode_reason = WPNM_NOT_IN_WPNM;
 bool                      generate_dummy_nops       = false;
 bool                      wpnm_skip_ckp             = false;

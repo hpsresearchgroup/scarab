@@ -126,7 +126,6 @@ void insert_processing_for_syscalls(const INS& ins) {
                  IARG_BOOL, INS_IsSyscall(ins), IARG_END);
 }
 
-/*
 void insert_checks_for_control_flow(const INS& ins) {
   if(INS_IsRet(ins)) {
     INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(check_ret_control_ins),
@@ -159,7 +158,6 @@ void insert_checks_for_control_flow(const INS& ins) {
     }
   }
 }
-*/
 
 void insert_processing_for_nonsyscall_instructions(const INS& ins) {
   if(!INS_IsMemoryWrite(ins)) {
@@ -182,13 +180,10 @@ void insert_processing_for_nonsyscall_instructions(const INS& ins) {
   }
 }
 
-/*
 void insert_conditional_function_wrongpath_nop_mode(const INS& ins) {
   INS_InsertCall(ins, IPOINT_BEFORE,
-                 (AFUNPTR)enter_wrongpath_nop_mode_if_needed, IARG_CONTEXT,
-                 IARG_END);
+                 (AFUNPTR)enter_wrongpath_nop_mode_if_needed, IARG_END);
 }
-*/
 
 void insert_conditional_function_change_pintool_control_flow(const INS& ins) {
   INS_InsertCall(ins, IPOINT_BEFORE,
@@ -265,11 +260,11 @@ void instrumentation_func_per_instruction(INS ins, void* v) {
   if(INS_IsSyscall(ins) || is_ifetch_barrier(ins)) {
     insert_processing_for_syscalls(ins);
   } else {
-    // insert_checks_for_control_flow(ins);
+    insert_checks_for_control_flow(ins);
     insert_processing_for_nonsyscall_instructions(ins);
   }
 
-  // insert_conditional_function_wrongpath_nop_mode(ins);
+  insert_conditional_function_wrongpath_nop_mode(ins);
   insert_conditional_function_change_pintool_control_flow(ins);
 }
 
