@@ -117,7 +117,7 @@ void insert_check_for_magic_instructions(const INS& ins) {
   if(INS_IsXchg(ins) && INS_OperandReg(ins, 0) == REG_GCX &&
      INS_OperandReg(ins, 1) == REG_GCX) {
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)handle_scarab_marker,
-                   IARG_THREAD_ID, IARG_REG_VALUE, REG_ECX, IARG_END);
+                   IARG_REG_VALUE, REG_RCX, IARG_END);
   }
 }
 
