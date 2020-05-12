@@ -26,17 +26,18 @@
 typedef unordered_map<ADDRINT, gather_scatter_info> scatter_info_map;
 scatter_info_map                                    scatter_info_storage;
 
-void add_to_gather_scatter_info_storage(ADDRINT iaddr, bool is_gather,
-                                        bool is_scatter) {
+void add_to_gather_scatter_info_storage(const ADDRINT iaddr,
+                                        const bool    is_gather,
+                                        const bool    is_scatter) {
   ASSERTX(!(is_gather && is_scatter));
   ASSERTX(is_gather || is_scatter);
   scatter_info_storage[iaddr] = gather_scatter_info(
     is_gather ? gather_scatter_info::GATHER : gather_scatter_info::SCATTER);
 }
 
-void set_gather_scatter_reg_operand_info(ADDRINT iaddr, REG pin_reg,
-                                         bool operandRead,
-                                         bool operandWritten) {
+void set_gather_scatter_reg_operand_info(const ADDRINT iaddr, const REG pin_reg,
+                                         const bool operandRead,
+                                         const bool operandWritten) {
   gather_scatter_info::type info_type = scatter_info_storage[iaddr].get_type();
   ASSERTX(gather_scatter_info::INVALID != info_type);
   if(REG_is_k_mask(pin_reg)) {
@@ -60,11 +61,10 @@ void set_gather_scatter_reg_operand_info(ADDRINT iaddr, REG pin_reg,
   }
 }
 
-void set_gather_scatter_memory_operand_info(ADDRINT iaddr, REG pin_base_reg,
-                                            REG       pin_index_reg,
-                                            ADDRDELTA displacement,
-                                            UINT32 scale, bool operandReadOnly,
-                                            bool operandWritenOnly) {
+void set_gather_scatter_memory_operand_info(
+  const ADDRINT iaddr, const REG pin_base_reg, const REG pin_index_reg,
+  const ADDRDELTA displacement, const UINT32 scale, const bool operandReadOnly,
+  const bool operandWritenOnly) {
   switch(scatter_info_storage[iaddr].get_type()) {
     case gather_scatter_info::GATHER:
       ASSERTX(operandReadOnly);
@@ -82,7 +82,27 @@ void set_gather_scatter_memory_operand_info(ADDRINT iaddr, REG pin_base_reg,
   scatter_info_storage[iaddr].set_scale(scale);
 }
 
-void finalize_scatter_info(ADDRINT iaddr, ctype_pin_inst* info) {
+static void set_info_num_ld_or_st(const ADDRINT iaddr, ctype_pin_inst* info) {
+  // set info->num_ld/st to the total number of mem ops (both mask on and off)
+  // However, when we actually generate the compressed op, we're going to set
+  // the num_ld/st of the compressed op to just the number of masked mem ops
+  ASSERTX(info->is_simd);
+  UINT32 num_mem_ops = scatter_info_storage[iaddr].get_num_mem_ops();
+
+  switch(scatter_info_storage[iaddr].get_type()) {
+    case gather_scatter_info::GATHER:
+      info->num_ld = num_mem_ops;
+      break;
+    case gather_scatter_info::SCATTER:
+      info->num_st = num_mem_ops;
+      break;
+    default:
+      ASSERTX(false);
+      break;
+  }
+}
+
+void finalize_scatter_info(const ADDRINT iaddr, ctype_pin_inst* info) {
   ASSERTX(info->is_simd);
   switch(scatter_info_storage[iaddr].get_type()) {
     case gather_scatter_info::GATHER:
@@ -100,8 +120,33 @@ void finalize_scatter_info(ADDRINT iaddr, ctype_pin_inst* info) {
   scatter_info_storage[iaddr].compute_num_mem_ops();
   scatter_info_storage[iaddr].verify_fields_for_mem_access_info_generation();
 
-  // std::cout << StringFromAddrint(iaddr) << std::endl
-  //           << scatter_info_storage[iaddr] << std::endl;
+  // set info->num_ld/st to the total number of mem ops (both mask on and off)
+  // However, when we actually generate the compressed op, we're going to set
+  // the num_ld/st of the compressed op to just the number of masked mem ops
+  set_info_num_ld_or_st(iaddr, info);
+}
+
+void update_gather_scatter_num_ld_or_st(const ADDRINT                   iaddr,
+                                        const gather_scatter_info::type type,
+                                        const uint      num_maskon_memops,
+                                        ctype_pin_inst* info) {
+  ASSERTX(1 == scatter_info_storage.count(iaddr));
+  ASSERTX(type == scatter_info_storage[iaddr].get_type());
+  // number of actual mask on loads/stores should be less or equal to total of
+  // mem ops (both mask on and off) in the gather/scatter instruction
+  switch(type) {
+    case gather_scatter_info::GATHER:
+      assert(num_maskon_memops <= info->num_ld);
+      info->num_ld = num_maskon_memops;
+      break;
+    case gather_scatter_info::SCATTER:
+      assert(num_maskon_memops <= info->num_st);
+      info->num_st = num_maskon_memops;
+      break;
+    default:
+      ASSERTX(false);
+      break;
+  }
 }
 
 static void verify_mem_access_infos(
@@ -145,12 +190,12 @@ vector<PIN_MEM_ACCESS_INFO>
   return computed_infos;
 }
 
-bool gather_scatter_info::is_non_zero_and_powerof2(UINT32 v) const {
+bool gather_scatter_info::is_non_zero_and_powerof2(const UINT32 v) const {
   return v && ((v & (v - 1)) == 0);
 }
 
 UINT32 gather_scatter_info::pin_xyzmm_reg_width_in_bytes(
-  REG pin_xyzmm_reg) const {
+  const REG pin_xyzmm_reg) const {
   ASSERTX(REG_is_xmm_ymm_zmm(pin_xyzmm_reg));
   switch(REG_Width(pin_xyzmm_reg)) {
     case REGWIDTH_128:
@@ -197,7 +242,7 @@ ADDRDELTA gather_scatter_info::compute_base_reg_addr_contribution(
 }
 
 ADDRDELTA gather_scatter_info::compute_base_index_addr_contribution(
-  const PIN_REGISTER& vector_index_reg_val, UINT32 lane_id) const {
+  const PIN_REGISTER& vector_index_reg_val, const UINT32 lane_id) const {
   ADDRDELTA index_val;
   switch(_index_lane_width_bytes) {
     case 4:
@@ -230,7 +275,8 @@ gather_scatter_info::gather_scatter_info() {
   _num_mem_ops                       = 0;
 }
 
-gather_scatter_info::gather_scatter_info(gather_scatter_info::type given_type) :
+gather_scatter_info::gather_scatter_info(
+  const gather_scatter_info::type given_type) :
     gather_scatter_info::gather_scatter_info() {
   _type = given_type;
 }
@@ -254,7 +300,7 @@ ostream& operator<<(ostream& os, const gather_scatter_info& sinfo) {
   return os;
 }
 
-void gather_scatter_info::set_data_reg_total_width(REG pin_reg) {
+void gather_scatter_info::set_data_reg_total_width(const REG pin_reg) {
   // make sure data vector total width not set yet
   ASSERTX(0 == _data_vector_reg_total_width_bytes);
   ASSERTX(REG_is_xmm_ymm_zmm(pin_reg));
@@ -262,19 +308,20 @@ void gather_scatter_info::set_data_reg_total_width(REG pin_reg) {
   ASSERTX(0 != _data_vector_reg_total_width_bytes);
 }
 
-void gather_scatter_info::set_data_lane_width_bytes(UINT32 st_lane_width) {
+void gather_scatter_info::set_data_lane_width_bytes(
+  const UINT32 st_lane_width) {
   ASSERTX(0 == _data_lane_width_bytes);
   _data_lane_width_bytes = st_lane_width;
   ASSERTX(0 != _data_lane_width_bytes);
 }
 
-void gather_scatter_info::set_kmask_reg(REG pin_reg) {
+void gather_scatter_info::set_kmask_reg(const REG pin_reg) {
   ASSERTX(!REG_valid(_kmask_reg));  // make sure kmask not set yet
   _kmask_reg = pin_reg;
   ASSERTX(REG_is_k_mask(_kmask_reg));
 }
 
-void gather_scatter_info::set_base_reg(REG pin_reg) {
+void gather_scatter_info::set_base_reg(const REG pin_reg) {
   // make sure base reg not set yet
   ASSERTX(!REG_valid(_base_reg));
   if(REG_valid(pin_reg)) {
@@ -283,7 +330,7 @@ void gather_scatter_info::set_base_reg(REG pin_reg) {
   }
 }
 
-void gather_scatter_info::set_index_reg(REG pin_reg) {
+void gather_scatter_info::set_index_reg(const REG pin_reg) {
   // make sure index reg not set yet
   ASSERTX(!REG_valid(_index_reg));
   if(REG_valid(pin_reg)) {
@@ -292,19 +339,20 @@ void gather_scatter_info::set_index_reg(REG pin_reg) {
   }
 }
 
-void gather_scatter_info::set_displacement(ADDRDELTA displacement) {
+void gather_scatter_info::set_displacement(const ADDRDELTA displacement) {
   ASSERTX(0 == _displacement);
   _displacement = displacement;
   // displacement could still be 0, because not every scatter has a displacement
 }
 
-void gather_scatter_info::set_scale(UINT32 scale) {
+void gather_scatter_info::set_scale(const UINT32 scale) {
   ASSERTX(0 == _scale);
   _scale = scale;
   ASSERTX(is_non_zero_and_powerof2(_scale));
 }
 
-void gather_scatter_info::set_index_lane_width_bytes(UINT32 idx_lane_width) {
+void gather_scatter_info::set_index_lane_width_bytes(
+  const UINT32 idx_lane_width) {
   ASSERTX(0 == _index_lane_width_bytes);
   _index_lane_width_bytes = idx_lane_width;
   // only expecting doubleword or quadword indices
@@ -329,6 +377,11 @@ void gather_scatter_info::compute_num_mem_ops() {
 
   _num_mem_ops = std::min(num_data_lanes, num_index_lanes);
   ASSERTX(is_non_zero_and_powerof2(_num_mem_ops));
+}
+
+UINT32 gather_scatter_info::get_num_mem_ops() {
+  ASSERTX(is_non_zero_and_powerof2(_num_mem_ops));
+  return _num_mem_ops;
 }
 
 void gather_scatter_info::verify_fields_for_mem_access_info_generation() const {

@@ -507,12 +507,22 @@ void create_compressed_op(ADDRINT iaddr) {
 
     uint num_lds = glb_ld_vaddrs.size();
     assert(num_lds <= MAX_LD_NUM);
+    if(filled_inst_info->num_ld != num_lds) {
+      update_gather_scatter_num_ld_or_st(iaddr, gather_scatter_info::GATHER,
+                                         num_lds, filled_inst_info);
+    }
+    assert(filled_inst_info->num_ld == num_lds);
     for(uint ld = 0; ld < num_lds; ld++) {
       filled_inst_info->ld_vaddr[ld] = glb_ld_vaddrs[ld];
     }
 
     uint num_sts = glb_st_vaddrs.size();
     assert(num_sts <= MAX_ST_NUM);
+    if(filled_inst_info->num_st != num_sts) {
+      update_gather_scatter_num_ld_or_st(iaddr, gather_scatter_info::SCATTER,
+                                         num_sts, filled_inst_info);
+    }
+    assert(filled_inst_info->num_st == num_sts);
     for(uint st = 0; st < num_sts; st++) {
       filled_inst_info->st_vaddr[st] = glb_st_vaddrs[st];
     }
