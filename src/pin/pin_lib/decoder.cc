@@ -537,31 +537,33 @@ void get_opcode(UINT32 opcode) {
 
 void get_gather_scatter_eas(bool is_gather, CONTEXT* ctxt,
                             PIN_MULTI_MEM_ACCESS_INFO* mem_access_info) {
-  // TODO: compute the gather and scatter addresses manually and add them to
-  // glb_st_vaddrs glb_st_vaddrs.push_back(addr);
-
   const vector<PIN_MEM_ACCESS_INFO> gather_scatter_mem_access_infos =
     get_gather_scatter_mem_access_infos_from_gather_scatter_info(
       ctxt, mem_access_info);
-
   UINT32 num_mem_accesses = gather_scatter_mem_access_infos.size();
 
-  // TODO: get rid of print
-  (*glb_err_ostream) << "number of memory accesses is " << std::dec
-                     << num_mem_accesses << std::endl;
   for(UINT32 i = 0; i < num_mem_accesses; i++) {
     ADDRINT        addr    = gather_scatter_mem_access_infos[i].memoryAddress;
     PIN_MEMOP_ENUM type    = gather_scatter_mem_access_infos[i].memopType;
     UINT32         size    = gather_scatter_mem_access_infos[i].bytesAccessed;
     bool           mask_on = gather_scatter_mem_access_infos[i].maskOn;
+    bool           is_load = (type == PIN_MEMOP_LOAD);
 
     ASSERTX(type == (is_gather ? PIN_MEMOP_LOAD : PIN_MEMOP_STORE));
-    // only let Scarab know about it if the memop is not masked away
+
     // TODO: get rid of the print
     (*glb_err_ostream) << (mask_on ? "(mask on) " : "(mask off)  ")
-                       << ((type == PIN_MEMOP_LOAD) ? "load" : "store")
-                       << " memop to " << std::dec << size << "@"
-                       << StringFromAddrint(addr) << std::endl;
+                       << (is_load ? "load" : "store") << " memop to "
+                       << std::dec << size << "@" << StringFromAddrint(addr)
+                       << std::endl;
+
+    // only let Scarab know about it if the memop is not masked away
+    if(mask_on) {
+      if(is_load)
+        glb_ld_vaddrs.push_back(addr);
+      else
+        glb_st_vaddrs.push_back(addr);
+    }
   }
 }
 
