@@ -236,17 +236,18 @@ void fill_in_basic_info(ctype_pin_inst* info, const INS& ins) {
      (category == XED_CATEGORY_X87_ALU)) {
     info->is_fp = 1;
   }
-  info->is_string   = (category == XED_CATEGORY_STRINGOP);
-  info->is_call     = (category == XED_CATEGORY_CALL);
-  info->is_move     = (category == XED_CATEGORY_DATAXFER ||
+  info->is_string         = (category == XED_CATEGORY_STRINGOP);
+  info->is_call           = (category == XED_CATEGORY_CALL);
+  info->is_move           = (category == XED_CATEGORY_DATAXFER ||
                    info->op_type == OP_MOV);
-  info->is_prefetch = (category == XED_CATEGORY_PREFETCH);
-  info->has_push    = (category == XED_CATEGORY_PUSH ||
+  info->is_prefetch       = (category == XED_CATEGORY_PREFETCH);
+  info->has_push          = (category == XED_CATEGORY_PUSH ||
                     category == XED_CATEGORY_CALL);
-  info->has_pop     = (category == XED_CATEGORY_POP ||
+  info->has_pop           = (category == XED_CATEGORY_POP ||
                    category == XED_CATEGORY_RET);
-  info->is_lock     = INS_LockPrefix(ins);
-  info->is_repeat   = INS_HasRealRep(ins);
+  info->is_lock           = INS_LockPrefix(ins);
+  info->is_repeat         = INS_HasRealRep(ins);
+  info->is_gather_scatter = INS_IsVgather(ins) || INS_IsVscatter(ins);
 }
 
 uint32_t add_dependency_info(ctype_pin_inst* info, const INS& ins) {

@@ -49,9 +49,7 @@
 /* Macros */
 
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_TRACE_READ, ##args)
-#define MEM_MAX_SIZE 64
 #define MAX_PUP 256
-
 /**************************************************************************************/
 /* Types */
 
@@ -99,6 +97,8 @@ extern int op_type_delays[NUM_OP_TYPES];
 extern uns NEW_INST_TABLE_SIZE;  // TODO: what is this?
 
 char* trace_files[MAX_NUM_PROCS];
+
+char dbg_print_buf[1024];
 
 Trace_Uop*** trace_uop_bulk;
 Flag*        bom;
@@ -164,6 +164,81 @@ Flag uop_generator_extract_op(uns proc_id, Op* op, compressed_op* cop) {
   return FALSE;
 }
 
+#if ENABLE_GLOBAL_DEBUG_PRINT
+static void init_dbg_print_buf_to_empty() {
+  dbg_print_buf[0] = '\0';
+}
+static void append_to_dbg_print_buf(uns proc_id, char* tmp_buf) {
+  const int bytes_remaining_in_buf = sizeof(dbg_print_buf) -
+                                     strlen(dbg_print_buf);
+  ASSERT(proc_id, bytes_remaining_in_buf > strlen(tmp_buf));
+  const char* ptr = strcat(dbg_print_buf, tmp_buf);
+  ASSERT(proc_id, ptr == dbg_print_buf);
+}
+
+static void add_one_addr(uns proc_id, Flag ld_addr, uns mem_op_seq,
+                         ctype_pin_inst* inst) {
+  char tmp_buf[64];
+  int  ret;
+  if(ld_addr)
+    ret = sprintf(tmp_buf, "ld_vaddr[%d]:0x%s ", mem_op_seq,
+                  hexstr64s(inst->ld_vaddr[mem_op_seq]));
+  else {
+    ret = sprintf(tmp_buf, "st_vaddr[%d]:0x%s ", mem_op_seq,
+                  hexstr64s(inst->st_vaddr[mem_op_seq]));
+  }
+  ASSERT(proc_id, 0 < ret);
+  append_to_dbg_print_buf(proc_id, tmp_buf);
+}
+
+static char* ctype_pin_inst_ld_and_st_addrs(uns proc_id, ctype_pin_inst* inst) {
+  ASSERT(proc_id, inst);
+  init_dbg_print_buf_to_empty();
+
+  for(uns ld = 0; ld < inst->num_ld; ld++) {
+    add_one_addr(proc_id, TRUE, ld, inst);
+  }
+  for(uns st = 0; st < inst->num_st; st++) {
+    add_one_addr(proc_id, FALSE, st, inst);
+  }
+
+  return dbg_print_buf;
+}
+
+static char* trace_uop_src_dest_regs(uns proc_id, uns ii,
+                                     Trace_Uop* trace_uop) {
+  char tmp_buf[1024];
+  int  ret;
+
+  init_dbg_print_buf_to_empty();
+
+  ret = sprintf(
+    tmp_buf,
+    "uop[%d] addr:%s npc:%s op_opcode:%s va:0x%s num_src:%d num_dest:%d ", ii,
+    hexstr64s(trace_uop->addr), hexstr64s(trace_uop->npc),
+    Op_Type_str(trace_uop->op_type), hexstr64s(trace_uop->va),
+    trace_uop->num_src_regs, trace_uop->num_dest_regs);
+  ASSERT(proc_id, 0 < ret);
+  append_to_dbg_print_buf(proc_id, tmp_buf);
+
+  int kk;
+  for(kk = 0; kk < trace_uop->num_src_regs; kk++) {
+    ret = sprintf(tmp_buf, "src[%d]:%s ", kk,
+                  disasm_reg(trace_uop->srcs[kk].id));
+    ASSERT(proc_id, 0 < ret);
+    append_to_dbg_print_buf(proc_id, tmp_buf);
+  }
+  for(kk = 0; kk < trace_uop->num_dest_regs; kk++) {
+    ret = sprintf(tmp_buf, "dest[%d]:%s ", kk,
+                  disasm_reg(trace_uop->dests[kk].id));
+    ASSERT(proc_id, 0 < ret);
+    append_to_dbg_print_buf(proc_id, tmp_buf);
+  }
+
+  return dbg_print_buf;
+}
+#endif
+
 void uop_generator_get_uop(uns proc_id, Op* op, ctype_pin_inst* inst) {
   Trace_Uop*     trace_uop = NULL;
   Trace_Uop**    trace_uop_array;
@@ -187,38 +262,22 @@ void uop_generator_get_uop(uns proc_id, Op* op, ctype_pin_inst* inst) {
     eom[proc_id]             = trace_uop->eom;
 
     DEBUG(proc_id,
-          "readed pi%s addr is 0x%s next_addr: 0x%s op_type:%d num_st:%d "
+          "read pi%s addr is 0x%s next_addr: 0x%s op_type:%s num_st:%d "
           "num_ld:%d is_fp:%d cf_type:%d size:%d branch_target:%s ld_size:%d "
-          "st_size:%d ld_vaddr[0]:%s ld_vaddr[1]:%s st_vaddr[0]:%s taken:%d "
+          "st_size:%d %s taken:%d "
           "num_uop:%d eom:%d\n",
-          unsstr64(read_ci), hexstr64s(inst.instruction_addr),
-          hexstr64s(inst.instruction_next_addr), inst.op_type, inst.num_st,
-          inst.num_ld, inst.is_fp, inst.cf_type, inst.size,
-          hexstr64s(inst.branch_target), inst.ld_size, inst.st_size,
-          hexstr64s(inst.ld_vaddr[0]), hexstr64s(inst.ld_vaddr[1]),
-          hexstr64s(inst.st_vaddr[0]), inst.actually_taken, num_uops[proc_id],
-          eom[proc_id]);
+          unsstr64(read_ci), hexstr64s(inst->instruction_addr),
+          hexstr64s(inst->instruction_next_addr), Op_Type_str(inst->op_type),
+          inst->num_st, inst->num_ld, inst->is_fp, inst->cf_type, inst->size,
+          hexstr64s(inst->branch_target), inst->ld_size, inst->st_size,
+          ctype_pin_inst_ld_and_st_addrs(proc_id, inst), inst->actually_taken,
+          num_uops[proc_id], eom[proc_id]);
 
     for(ii = 0; ii < num_uops[proc_id]; ii++) {
-      int kk;
-      DEBUG(proc_id,
-            "uop[%d] addr:%s npc:%s op_opcode:%s va:%s num_src:%d num_dest:%d",
-            ii, hexstr64s(trace_uop_array[ii]->addr),
-            hexstr64s(trace_uop_array[ii]->npc),
-            Op_Type_str(trace_uop_array[ii]->op_type),
-            hexstr64s(trace_uop_array[ii]->va),
-            trace_uop_array[ii]->num_src_regs,
-            trace_uop_array[ii]->num_dest_regs);
-      for(kk = 0; kk < trace_uop_array[ii]->num_src_regs; kk++) {
-        DEBUG(proc_id, "src[%d]:%s ", kk,
-              disasm_reg(trace_uop_array[ii]->srcs[kk].id));
-      }
-      for(kk = 0; kk < trace_uop_array[ii]->num_dest_regs; kk++) {
-        DEBUG(proc_id, "dest[%d]:%s ", kk,
-              disasm_reg(trace_uop_array[ii]->dests[kk].id));
-      }
-      DEBUG(proc_id, "\n");
+      DEBUG(proc_id, "%s\n",
+            trace_uop_src_dest_regs(proc_id, ii, trace_uop_array[ii]));
     }
+
     if(proc_id == 0)
       read_ci++;
   } else {
@@ -324,30 +383,29 @@ void uop_generator_get_uop(uns proc_id, Op* op, ctype_pin_inst* inst) {
   }
 
   DEBUG(proc_id,
-        "op_num:%s unique_num:%s pc:0x%s npc:0x%s  va:0x%s mem_type:%d "
-        "cf_type:%d oracle_target:%s dir:%d va:%s mem_size:%d \n",
+        "op_num:%s unique_num:%s pc:0x%s npc:0x%s va:0x%s mem_type:%d "
+        "mem_size:%d cf_type:%d oracle_target:%s dir:%d\n",
         unsstr64(op->op_num), unsstr64(op->unique_num),
         hexstr64s(op->inst_info->addr), hexstr64s(op->oracle_info.npc),
         hexstr64s(op->oracle_info.va), op->table_info->mem_type,
-        op->table_info->cf_type, hexstr64s(op->oracle_info.target),
-        op->oracle_info.dir, hexstr64s(op->oracle_info.va),
-        op->oracle_info.mem_size);
+        op->oracle_info.mem_size, op->table_info->cf_type,
+        hexstr64s(op->oracle_info.target), op->oracle_info.dir);
 
   for(ii = 0; ii < op->inst_info->table_info->num_src_regs; ii++) {
-    DEBUG(proc_id,
-          "op_num:%s unique_num:%s pc:0x%s npc:0x%s src_num:%d , src_id:%d \n",
+    DEBUG(proc_id, "op_num:%s unique_num:%s pc:0x%s npc:0x%s, src(%d/%d):%s \n",
           unsstr64(op->op_num), unsstr64(op->unique_num),
           hexstr64s(op->inst_info->addr), hexstr64s(op->oracle_info.npc),
-          op->inst_info->table_info->num_src_regs, op->inst_info->srcs[ii].id);
+          ii + 1, op->inst_info->table_info->num_src_regs,
+          disasm_reg(op->inst_info->srcs[ii].id));
   }
 
   for(ii = 0; ii < op->inst_info->table_info->num_dest_regs; ii++) {
-    DEBUG(
-      proc_id,
-      "op_num:%s unique_num:%s pc:0x%s npc:0x%s dest_num:%d , dest_id:%d \n",
-      unsstr64(op->op_num), unsstr64(op->unique_num),
-      hexstr64s(op->inst_info->addr), hexstr64s(op->oracle_info.npc),
-      op->inst_info->table_info->num_dest_regs, op->inst_info->dests[ii].id);
+    DEBUG(proc_id,
+          "op_num:%s unique_num:%s pc:0x%s npc:0x%s, dest(%d/%d):%s \n",
+          unsstr64(op->op_num), unsstr64(op->unique_num),
+          hexstr64s(op->inst_info->addr), hexstr64s(op->oracle_info.npc),
+          ii + 1, op->inst_info->table_info->num_dest_regs,
+          disasm_reg(op->inst_info->dests[ii].id));
   }
 }
 
@@ -719,9 +777,12 @@ void convert_pinuop_to_t_uop(uns8 proc_id, ctype_pin_inst* pi,
   pi->instruction_next_addr = convert_to_cmp_addr(proc_id,
                                                   pi->instruction_next_addr);
   pi->branch_target         = convert_to_cmp_addr(proc_id, pi->branch_target);
-  pi->ld_vaddr[0]           = convert_to_cmp_addr(proc_id, pi->ld_vaddr[0]);
-  pi->ld_vaddr[1]           = convert_to_cmp_addr(proc_id, pi->ld_vaddr[1]);
-  pi->st_vaddr[0]           = convert_to_cmp_addr(proc_id, pi->st_vaddr[0]);
+  for(uint ld = 0; ld < pi->num_ld; ld++) {
+    pi->ld_vaddr[ld] = convert_to_cmp_addr(proc_id, pi->ld_vaddr[ld]);
+  }
+  for(uint st = 0; st < pi->num_st; st++) {
+    pi->st_vaddr[st] = convert_to_cmp_addr(proc_id, pi->st_vaddr[st]);
+  }
 
   if(new_entry || pi->fake_inst) {
     num_uop = generate_uops(proc_id, pi, trace_uop);
@@ -820,27 +881,19 @@ void convert_dyn_uop(uns8 proc_id, Inst_Info* info, ctype_pin_inst* pi,
   } else if(info->table_info->mem_type) {
     if(info->table_info->mem_type == MEM_ST) {
       trace_uop->va = pi->st_vaddr[0];
-
-      if(mem_size <= MEM_MAX_SIZE) {
-        DEBUG(proc_id,
-              "Generate a store with large size: @%llx opcode: %s num_ld: %i "
-              "st?: %u size: %u\n",
-              (long long unsigned int)pi->instruction_addr,
-              Op_Type_str(pi->op_type), pi->num_ld, pi->num_st, pi->st_size);
-      }
-
+      DEBUG(proc_id,
+            "Generating a store: inst @%llx opcode: %s num_ld: %i "
+            "num_st: %u size: %u\n",
+            (long long unsigned int)pi->instruction_addr,
+            Op_Type_str(pi->op_type), pi->num_ld, pi->num_st, pi->st_size);
       trace_uop->mem_size = mem_size;
     } else if(info->table_info->mem_type == MEM_LD) {
       trace_uop->va = pi->ld_vaddr[info->trace_info.second_mem];
-
-      if(mem_size <= MEM_MAX_SIZE) {
-        DEBUG(proc_id,
-              "Generate a load with large size: @%llx opcode: %s num_ld: %i "
-              "st?: %u size: %u\n",
-              (long long unsigned int)pi->instruction_addr,
-              Op_Type_str(pi->op_type), pi->num_ld, pi->num_st, pi->ld_size);
-      }
-
+      DEBUG(proc_id,
+            "Generating a load: inst @%llx opcode: %s num_ld: %i "
+            "num_st: %u size: %u\n",
+            (long long unsigned int)pi->instruction_addr,
+            Op_Type_str(pi->op_type), pi->num_ld, pi->num_st, pi->ld_size);
       trace_uop->mem_size = mem_size;
     }
   }

@@ -87,14 +87,16 @@ static void set_info_num_ld_or_st(const ADDRINT iaddr, ctype_pin_inst* info) {
   // However, when we actually generate the compressed op, we're going to set
   // the num_ld/st of the compressed op to just the number of masked mem ops
   ASSERTX(info->is_simd);
-  UINT32 num_mem_ops = scatter_info_storage[iaddr].get_num_mem_ops();
+  ASSERTX(info->is_gather_scatter);
 
+  UINT32 total_mask_on_and_off_mem_ops =
+    scatter_info_storage[iaddr].get_num_mem_ops();
   switch(scatter_info_storage[iaddr].get_type()) {
     case gather_scatter_info::GATHER:
-      info->num_ld = num_mem_ops;
+      info->num_ld = total_mask_on_and_off_mem_ops;
       break;
     case gather_scatter_info::SCATTER:
-      info->num_st = num_mem_ops;
+      info->num_st = total_mask_on_and_off_mem_ops;
       break;
     default:
       ASSERTX(false);
@@ -104,6 +106,8 @@ static void set_info_num_ld_or_st(const ADDRINT iaddr, ctype_pin_inst* info) {
 
 void finalize_scatter_info(const ADDRINT iaddr, ctype_pin_inst* info) {
   ASSERTX(info->is_simd);
+  ASSERTX(info->is_gather_scatter);
+
   switch(scatter_info_storage[iaddr].get_type()) {
     case gather_scatter_info::GATHER:
       scatter_info_storage[iaddr].set_data_lane_width_bytes(info->ld_size);
@@ -122,7 +126,7 @@ void finalize_scatter_info(const ADDRINT iaddr, ctype_pin_inst* info) {
 
   // set info->num_ld/st to the total number of mem ops (both mask on and off)
   // However, when we actually generate the compressed op, we're going to set
-  // the num_ld/st of the compressed op to just the number of masked mem ops
+  // the num_ld/st of the compressed op to just the number of masked on mem ops
   set_info_num_ld_or_st(iaddr, info);
 }
 
@@ -130,17 +134,21 @@ void update_gather_scatter_num_ld_or_st(const ADDRINT                   iaddr,
                                         const gather_scatter_info::type type,
                                         const uint      num_maskon_memops,
                                         ctype_pin_inst* info) {
+  ASSERTX(info->is_simd);
+  ASSERTX(info->is_gather_scatter);
   ASSERTX(1 == scatter_info_storage.count(iaddr));
   ASSERTX(type == scatter_info_storage[iaddr].get_type());
   // number of actual mask on loads/stores should be less or equal to total of
   // mem ops (both mask on and off) in the gather/scatter instruction
+  UINT32 total_mask_on_and_off_mem_ops =
+    scatter_info_storage[iaddr].get_num_mem_ops();
   switch(type) {
     case gather_scatter_info::GATHER:
-      assert(num_maskon_memops <= info->num_ld);
+      assert(num_maskon_memops <= total_mask_on_and_off_mem_ops);
       info->num_ld = num_maskon_memops;
       break;
     case gather_scatter_info::SCATTER:
-      assert(num_maskon_memops <= info->num_st);
+      assert(num_maskon_memops <= total_mask_on_and_off_mem_ops);
       info->num_st = num_maskon_memops;
       break;
     default:
