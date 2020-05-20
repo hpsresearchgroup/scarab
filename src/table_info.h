@@ -154,9 +154,8 @@ struct Table_Info_struct {
   Cf_Type  cf_type;   // type of control flow instruction
   Bar_Type bar_type;  // type of barrier caused by instruction
 
-  Flag has_lit;        // does it have a literal? (only integer operates can)
-  uns  num_dest_regs;  // number of destination registers written
-  uns  num_src_regs;   // number of source registers read
+  uns num_dest_regs;  // number of destination registers written
+  uns num_src_regs;   // number of source registers read
 
   Flag is_simd;         // Is it a SIMD opcode (even if it is a scalar operation
                         // like MOVSD)

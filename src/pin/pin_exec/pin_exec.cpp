@@ -175,7 +175,8 @@ void insert_processing_for_nonsyscall_instructions(const INS& ins) {
     } else {
       // Multiple memory ops
       INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_multi_mem,
-                     IARG_CONTEXT, IARG_MULTI_MEMORYACCESS_EA, IARG_END);
+                     IARG_CONTEXT, IARG_MULTI_MEMORYACCESS_EA, IARG_BOOL,
+                     INS_IsVscatter(ins), IARG_END);
     }
   }
 }

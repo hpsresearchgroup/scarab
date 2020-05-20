@@ -47,7 +47,8 @@ void before_ins_no_mem(CONTEXT* ctxt);
 void before_ins_one_mem(CONTEXT* ctxt, ADDRINT write_addr, UINT32 write_size);
 
 void before_ins_multi_mem(CONTEXT*                   ctxt,
-                          PIN_MULTI_MEM_ACCESS_INFO* mem_access_info);
+                          PIN_MULTI_MEM_ACCESS_INFO* mem_access_info_from_pin,
+                          bool                       is_scatter);
 
 void redirect(CONTEXT* ctx);
 

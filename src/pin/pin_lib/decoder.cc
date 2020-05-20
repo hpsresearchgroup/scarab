@@ -556,17 +556,18 @@ void get_gather_scatter_eas(bool is_gather, CONTEXT* ctxt,
   for(UINT32 i = 0; i < num_mem_accesses; i++) {
     ADDRINT        addr    = gather_scatter_mem_access_infos[i].memoryAddress;
     PIN_MEMOP_ENUM type    = gather_scatter_mem_access_infos[i].memopType;
-    UINT32         size    = gather_scatter_mem_access_infos[i].bytesAccessed;
     bool           mask_on = gather_scatter_mem_access_infos[i].maskOn;
     bool           is_load = (type == PIN_MEMOP_LOAD);
 
     ASSERTX(type == (is_gather ? PIN_MEMOP_LOAD : PIN_MEMOP_STORE));
 
     // TODO: get rid of the print
-    (*glb_err_ostream) << (mask_on ? "(mask on) " : "(mask off)  ")
-                       << (is_load ? "load" : "store") << " memop to "
-                       << std::dec << size << "@" << StringFromAddrint(addr)
-                       << std::endl;
+    // UINT32         size    =
+    // gather_scatter_mem_access_infos[i].bytesAccessed;
+    // (*glb_err_ostream) << (mask_on ? "(mask on) " : "(mask off)  ")
+    //                    << (is_load ? "load" : "store") << " memop to "
+    //                    << std::dec << size << "@" << StringFromAddrint(addr)
+    //                    << std::endl;
 
     // only let Scarab know about it if the memop is not masked away
     if(mask_on) {
