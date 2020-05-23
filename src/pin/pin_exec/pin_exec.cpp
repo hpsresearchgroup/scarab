@@ -63,7 +63,7 @@ KNOB<UINT32> KnobCoreId(KNOB_MODE_WRITEONCE, "pintool", "core_id", "0",
                         "The ID of the Scarab core to connect to");
 
 KNOB<UINT32> KnobMaxBufferSize(
-  KNOB_MODE_WRITEONCE, "pintool", "max_buffer_size", "32",
+  KNOB_MODE_WRITEONCE, "pintool", "max_buffer_size", "8",
   "pintool buffers up to (max_buffer_size-2) instructions for sending");
 
 KNOB<UINT64> KnobHyperFastForwardCount(
@@ -175,7 +175,8 @@ void insert_processing_for_nonsyscall_instructions(const INS& ins) {
     } else {
       // Multiple memory ops
       INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_multi_mem,
-                     IARG_CONTEXT, IARG_MULTI_MEMORYACCESS_EA, IARG_END);
+                     IARG_CONTEXT, IARG_MULTI_MEMORYACCESS_EA, IARG_BOOL,
+                     INS_IsVscatter(ins), IARG_END);
     }
   }
 }

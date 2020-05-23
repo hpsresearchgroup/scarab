@@ -69,11 +69,6 @@ typedef struct Src_Info_struct {
 // }}}
 
 /*------------------------------------------------------------------------------------*/
-// {{{ Dest_Info
-typedef struct Dest_Info_struct {
-  Quad val;
-} Dest_Info;
-// }}}
 
 /**************************************************************************************/
 // {{{ Op_Info
@@ -84,11 +79,10 @@ struct Op_Info_struct {
   struct Table_Info_struct* table_info;  // copy of op->table_info
   struct Inst_Info_struct*  inst_info;   // copy of op->inst_info
 
-  uns       num_srcs;             // number of dependencies to obey
-  Src_Info  src_info[MAX_DEPS];   // information about each source
-  Dest_Info dest_info[MAX_OUTS];  // information about the destination
-  Flag      update_fpcr;          // need to update the fpcr
-  UQuad     new_fpcr;             // fpcr value resulting from this op
+  uns      num_srcs;            // number of dependencies to obey
+  Src_Info src_info[MAX_DEPS];  // information about each source
+  Flag     update_fpcr;         // need to update the fpcr
+  UQuad    new_fpcr;            // fpcr value resulting from this op
 
   // mem op fields
   Addr va;        // virtual address for memory instructions

@@ -24,6 +24,7 @@
 #include "main_loop.h"
 
 #include "../pin_lib/decoder.h"
+#include "../pin_lib/gather_scatter_addresses.h"
 
 #define ENABLE_HYPER_FF_HEARTBEAT
 void PIN_FAST_ANALYSIS_CALL docount(UINT32 c) {
@@ -278,7 +279,8 @@ void before_ins_one_mem(CONTEXT* ctxt, ADDRINT write_addr, UINT32 write_size) {
 }
 
 void before_ins_multi_mem(CONTEXT*                   ctxt,
-                          PIN_MULTI_MEM_ACCESS_INFO* mem_access_info) {
+                          PIN_MULTI_MEM_ACCESS_INFO* mem_access_info_from_pin,
+                          bool                       is_scatter) {
   if(!fast_forward_count) {
     if(seen_rightpath_exc_mode) {
       add_right_path_exec_br(ctxt);
@@ -290,7 +292,22 @@ void before_ins_multi_mem(CONTEXT*                   ctxt,
 
     next_eip = ADDR_MASK(next_eip);
 
-    UINT32 numMemOps = mem_access_info->numberOfMemops;
+    UINT32                      numMemOps;
+    vector<PIN_MEM_ACCESS_INFO> scatter_maskon_mem_access_info;
+
+    if(is_scatter) {
+      // don't care about stores in lanes that are disabled by k mask
+      for(auto mem_access :
+          get_gather_scatter_mem_access_infos_from_gather_scatter_info(
+            ctxt, mem_access_info_from_pin)) {
+        if(mem_access.maskOn) {
+          scatter_maskon_mem_access_info.push_back(mem_access);
+        }
+      }
+      numMemOps = scatter_maskon_mem_access_info.size();
+    } else {
+      numMemOps = mem_access_info_from_pin->numberOfMemops;
+    }
 
     checkpoints.append_to_cir_buf();
     checkpoints.get_tail().init(uid_ctr, false, on_wrongpath,
@@ -300,8 +317,19 @@ void before_ins_multi_mem(CONTEXT*                   ctxt,
     save_context(ctxt);
 #endif
     for(UINT32 i = 0; i < numMemOps; i++) {
-      ADDRINT write_addr = ADDR_MASK(mem_access_info->memop[i].memoryAddress);
-      UINT32  write_size = mem_access_info->memop[i].bytesAccessed;
+      ADDRINT write_addr;
+      UINT32  write_size;
+
+      if(is_scatter) {
+        ASSERTX(PIN_MEMOP_STORE == scatter_maskon_mem_access_info[i].memopType);
+        ASSERTX(scatter_maskon_mem_access_info[i].maskOn);
+        write_addr = ADDR_MASK(scatter_maskon_mem_access_info[i].memoryAddress);
+        write_size = scatter_maskon_mem_access_info[i].bytesAccessed;
+      } else {
+        write_addr = ADDR_MASK(
+          mem_access_info_from_pin->memop[i].memoryAddress);
+        write_size = mem_access_info_from_pin->memop[i].bytesAccessed;
+      }
 
       save_mem(write_addr, write_size, i);
     }

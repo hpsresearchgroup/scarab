@@ -34,8 +34,8 @@
 #define MAX_SRC_REGS_NUM 8
 #define MAX_DST_REGS_NUM 8
 #define MAX_MEM_ADDR_REGS_NUM 2
-#define MAX_LD_NUM 2
-#define MAX_ST_NUM 1
+#define MAX_LD_NUM 16
+#define MAX_ST_NUM 16
 
 typedef uint8_t compressed_reg_t;
 
@@ -114,6 +114,7 @@ typedef struct ctype_pin_inst_struct {
   uint8_t  is_lock : 1;
   uint8_t  is_repeat : 1;
   uint8_t  is_simd : 1;
+  uint8_t  is_gather_scatter : 1;
   uint8_t  is_sentinel : 1;
   uint8_t  fake_inst : 1;
   uint8_t  exit : 1;

@@ -36,7 +36,7 @@
 /**************************************************************************************/
 // Defines
 
-#define MAX_SRCS 6
+#define MAX_SRCS 32  // up to 16 for a gather instruction
 #define MAX_DESTS 6
 
 
@@ -66,10 +66,13 @@ typedef struct Reg_Info_struct {
 /**************************************************************************************/
 // static trace info
 typedef struct Trace_Info_struct {
-  uns8 inst_size;         // instruction size in x86 instructions
-  uns8 num_uop;           // number of uop for x86 instructions
-  uns8 renaming_num_uop;  // the number of renaming uop
-  uns8 second_mem;
+  uns8 inst_size;          // instruction size in x86 instructions
+  uns8 num_uop;            // number of uop for x86 instructions
+  Flag is_gather_scatter;  // is a gather or scatter instruction
+  uns8 load_seq_num;  // sequence number for load uops (0 is the first load, 1
+  // the second, etc.)
+  uns store_seq_num;  // sequence number for store uops (0 is the first store, 1
+                      // the second, etc.)
 } Trace_info;
 
 
@@ -79,32 +82,21 @@ typedef struct Trace_Info_struct {
 // static instruction (eg. address).
 // typedef in globals/global_types.h
 struct Inst_Info_struct {
-  Binary binary;       // instruction binary
-  Addr   addr;         // address of the instruction
-  uns    uop_seq_num;  // static op num used to differentiate ops with same pc
+  Addr addr;         // address of the instruction
+  uns  uop_seq_num;  // static op num used to differentiate ops with same pc
   Table_Info* table_info;  // pointer into the table of static instruction
                            // information
 
   Reg_Info srcs[MAX_SRCS];    // source register information
   Reg_Info dests[MAX_DESTS];  // destination register information
 
-  int   latency;  // The normal latency of this instruction
-  uns64 lit;      // literal value, if there is one
-  int64 disp;     // displacement value, if there is one
+  int latency;  // The normal latency of this instruction
 
   Flag trigger_op_fetched_hook;  // if true, the op will trigger the model's
                                  // fetch hook
-  Flag track_preloaded;  // if true, the op was identified for tracking during
-                         // track preload
-  Flag hard_to_predict;  // true if this is a hard-to-predict branch
-  Flag important_ld;     // true if this is an importand load
-  Flag on_addr_stream;   // instruction was once part of address computation
-                         // stream
   int extra_ld_latency;  // extra latency this load instruction should incurr
-  struct Vlp_Info_struct* vlp_info;  // VLP information
 
   struct Trace_Info_struct trace_info;  // trace_info;
-  uns64                    ztrace_binary;
 
   Flag fake_inst;  // is a fake op that PIN execution-driven frontend generates
                    // for handling exceptions and uninstrumented code.
