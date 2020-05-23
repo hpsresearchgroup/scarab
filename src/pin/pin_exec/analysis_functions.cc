@@ -158,11 +158,6 @@ void check_if_region_written_to(ADDRINT write_addr) {
 
 void save_mem(ADDRINT write_addr, UINT32 write_size, UINT write_index) {
 #ifndef ASSUME_PERFECT
-  // TODO: remove after done debugging
-  // std::cout << "save_mem: write_addr:" << StringFromAddrint(write_addr)
-  //           << " , write_size:" << std::dec << write_size
-  //           << " , write_index:" << write_index << std::endl;
-
   write_addr = ADDR_MASK(write_addr);
 
   check_if_region_written_to(write_addr);
@@ -326,9 +321,9 @@ void before_ins_multi_mem(CONTEXT*                   ctxt,
       UINT32  write_size;
 
       if(is_scatter) {
-        ASSERTX(PIN_MEMOP_STORE == scatter_maskon_mem_access_info[i].emopType);
+        ASSERTX(PIN_MEMOP_STORE == scatter_maskon_mem_access_info[i].memopType);
         ASSERTX(scatter_maskon_mem_access_info[i].maskOn);
-        write_addr = ADDR_MASK(scatter_maskon_mem_access_info[i].emoryAddress);
+        write_addr = ADDR_MASK(scatter_maskon_mem_access_info[i].memoryAddress);
         write_size = scatter_maskon_mem_access_info[i].bytesAccessed;
       } else {
         write_addr = ADDR_MASK(
