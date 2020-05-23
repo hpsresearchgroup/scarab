@@ -145,7 +145,7 @@ void pin_decoder_insert_analysis_functions(const INS& ins) {
   fill_in_basic_info(info, ins);
   if(INS_IsVgather(ins) || INS_IsVscatter(ins)) {
     add_to_gather_scatter_info_storage(INS_Address(ins), INS_IsVgather(ins),
-                                       INS_IsVscatter(ins));
+                                       INS_IsVscatter(ins), INS_Category(ins));
   }
   uint32_t max_op_width = add_dependency_info(info, ins);
   fill_in_simd_info(info, ins, max_op_width);
@@ -1421,6 +1421,7 @@ static void init_pin_opcode_convert(void) {
   iclass_to_scarab_map[XED_ICLASS_PUSHFD] = {OP_NOTPIPELINED_SLOW, 4, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_PUSHFQ] = {OP_NOTPIPELINED_SLOW, 8, 1, NONE};
   iclass_to_scarab_map[XED_ICLASS_PXOR]   = {OP_LOGIC, 1, -1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_RCPPS]  = {OP_FDIV, 4, -1, NONE};
   iclass_to_scarab_map[XED_ICLASS_RDTSC]  = {OP_NOTPIPELINED_SLOW, 4, 1, NONE};
   // INS_Opcode() never returns REPEAT variants of the iclasses
   // iclass_to_scarab_map[XED_ICLASS_REPE_CMPSB] = {OP_ICMP, 1, 1, NONE};

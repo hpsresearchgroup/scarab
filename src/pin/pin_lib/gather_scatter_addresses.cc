@@ -28,36 +28,102 @@ scatter_info_map                                    scatter_info_storage;
 
 void add_to_gather_scatter_info_storage(const ADDRINT iaddr,
                                         const bool    is_gather,
-                                        const bool    is_scatter) {
+                                        const bool    is_scatter,
+                                        const INT32   category) {
   ASSERTX(!(is_gather && is_scatter));
   ASSERTX(is_gather || is_scatter);
-  scatter_info_storage[iaddr] = gather_scatter_info(
-    is_gather ? gather_scatter_info::GATHER : gather_scatter_info::SCATTER);
+  gather_scatter_info::type type = is_gather ? gather_scatter_info::GATHER :
+                                               gather_scatter_info::SCATTER;
+  gather_scatter_info::mask_reg_type mask_reg_type;
+  switch(category) {
+    case XED_CATEGORY_AVX2GATHER:
+      mask_reg_type = gather_scatter_info::XYMM;
+      break;
+
+    case XED_CATEGORY_GATHER:
+    case XED_CATEGORY_SCATTER:
+      mask_reg_type = gather_scatter_info::K;
+      break;
+
+    default:
+      ASSERT(false, std::string(
+                      "unexpected category for gather/scatter instruction: ") +
+                      CATEGORY_StringShort(category));
+      break;
+  }
+  scatter_info_storage[iaddr] = gather_scatter_info(type, mask_reg_type);
+}
+
+static void set_gather_scatter_data_width(
+  const ADDRINT iaddr, const REG pin_reg, const bool operandRead,
+  const bool operandWritten, const gather_scatter_info::type info_type,
+  const gather_scatter_info::mask_reg_type mask_reg_type) {
+  ASSERTX(REG_is_xmm_ymm_zmm(pin_reg));
+  switch(info_type) {
+    case gather_scatter_info::GATHER:
+      switch(mask_reg_type) {
+        case gather_scatter_info::K:
+          ASSERTX(!operandRead && operandWritten);
+          break;
+        case gather_scatter_info::XYMM:
+          // there's a bug in PIN as late as version 3.13 where INS_OperandRead
+          // returns true for the destination reg (i.e., reg that we are
+          // gathering into) for a AVX2 gather
+          ASSERTX(operandRead && operandWritten);
+          break;
+        default:
+          ASSERTX(false);
+          break;
+      }
+      break;
+
+    case gather_scatter_info::SCATTER:
+      ASSERTX(operandRead && !operandWritten);
+      break;
+
+    default:
+      ASSERTX(false);
+      break;
+  }
+  scatter_info_storage[iaddr].set_data_reg_total_width(pin_reg);
 }
 
 void set_gather_scatter_reg_operand_info(const ADDRINT iaddr, const REG pin_reg,
                                          const bool operandRead,
                                          const bool operandWritten) {
-  gather_scatter_info::type info_type = scatter_info_storage[iaddr].get_type();
-  ASSERTX(gather_scatter_info::INVALID != info_type);
+  const gather_scatter_info::type info_type =
+    scatter_info_storage[iaddr].get_type();
+  const gather_scatter_info::mask_reg_type mask_reg_type =
+    scatter_info_storage[iaddr].get_mask_reg_type();
+
+  ASSERTX(gather_scatter_info::INVALID_TYPE != info_type);
+  ASSERTX(gather_scatter_info::INVALID_MASK_REG_TYPE != mask_reg_type);
+
   if(REG_is_k_mask(pin_reg)) {
     ASSERTX(operandRead);
     ASSERTX(operandWritten);
-    scatter_info_storage[iaddr].set_kmask_reg(pin_reg);
+    ASSERTX(gather_scatter_info::K == mask_reg_type);
+    scatter_info_storage[iaddr].set_mask_reg(pin_reg);
   } else {
     ASSERTX(REG_is_xmm_ymm_zmm(pin_reg));
-    switch(info_type) {
-      case gather_scatter_info::GATHER:
-        ASSERTX(!operandRead && operandWritten);
-        break;
-      case gather_scatter_info::SCATTER:
-        ASSERTX(operandRead && !operandWritten);
-        break;
-      default:
-        ASSERTX(false);
-        break;
+    // for AVX2 gathers, both the destination
+    // register (i.e., the register that we gather into) and the mask register
+    // (i.e., the register that controls whether each lane gets predicated) are
+    // xmm/ymm registers. Unfortunate, PIN has a big (as late as 3.13) that
+    // marks operandRead for the destination register, even though it shouldn't,
+    // which means it's impossible to tell whether a given xmm/ymm register is
+    // the destination register, or the mask by looking at operandRead and
+    // operandWritten. It appears PIN will always provide the destination
+    // register first, so we first check of the mask_reg is set; if it is
+    // already set, then we assume the incoming pin_reg is a mask_reg.
+    // Otherwise, we assume it's the destination register
+    if((gather_scatter_info::XYMM == mask_reg_type) &&
+       scatter_info_storage[iaddr].data_dest_reg_set()) {
+      scatter_info_storage[iaddr].set_mask_reg(pin_reg);
+    } else {
+      set_gather_scatter_data_width(iaddr, pin_reg, operandRead, operandWritten,
+                                    info_type, mask_reg_type);
     }
-    scatter_info_storage[iaddr].set_data_reg_total_width(pin_reg);
   }
 }
 
@@ -93,9 +159,15 @@ static void set_info_num_ld_or_st(const ADDRINT iaddr, ctype_pin_inst* info) {
     scatter_info_storage[iaddr].get_num_mem_ops();
   switch(scatter_info_storage[iaddr].get_type()) {
     case gather_scatter_info::GATHER:
+      // should be set to 1 in decoder.cc:add_dependency_info, because PIN
+      // treats gathers as having 1 memory operand
+      ASSERTX(1 == info->num_ld);
       info->num_ld = total_mask_on_and_off_mem_ops;
       break;
     case gather_scatter_info::SCATTER:
+      // should be set to 1 in decoder.cc:add_dependency_info, because PIN
+      // treats scatters as having 1 memory operand
+      ASSERTX(1 == info->num_st);
       info->num_st = total_mask_on_and_off_mem_ops;
       break;
     default:
@@ -167,15 +239,17 @@ static void verify_mem_access_infos(
     bool           mask_on_from_pin = infos_from_pin->memop[lane_id].maskOn;
 
     // as late as PIN 3.13, there is a bug where PIN will not correctly compute
-    // the addresses of gathers/scatters if the base register is a 32-bit
-    // register and holds a negative value
-    if(!base_reg_is_gr32) {
-      // std::cout << "Comparing addresses" << std::endl;
-      // std::cout << StringFromAddrint(computed_infos[lane_id].memoryAddress)
-      //           << endl;
-      // std::cout << StringFromAddrint(addr_from_pin) << endl;
-      ASSERTX(computed_infos[lane_id].memoryAddress == addr_from_pin);
+    // the full 64 addresses of gathers/scatters if the base register is a
+    // 32-bit register and holds a negative value. The low 32 bits, however,
+    // appear to be correct, so we check against that
+    ADDRINT addr_mask;
+    if(base_reg_is_gr32) {
+      addr_mask = 0xFFFFFFFF;
+    } else {
+      addr_mask = -1;
     }
+    ASSERTX((computed_infos[lane_id].memoryAddress & addr_mask) ==
+            (addr_from_pin & addr_mask));
     ASSERTX(computed_infos[lane_id].memopType == type_from_pin);
     ASSERTX(computed_infos[lane_id].bytesAccessed == size_from_pin);
     ASSERTX(computed_infos[lane_id].maskOn == mask_on_from_pin);
@@ -188,8 +262,6 @@ vector<PIN_MEM_ACCESS_INFO>
   ADDRINT iaddr;
   PIN_GetContextRegval(ctxt, REG_INST_PTR, (UINT8*)&iaddr);
   ASSERTX(1 == scatter_info_storage.count(iaddr));
-  std::cout << "Getting mem access infos for inst at "
-            << StringFromAddrint(iaddr) << std::endl;
   vector<PIN_MEM_ACCESS_INFO> computed_infos =
     scatter_info_storage[iaddr].compute_mem_access_infos(ctxt);
   verify_mem_access_infos(computed_infos, infos_from_pin,
@@ -270,11 +342,21 @@ gather_scatter_info::type gather_scatter_info::get_type() const {
   return _type;
 }
 
+gather_scatter_info::mask_reg_type gather_scatter_info::get_mask_reg_type()
+  const {
+  return _mask_reg_type;
+}
+
+bool gather_scatter_info::data_dest_reg_set() const {
+  return 0 != _data_vector_reg_total_width_bytes;
+}
+
 gather_scatter_info::gather_scatter_info() {
-  _type                              = gather_scatter_info::INVALID;
+  _type          = gather_scatter_info::INVALID_TYPE;
+  _mask_reg_type = gather_scatter_info::INVALID_MASK_REG_TYPE;
   _data_vector_reg_total_width_bytes = 0;
   _data_lane_width_bytes             = 0;
-  _kmask_reg                         = REG_INVALID();
+  _mask_reg                          = REG_INVALID();
   _base_reg                          = REG_INVALID();
   _index_reg                         = REG_INVALID();
   _displacement                      = 0;
@@ -284,9 +366,11 @@ gather_scatter_info::gather_scatter_info() {
 }
 
 gather_scatter_info::gather_scatter_info(
-  const gather_scatter_info::type given_type) :
+  const gather_scatter_info::type          given_type,
+  const gather_scatter_info::mask_reg_type given_mask_reg_type) :
     gather_scatter_info::gather_scatter_info() {
-  _type = given_type;
+  _type          = given_type;
+  _mask_reg_type = given_mask_reg_type;
 }
 
 gather_scatter_info::~gather_scatter_info() {}
@@ -297,7 +381,9 @@ ostream& operator<<(ostream& os, const gather_scatter_info& sinfo) {
      << sinfo._data_vector_reg_total_width_bytes << std::endl;
   os << "_data_lane_width_bytes " << std::dec << sinfo._data_lane_width_bytes
      << std::endl;
-  os << "_k_mask_reg: " << REG_StringShort(sinfo._kmask_reg) << std::endl;
+  os << "_mask_reg_type: " << sinfo.type_to_string[sinfo._mask_reg_type]
+     << std::endl;
+  os << "_k_mask_reg: " << REG_StringShort(sinfo._mask_reg) << std::endl;
   os << "_base_reg: " << REG_StringShort(sinfo._base_reg) << std::endl;
   os << "_index_reg: " << REG_StringShort(sinfo._index_reg) << std::endl;
   os << "_displacement: 0x" << std::hex << sinfo._displacement << std::endl;
@@ -310,10 +396,10 @@ ostream& operator<<(ostream& os, const gather_scatter_info& sinfo) {
 
 void gather_scatter_info::set_data_reg_total_width(const REG pin_reg) {
   // make sure data vector total width not set yet
-  ASSERTX(0 == _data_vector_reg_total_width_bytes);
+  ASSERTX(!data_dest_reg_set());
   ASSERTX(REG_is_xmm_ymm_zmm(pin_reg));
   _data_vector_reg_total_width_bytes = REG_Size(pin_reg);
-  ASSERTX(0 != _data_vector_reg_total_width_bytes);
+  ASSERTX(data_dest_reg_set());
 }
 
 void gather_scatter_info::set_data_lane_width_bytes(
@@ -323,10 +409,28 @@ void gather_scatter_info::set_data_lane_width_bytes(
   ASSERTX(0 != _data_lane_width_bytes);
 }
 
-void gather_scatter_info::set_kmask_reg(const REG pin_reg) {
-  ASSERTX(!REG_valid(_kmask_reg));  // make sure kmask not set yet
-  _kmask_reg = pin_reg;
-  ASSERTX(REG_is_k_mask(_kmask_reg));
+void gather_scatter_info::verify_mask_reg() const {
+  switch(_mask_reg_type) {
+    case gather_scatter_info::K:
+      ASSERTX(REG_is_k_mask(_mask_reg));
+      break;
+    case gather_scatter_info::XYMM:
+      ASSERTX(data_dest_reg_set());
+      ASSERTX(REG_is_xmm(_mask_reg) || REG_is_ymm(_mask_reg));
+      // for all AVX2 gather instructions, the width of the mask xmm/ymm
+      // register and the destination register should be the same
+      ASSERTX(REG_Size(_mask_reg) == _data_vector_reg_total_width_bytes);
+      break;
+    default:
+      ASSERT(false, "unexpected mask reg type");
+      break;
+  }
+}
+
+void gather_scatter_info::set_mask_reg(const REG pin_reg) {
+  ASSERTX(!REG_valid(_mask_reg));  // make sure kmask not set yet
+  _mask_reg = pin_reg;
+  verify_mask_reg();
 }
 
 void gather_scatter_info::set_base_reg(const REG pin_reg) {
@@ -387,13 +491,13 @@ void gather_scatter_info::compute_num_mem_ops() {
   ASSERTX(is_non_zero_and_powerof2(_num_mem_ops));
 }
 
-UINT32 gather_scatter_info::get_num_mem_ops() {
+UINT32 gather_scatter_info::get_num_mem_ops() const {
   ASSERTX(is_non_zero_and_powerof2(_num_mem_ops));
   return _num_mem_ops;
 }
 
 void gather_scatter_info::verify_fields_for_mem_access_info_generation() const {
-  ASSERTX(REG_is_k_mask(_kmask_reg));
+  verify_mask_reg();
   if(REG_valid(_base_reg)) {
     ASSERTX(REG_is_gr64(_base_reg) || REG_is_gr32(_base_reg));
   }
@@ -402,6 +506,40 @@ void gather_scatter_info::verify_fields_for_mem_access_info_generation() const {
   ASSERTX((4 == _index_lane_width_bytes) || (8 == _index_lane_width_bytes));
   ASSERTX((4 == _data_lane_width_bytes) || (8 == _data_lane_width_bytes));
   ASSERTX(is_non_zero_and_powerof2(_num_mem_ops));
+}
+
+bool gather_scatter_info::extract_mask_on(const PIN_REGISTER& mask_reg_val_buf,
+                                          const UINT32        lane_id) const {
+  bool   mask_on  = false;
+  UINT64 msb_mask = ((UINT64)1) << (_data_lane_width_bytes * 8 - 1);
+
+  switch(_mask_reg_type) {
+    case gather_scatter_info::K:
+      mask_on = (mask_reg_val_buf.word[0] & (1 << lane_id));
+      break;
+    case gather_scatter_info::XYMM:
+      // Conditionality is specified by the most significant bit of each data
+      // element of the mask register. The width of data element in the
+      // destination register and mask register are identical.
+      switch(_data_lane_width_bytes) {
+        case 4:
+          mask_on = (mask_reg_val_buf.dword[lane_id] & msb_mask);
+          break;
+
+        case 8:
+          mask_on = (mask_reg_val_buf.qword[lane_id] & msb_mask);
+          break;
+
+        default:
+          ASSERT(false, "expecting data lane width to be 4 or 8 bytes");
+          break;
+      }
+      break;
+    default:
+      ASSERTX(false);
+      break;
+  }
+  return mask_on;
 }
 
 vector<PIN_MEM_ACCESS_INFO> gather_scatter_info::compute_mem_access_infos(
@@ -415,13 +553,13 @@ vector<PIN_MEM_ACCESS_INFO> gather_scatter_info::compute_mem_access_infos(
   PIN_REGISTER vector_index_reg_val_buf;
   PIN_GetContextRegval(ctxt, _index_reg, (UINT8*)&vector_index_reg_val_buf);
   PIN_REGISTER mask_reg_val_buf;
-  PIN_GetContextRegval(ctxt, _kmask_reg, (UINT8*)&mask_reg_val_buf);
+  PIN_GetContextRegval(ctxt, _mask_reg, (UINT8*)&mask_reg_val_buf);
   for(UINT32 lane_id = 0; lane_id < _num_mem_ops; lane_id++) {
     ADDRDELTA index_val = compute_base_index_addr_contribution(
       vector_index_reg_val_buf, lane_id);
     ADDRINT final_addr = base_addr_contribution + (index_val * _scale) +
                          _displacement;
-    bool                mask_on = (mask_reg_val_buf.word[0] & (1 << lane_id));
+    bool                mask_on = extract_mask_on(mask_reg_val_buf, lane_id);
     PIN_MEM_ACCESS_INFO access_info = {.memoryAddress = final_addr,
                                        .memopType     = memop_type,
                                        .bytesAccessed = _data_lane_width_bytes,
