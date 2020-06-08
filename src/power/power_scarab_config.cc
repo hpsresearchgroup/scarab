@@ -40,7 +40,7 @@ extern "C" {
 #include "bp/bp.param.h"
 #include "core.param.h"
 #include "general.param.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 #include "power/power.param.h"
 #include "ramulator.h"
 #include "ramulator.param.h"

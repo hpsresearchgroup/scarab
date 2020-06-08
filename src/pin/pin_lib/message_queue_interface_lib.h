@@ -177,7 +177,7 @@ Message<std::vector<T>>::operator std::vector<T>() const {
   for(uint32_t i = 0; i < size_of_vector; ++i) {
     uint32_t start_idx = i * sizeof(T);
     uint32_t stop_idx  = (i + 1) * sizeof(T);
-    std::copy(&data[start_idx], &data[stop_idx], &object[i]);
+    std::copy(&data[start_idx], &data[stop_idx], (char*)&object[i]);
   }
   return object;
 }

@@ -1,2 +1,0 @@
-1. A progran that intentionally uses a UD instruction with a custom handler wouldn't work as the handler will be ignored.
-

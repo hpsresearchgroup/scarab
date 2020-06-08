@@ -14,7 +14,8 @@ CFILES = uop_generator.c
 OBJFILES = $(patsubst %.cc,$(OBJDIR)/%.o,$(CCFILES)) $(patsubst %.c,$(OBJDIR)/%.o,$(CFILES))
 TARGET = libpin_fe
 
-DEBUG_FLAGS = -DNO_DEBUG
+# will always generate the debug functions, but won't call them unless debug is enabled
+DEBUG_FLAGS = #-DNO_DEBUG
 XFLAGS	    = -D_REENTRANT
 WARN_CFLAGS = -Wall -Wunused -Wmissing-prototypes -Wmissing-declarations -Wno-long-long -Wpointer-arith -Wimplicit -Werror
 ifeq ($(CCVER), gcc (GCC) 4.7.3)

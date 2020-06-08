@@ -19,20 +19,17 @@
  * SOFTWARE.
  */
 
-#ifndef _PIN_FE_GLOBALS
-#define _PIN_FE_GLOBALS
-// Global Variables
-extern std::ostream* out;
+#ifndef PIN_EXEC_SCARAB_INTERFACE_H
+#define PIN_EXEC_SCARAB_INTERFACE_H
 
-extern UINT64  uid_ctr;
-extern UINT64  heartbeat;
-extern INT64   checkpoints_cir_buf_size;
-extern CONTEXT last_ctxt;
-extern bool    pending_fetch_op;
-extern bool    on_wrongpath;
+#include "globals.h"
 
-// Test variables
-extern UINT64  test_recover_uid;
-extern ADDRINT saved_eip;
+#include "../pin_lib/pin_scarab_common_lib.h"
 
-#endif
+Scarab_To_Pin_Msg get_scarab_cmd();
+void              insert_scarab_op_in_buffer(compressed_op& cop);
+bool              scarab_buffer_full();
+void              scarab_send_buffer();
+void              scarab_clear_all_buffers();
+
+#endif  // PIN_EXEC_SCARAB_INTERFACE_H

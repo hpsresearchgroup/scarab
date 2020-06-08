@@ -40,7 +40,7 @@
 
 #include "core.param.h"
 #include "debug/debug.param.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 
 #include "cmp_model.h"
 #include "libs/hash_lib.h"

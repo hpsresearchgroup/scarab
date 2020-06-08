@@ -33,9 +33,9 @@
 #define __PARAM_ENUM_HEADERS_H__
 
 #include "addr_trans.h"
-#include "cache_part.h"
 #include "dvfs/dvfs.h"
 #include "dvfs/perf_pred.h"
 #include "frontend/frontend_intf.h"
+#include "memory/cache_part.h"
 
 #endif  // __PARAM_ENUM_HEADERS_H__

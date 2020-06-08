@@ -154,7 +154,7 @@ endef
 # **************************************************************************************
 # Generate all of the file lists
 
-SRC_DIRS := globals isa libs frontend debug power dvfs prefetcher bp
+SRC_DIRS := globals isa libs frontend debug power dvfs prefetcher bp memory
 
 CSRC_BASE:= $(wildcard *.c) $(foreach d, $(SRC_DIRS), $(wildcard $d/*.c))
 CSRC     := $(CSRC_BASE)
@@ -251,23 +251,23 @@ ramulator_lib_vgr:
 # PIN Exec Drive FE library
 pin_fe_lib_opt:
 	make SCARAB_DIR=$(SRCPWD) --directory pin/pin_lib
-	make SCARAB_DIR=$(SRCPWD) rollback --directory pin/pin_exec
+	make SCARAB_DIR=$(SRCPWD) pin_exec --directory pin/pin_exec
 
 pin_fe_lib_dbg:
 	make SCARAB_DIR=$(SRCPWD) --directory pin/pin_lib dbg
-	make SCARAB_DIR=$(SRCPWD) rollback --directory pin/pin_exec
+	make SCARAB_DIR=$(SRCPWD) pin_exec --directory pin/pin_exec
 
 pin_fe_lib_gte:
 	make SCARAB_DIR=$(SRCPWD) --directory pin/pin_lib
-	make SCARAB_DIR=$(SRCPWD) rollback --directory pin/pin_exec
+	make SCARAB_DIR=$(SRCPWD) pin_exec --directory pin/pin_exec
 
 pin_fe_lib_gpf:
 	make SCARAB_DIR=$(SRCPWD) --directory pin/pin_lib
-	make SCARAB_DIR=$(SRCPWD) rollback --directory pin/pin_exec
+	make SCARAB_DIR=$(SRCPWD) pin_exec --directory pin/pin_exec
 
 pin_fe_lib_vgr:
 	make SCARAB_DIR=$(SRCPWD) --directory pin/pin_lib vgr
-	make SCARAB_DIR=$(SRCPWD) rollback --directory pin/pin_exec
+	make SCARAB_DIR=$(SRCPWD) pin_exec --directory pin/pin_exec
 
 clean_pin_fe_lib_opt:
 	make --directory pin/pin_lib clean

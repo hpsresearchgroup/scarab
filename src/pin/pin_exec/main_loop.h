@@ -19,17 +19,18 @@
  * SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
+#ifndef PIN_EXEC_MAIN_LOOP_H__
+#define PIN_EXEC_MAIN_LOOP_H__
 
-int main() {
-  setbuf(stdout, NULL);
+#include "globals.h"
 
-  printf("Here 1\n");
-  __asm__("xchg %eax, %eax;");
-  printf("Here 2\n");
-  __asm__("xchg %ebx, %ebx;");
-  printf("Here 3\n");
+// Communicates with scarab, and performs the requested actions
+void main_loop(CONTEXT* ctxt);
 
-  return 1;
-}
+bool do_fe_retire(Scarab_To_Pin_Msg& cmd);
+
+void do_fe_fetch_op(bool& syscall_has_been_sent_to_scarab);
+
+void do_fe_null(bool& have_consumed_op);
+
+#endif  // PIN_EXEC_MAIN_LOOP_H__

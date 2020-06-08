@@ -127,10 +127,10 @@ Scarab's source code is organized as follows:
   + %Memory system
 
     + %Memory request data structures
-      + mem_req.h
+      + memory/mem_req.h
 
     + Cache hierarchy
-      + memory.h
+      + memory/memory.h
 
     + DRAM
       + dram.h

@@ -1,14 +1,14 @@
 /* Copyright 2020 HPS/SAFARI Research Groups
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -21,112 +21,114 @@
 
 /* -*- Mode: c -*- */
 
-/* These ".stat" files contain the various statistics that can be taken via STAT_EVENTs.
-   It's not a good idea to reorder these, since many calls are made like
-   STAT_EVENT(ICACHE_MISS + hit) which could update either.  All stats are printed both
-   as 'Interval' and 'Cumulative'.  'Interval' is measured during the current stat
-   interval, 'Cumulative' is over the entire run so far.
+/* These ".stat" files contain the various statistics that can be taken via
+  STAT_EVENTs. It's not a good idea to reorder these, since many calls are made
+  like STAT_EVENT(ICACHE_MISS + hit) which could update either.  All stats are
+  printed both as 'Interval' and 'Cumulative'.  'Interval' is measured during
+  the current stat interval, 'Cumulative' is over the entire run so far.
 
    DEF_STAT( Name, Type, Ratio )
 
-   The 'Type' column is used to group statistics together and format the printouts
-   somewhat.  See the 'RATIO' type for a description of the 'Ratio Stat' column.
-   Possible 'Type' values are:
+   The 'Type' column is used to group statistics together and format the
+  printouts somewhat.  See the 'RATIO' type for a description of the 'Ratio
+  Stat' column. Possible 'Type' values are:
 
-	COUNT -- The count is what's important.  Just print the number of times it
-	occurred.  
-	
-	PER_CYCLE -- We care about how many times this occured per cycle, so divide by
-	the number of cycles.  (Ex. IPC)  The count is also printed.
+  COUNT -- The count is what's important.  Just print the number of times it
+  occurred.
 
-	PER_INST -- Same thing, but per instruction.
+  PER_CYCLE -- We care about how many times this occured per cycle, so divide by
+  the number of cycles.  (Ex. IPC)  The count is also printed.
 
-	DIST -- This is a little bit complicated.  The first DIST type encountered
-	signals the beginning of a distribution.  The next DIST encountered marks the
-	end of the distribution (inclusive).  All of the stats in-between should be of
-	type COUNT.  All of the stats in a distribution are printed as a percentage of
-	the total.
+  PER_INST -- Same thing, but per instruction.
 
-	RATIO -- This stat should be printed as a ratio.  The 'Ratio' argument
-	determines which other stat should be used.  The current stat is divided by that
-	specified in the 'Ratio Stat' column.  This column is ignored for all types but
-	RATIO.
+  DIST -- This is a little bit complicated.  The first DIST type encountered
+  signals the beginning of a distribution.  The next DIST encountered marks the
+  end of the distribution (inclusive).  All of the stats in-between should be of
+  type COUNT.  All of the stats in a distribution are printed as a percentage of
+  the total.
+
+  RATIO -- This stat should be printed as a ratio.  The 'Ratio' argument
+  determines which other stat should be used.  The current stat is divided by
+  that specified in the 'Ratio Stat' column.  This column is ignored for all
+  types but RATIO.
 
 */
 
-			                                                                  
-DEF_STAT(  ST_OP_INV,   DIST,   NO_RATIO  )
-DEF_STAT(  ST_OP_NOP,   COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_CF,    COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_MOV,   COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_CMOV,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_LDA,   COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_IMEM,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_IADD,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_IMUL,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_IDIV,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_ICMP,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_LOGIC, COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_SHIFT, COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_FMEM,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_FCVT,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_FADD,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_FMUL,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_FMA,   COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_FDIV,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_FCMP,  COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_FCMOV, COUNT,  NO_RATIO  )
-DEF_STAT(  ST_OP_PIPELINED_FAST,         COUNT,   NO_RATIO  )
-DEF_STAT(  ST_OP_PIPELINED_MEDIUM,       COUNT,   NO_RATIO  )
-DEF_STAT(  ST_OP_PIPELINED_SLOW,         COUNT,   NO_RATIO  )
-DEF_STAT(  ST_OP_NOTPIPELINED_MEDIUM,    COUNT,   NO_RATIO  )
-DEF_STAT(  ST_OP_NOTPIPELINED_SLOW,      COUNT,   NO_RATIO  )
-DEF_STAT(  ST_OP_NOTPIPELINED_VERY_SLOW, DIST,    NO_RATIO  )
 
-DEF_STAT(  ST_NOT_CF,   DIST,  NO_RATIO  )
-DEF_STAT(  ST_CF_BR,    COUNT, NO_RATIO  )
-DEF_STAT(  ST_CF_CBR,   COUNT, NO_RATIO  )
-DEF_STAT(  ST_CF_CALL,  COUNT, NO_RATIO  )
-DEF_STAT(  ST_CF_IBR,   COUNT, NO_RATIO  )
-DEF_STAT(  ST_CF_ICALL, COUNT, NO_RATIO  )
-DEF_STAT(  ST_CF_ICO,   COUNT, NO_RATIO  )
-DEF_STAT(  ST_CF_RET,   COUNT, NO_RATIO  )
-DEF_STAT(  ST_CF_SYS,   DIST,  NO_RATIO  )
+DEF_STAT(ST_OP_INV, DIST, NO_RATIO)
+DEF_STAT(ST_OP_NOP, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_CF, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_MOV, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_CMOV, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_LDA, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_IMEM, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_IADD, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_IMUL, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_IDIV, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_ICMP, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_LOGIC, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_SHIFT, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_FMEM, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_FCVT, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_FADD, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_FMUL, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_FMA, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_FDIV, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_FCMP, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_FCMOV, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_GATHER, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_SCATTER, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_PIPELINED_FAST, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_PIPELINED_MEDIUM, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_PIPELINED_SLOW, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_NOTPIPELINED_MEDIUM, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_NOTPIPELINED_SLOW, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_NOTPIPELINED_VERY_SLOW, DIST, NO_RATIO)
 
-DEF_STAT(  ST_BAR_NONE,  DIST,  NO_RATIO )
-DEF_STAT(  ST_BAR_FETCH, COUNT, NO_RATIO )
-DEF_STAT(  ST_BAR_ISSUE, COUNT, NO_RATIO )
-DEF_STAT(  ST_BAR_BOTH,  DIST,  NO_RATIO )
+DEF_STAT(ST_NOT_CF, DIST, NO_RATIO)
+DEF_STAT(ST_CF_BR, COUNT, NO_RATIO)
+DEF_STAT(ST_CF_CBR, COUNT, NO_RATIO)
+DEF_STAT(ST_CF_CALL, COUNT, NO_RATIO)
+DEF_STAT(ST_CF_IBR, COUNT, NO_RATIO)
+DEF_STAT(ST_CF_ICALL, COUNT, NO_RATIO)
+DEF_STAT(ST_CF_ICO, COUNT, NO_RATIO)
+DEF_STAT(ST_CF_RET, COUNT, NO_RATIO)
+DEF_STAT(ST_CF_SYS, DIST, NO_RATIO)
 
-DEF_STAT(  ST_NOT_MEM,   DIST,  NO_RATIO  )
-DEF_STAT(  ST_MEM_LD,    COUNT, NO_RATIO  )
-DEF_STAT(  ST_MEM_ST,    COUNT, NO_RATIO  )
-DEF_STAT(  ST_MEM_PF,    COUNT, NO_RATIO  )
-DEF_STAT(  ST_MEM_WH,    COUNT, NO_RATIO  )
-DEF_STAT(  ST_MEM_EVICT, DIST,  NO_RATIO  )
+DEF_STAT(ST_BAR_NONE, DIST, NO_RATIO)
+DEF_STAT(ST_BAR_FETCH, COUNT, NO_RATIO)
+DEF_STAT(ST_BAR_ISSUE, COUNT, NO_RATIO)
+DEF_STAT(ST_BAR_BOTH, DIST, NO_RATIO)
 
-DEF_STAT(  ST_NOT_MEM_OFFPATH,   DIST,  NO_RATIO  )
-DEF_STAT(  ST_MEM_LD_OFFPATH,    COUNT, NO_RATIO  )
-DEF_STAT(  ST_MEM_ST_OFFPATH,    COUNT, NO_RATIO  )
-DEF_STAT(  ST_MEM_PF_OFFPATH,    COUNT, NO_RATIO  )
-DEF_STAT(  ST_MEM_WH_OFFPATH,    COUNT, NO_RATIO  )
-DEF_STAT(  ST_MEM_EVIC_OFFPATHT, DIST,  NO_RATIO  )
+DEF_STAT(ST_NOT_MEM, DIST, NO_RATIO)
+DEF_STAT(ST_MEM_LD, COUNT, NO_RATIO)
+DEF_STAT(ST_MEM_ST, COUNT, NO_RATIO)
+DEF_STAT(ST_MEM_PF, COUNT, NO_RATIO)
+DEF_STAT(ST_MEM_WH, COUNT, NO_RATIO)
+DEF_STAT(ST_MEM_EVICT, DIST, NO_RATIO)
 
-DEF_STAT(  ST_OP_ONPATH,  COUNT, NO_RATIO)
-DEF_STAT(  ST_OP_OFFPATH, COUNT, NO_RATIO)
+DEF_STAT(ST_NOT_MEM_OFFPATH, DIST, NO_RATIO)
+DEF_STAT(ST_MEM_LD_OFFPATH, COUNT, NO_RATIO)
+DEF_STAT(ST_MEM_ST_OFFPATH, COUNT, NO_RATIO)
+DEF_STAT(ST_MEM_PF_OFFPATH, COUNT, NO_RATIO)
+DEF_STAT(ST_MEM_WH_OFFPATH, COUNT, NO_RATIO)
+DEF_STAT(ST_MEM_EVIC_OFFPATHT, DIST, NO_RATIO)
 
-DEF_STAT(  ST_FAKE_OP_OFFPATH, DIST, NO_RATIO)
-DEF_STAT(  ST_NOT_FAKE_OP_OFFPATH, DIST, NO_RATIO)
+DEF_STAT(ST_OP_ONPATH, COUNT, NO_RATIO)
+DEF_STAT(ST_OP_OFFPATH, COUNT, NO_RATIO)
 
-DEF_STAT(  ST_FAKE_REASON_NOT_FAKE,                        DIST,   NO_RATIO )
-DEF_STAT(  ST_FAKE_REASON_REDIRECT_TO_NOT_INSTRUMENTED,    COUNT,  NO_RATIO )
-DEF_STAT(  ST_FAKE_REASON_RETURN_TO_NOT_INSTRUMENTED,      COUNT,  NO_RATIO )
-DEF_STAT(  ST_FAKE_REASON_NONRET_CF_TO_NOT_INSTRUMENTED,   COUNT,  NO_RATIO )
-DEF_STAT(  ST_FAKE_REASON_NOT_TAKEN_TO_NOT_INSTRUMENTED,   COUNT,   NO_RATIO )
-DEF_STAT(  ST_FAKE_REASON_WRONG_PATH_STORE_TO_NEW_REGION,   DIST,   NO_RATIO )
+DEF_STAT(ST_FAKE_OP_OFFPATH, DIST, NO_RATIO)
+DEF_STAT(ST_NOT_FAKE_OP_OFFPATH, DIST, NO_RATIO)
 
-DEF_STAT(  ST_INST_ONPATH,  COUNT, NO_RATIO)
-DEF_STAT(  ST_INST_OFFPATH, COUNT, NO_RATIO)
+DEF_STAT(ST_FAKE_REASON_NOT_FAKE, DIST, NO_RATIO)
+DEF_STAT(ST_FAKE_REASON_REDIRECT_TO_NOT_INSTRUMENTED, COUNT, NO_RATIO)
+DEF_STAT(ST_FAKE_REASON_RETURN_TO_NOT_INSTRUMENTED, COUNT, NO_RATIO)
+DEF_STAT(ST_FAKE_REASON_NONRET_CF_TO_NOT_INSTRUMENTED, COUNT, NO_RATIO)
+DEF_STAT(ST_FAKE_REASON_NOT_TAKEN_TO_NOT_INSTRUMENTED, COUNT, NO_RATIO)
+DEF_STAT(ST_FAKE_REASON_WRONG_PATH_STORE_TO_NEW_REGION, DIST, NO_RATIO)
 
-DEF_STAT( STATIC_PIN_NOP,   COUNT, NO_RATIO) 
-DEF_STAT( DYNAMIC_PIN_REP_GREATER_256, COUNT, NO_RATIO)
+DEF_STAT(ST_INST_ONPATH, COUNT, NO_RATIO)
+DEF_STAT(ST_INST_OFFPATH, COUNT, NO_RATIO)
+
+DEF_STAT(STATIC_PIN_NOP, COUNT, NO_RATIO)
+DEF_STAT(DYNAMIC_PIN_REP_GREATER_256, COUNT, NO_RATIO)

@@ -30,7 +30,6 @@
 /* Global variables */
 #include "cmp_model.h"
 #include "bp/bp.param.h"
-#include "cache_part.h"
 #include "core.param.h"
 #include "debug/debug.param.h"
 #include "debug/debug_macros.h"
@@ -40,7 +39,8 @@
 #include "dvfs/perf_pred.h"
 #include "general.param.h"
 #include "globals/assert.h"
-#include "memory.param.h"
+#include "memory/cache_part.h"
+#include "memory/memory.param.h"
 #include "op_pool.h"
 #include "prefetcher/pref.param.h"
 #include "prefetcher/pref_common.h"

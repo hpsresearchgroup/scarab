@@ -42,7 +42,7 @@
 
 #include "debug/debug.param.h"
 #include "general.param.h"
-#include "memory.param.h"
+#include "memory/memory.param.h"
 
 
 /**************************************************************************************/

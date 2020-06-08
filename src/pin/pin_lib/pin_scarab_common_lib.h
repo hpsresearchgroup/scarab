@@ -62,8 +62,6 @@ Flag is_sentinal_op(compressed_op* op);
 
 extern uint64_t fast_forward_count;
 
-void debug_analysis(uint32_t number);
-
 #ifdef __cplusplus
 }
 #endif

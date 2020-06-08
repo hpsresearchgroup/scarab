@@ -120,6 +120,8 @@ Flag is_alu_type(uns64 fu_type) {
                   get_fu_type(OP_CMOV, FALSE) | get_fu_type(OP_LDA, FALSE) |
                   get_fu_type(OP_IADD, FALSE) | get_fu_type(OP_ICMP, FALSE) |
                   get_fu_type(OP_LOGIC, FALSE) | get_fu_type(OP_SHIFT, FALSE) |
+                  get_fu_type(OP_GATHER, FALSE) |
+                  get_fu_type(OP_SCATTER, FALSE) |
                   get_fu_type(OP_PIPELINED_FAST, FALSE) |
                   get_fu_type(OP_PIPELINED_MEDIUM, FALSE) |
                   get_fu_type(OP_PIPELINED_SLOW, FALSE) |

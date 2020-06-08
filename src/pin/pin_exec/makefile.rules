@@ -17,7 +17,7 @@
 # This defines tests which run tools of the same name.  This is simply for convenience to avoid
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
-TEST_TOOL_ROOTS := rollback rollback_retire_test rollback_recover_test rollback_redirect_test rollback_exception_test rollback_illop_test
+TEST_TOOL_ROOTS := pin_exec
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
@@ -56,45 +56,12 @@ COMMON_LIB_PATH  := ../pin_lib
 COMMON_LIB_CFILES   := $(wildcard $(COMMON_LIB_PATH)/*.cc)
 COMMON_LIB_OBJFILES := $(patsubst $(COMMON_LIB_PATH)/%.cc,$(OBJDIR)%.o,$(COMMON_LIB_CFILES))
 
+SOURCE_FILES := analysis_functions.cc globals.cc main_loop.cc exception_handling.cc scarab_interface.cc
+SOURCE_OBJFILES := $(patsubst %.cc,$(OBJDIR)%.o,$(SOURCE_FILES))
+
 SCARAB_DIR ?= ../../
 TOOL_CXXFLAGS += -std=c++14 -g3 -static -I$(SCARAB_DIR)
 TOOL_LDFLAGS += -std=c++14
-
-# TEST_CXXFLAGS := -static 
-
-
-##############################################################
-#
-# Test recipes
-#
-##############################################################
-
-# This section contains recipes for tests other than the default.
-# See makefile.default.rules for the default test rules.
-# All tests in this section should adhere to the naming convention: <testname>.test
-
-test_retire = -DTESTING_RETIRE=true -DTESTING_RECOVER=false -DTESTING_REDIRECT=false -DTESTING_EXCEPTION=false -DTESTING_RETIRE_ILLOP=false -DTESTING_WRONGPATH=false
-test_recover = -DTESTING_RETIRE=false -DTESTING_RECOVER=true -DTESTING_REDIRECT=false -DTESTING_EXCEPTION=false -DTESTING_RETIRE_ILLOP=false -DTESTING_WRONGPATH=false
-test_redirect = -DTESTING_RETIRE=false -DTESTING_RECOVER=false -DTESTING_REDIRECT=true -DTESTING_EXCEPTION=false -DTESTING_RETIRE_ILLOP=false -DTESTING_WRONGPATH=false
-test_exception = -DTESTING_RETIRE=false -DTESTING_RECOVER=false -DTESTING_REDIRECT=false -DTESTING_EXCEPTION=true -DTESTING_RETIRE_ILLOP=false -DTESTING_WRONGPATH=true
-test_retire_illop = -DTESTING_RETIRE=false -DTESTING_RECOVER=false -DTESTING_REDIRECT=false -DTESTING_EXCEPTION=true -DTESTING_RETIRE_ILLOP=true -DTESTING_WRONGPATH=true
-no_test = -DTESTING_RETIRE=false -DTESTING_RECOVER=false -DTESTING_REDIRECT=false -DTESTING_EXCEPTION=false -DTESTING_RETIRE_ILLOP=false -DTESTING_WRONGPATH=false
-
-$(OBJDIR)rollback_retire_test$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(test_retire)
-
-$(OBJDIR)rollback_recover_test$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(test_recover)
-
-$(OBJDIR)rollback_redirect_test$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(test_redirect)
-
-$(OBJDIR)rollback_exception_test$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(test_exception)
-
-$(OBJDIR)rollback_illop_test$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(test_retire_illop)
-
 
 ##############################################################
 #
@@ -105,7 +72,7 @@ $(OBJDIR)rollback_illop_test$(OBJ_SUFFIX):rollback.cpp
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
 
-.PHONY: commonlibs rollback debug_print debug_gdb debug
+.PHONY: commonlibs pin_exec debug_print debug_gdb debug
 
 DEBUG_PRINT_FLAGS := -DDEBUG_PRINT=true
 DEBUG_GDB_FLAGS := -O0
@@ -120,40 +87,25 @@ debug: TOOL_CXXFLAGS += $(DEBUG_PRINT_FLAGS)
 debug: TOOL_CXXFLAGS += $(DEBUG_GDB_FLAGS)
 debug: objects libs dlls apps tools
 
-rollback: $(OBJDIR)rollback.so
+pin_exec: $(OBJDIR)pin_exec.so
 
 $(OBJDIR)%.o: $(COMMON_LIB_PATH)/%.cc
+	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -DPIN_COMPILE
+
+$(OBJDIR)%.o: %.cc
 	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -DPIN_COMPILE
 
 commonlibs: $(COMMON_LIB_OBJFILES)
 
 # Build the tool as a dll (shared object).
 # overriding rule in makefile.default.rules
-$(OBJDIR)roll%$(PINTOOL_SUFFIX): $(OBJDIR)roll%$(OBJ_SUFFIX) commonlibs
-	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $< $(COMMON_LIB_OBJFILES) $(TOOL_LPATHS) $(TOOL_LIBS)
+$(OBJDIR)pin_exec$(PINTOOL_SUFFIX): $(OBJDIR)pin_exec$(OBJ_SUFFIX) $(SOURCE_OBJFILES) commonlibs
+	$(info invoking link)
+	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $< $(SOURCE_OBJFILES) $(COMMON_LIB_OBJFILES) $(TOOL_LPATHS) $(TOOL_LIBS)
 
 
-$(OBJDIR)rollback$(OBJ_SUFFIX):rollback.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD $(no_test) -DPIN_COMPILE
+$(OBJDIR)pin_exec$(OBJ_SUFFIX):pin_exec.cpp
+	$(info invoking compile)
+	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD -DPIN_COMPILE
 
-$(OBJDIR)retire_test$(EXE_SUFFIX):retire_test.c
-	gcc $(TEST_CXXFLAGS) retire_test.c $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@
-
-$(OBJDIR)recover_test$(EXE_SUFFIX):recover_test.c
-	gcc $(TEST_CXXFLAGS) recover_test.c $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@
-
-$(OBJDIR)redirect_test$(EXE_SUFFIX):redirect_test.c
-	gcc $(TEST_CXXFLAGS) redirect_test.c $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@
-
-$(OBJDIR)exception_test$(EXE_SUFFIX):exception_test.c
-	gcc $(TEST_CXXFLAGS) exception_test.c $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@
-
-$(OBJDIR)illop_test$(EXE_SUFFIX):illop_test.c
-	gcc $(TEST_CXXFLAGS) illop_test.c $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@
-
--include $(OBJDIR)rollback.d
--include $(OBJDIR)rollback_redirect_test.d
--include $(OBJDIR)rollback_retire_test.d
--include $(OBJDIR)rollback_recover_test.d
--include $(OBJDIR)rollback_exception_test.d
--include $(OBJDIR)rollback_illop_test.d
+-include $(OBJDIR)pin_exec.d

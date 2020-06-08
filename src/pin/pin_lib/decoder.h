@@ -31,6 +31,7 @@
 #undef WARNING  // there is a name conflict between PIN and Scarab
 #include "../../ctype_pin_inst.h"
 #include "../../table_info.h"
+#include "gather_scatter_addresses.h"
 
 void pin_decoder_init(bool translate_x87_regs, std::ostream* err_ostream);
 
