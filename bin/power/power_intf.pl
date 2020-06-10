@@ -324,6 +324,7 @@ sub traverse_stats($$$$$) {
 
     for my $file (@files) {
         chomp $file;
+        next if $file =~ /ramulator/;
         die "Cannot parse core id from $file\n" unless $file =~ /stat\.(\d+)\.out/;
         my $file_core_id = $1;
         next if defined $core_id && $file_core_id != $core_id;
