@@ -62,6 +62,7 @@
 #include "debug/debug.param.h"
 #include "general.param.h"
 
+#include "ramulator.h"
 
 /**************************************************************************************/
 /* Macros */
@@ -726,6 +727,7 @@ void full_sim() {
   memview_done();
   power_intf_done();
   frontend_done(retired_exit);
+  ramulator_finish();
 
   for(proc_id = 0; proc_id < NUM_CORES; proc_id++) {
     if(!sim_done[proc_id]) {

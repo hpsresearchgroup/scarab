@@ -44,7 +44,7 @@ __scarab_sim_dir__ = os.path.dirname(__scarab_bin_dir__)
 sim_dir                 = os.environ['SIMDIR']    if 'SIMDIR'    in os.environ else __scarab_sim_dir__
 pin_dir                 = os.environ['PIN_ROOT']  if 'PIN_ROOT'  in os.environ else __pin_dir__
 mcpat_bin               = os.environ['MCPAT_BIN'] if 'MCPAT_BIN' in os.environ else __mcpat_bin__
-cacti_bit               = os.environ['CACTI_BIN'] if 'CACTI_BIN' in os.environ else __cacti_bin__
+cacti_bin               = os.environ['CACTI_BIN'] if 'CACTI_BIN' in os.environ else __cacti_bin__
 
 utils_dir               = sim_dir + "/utils"
 bin_dir                 = sim_dir + "/bin"
@@ -52,7 +52,7 @@ src_dir                 = sim_dir + "/src"
 
 scarab_bin              = src_dir + "/scarab"
 pin_exec_dir            = src_dir + "/pin/pin_exec"
-pin_bin                 = pin_exec_dir   + "/obj-intel64/pin_exec.so"
+pin_bin                 = pin_exec_dir   + "/obj-intel64/rollback.so"
 
 checkpoint_creator_dir  = utils_dir + "/checkpoint/creator"
 checkpoint_loader_dir   = utils_dir + "/checkpoint/loader"
