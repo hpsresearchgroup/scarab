@@ -73,7 +73,8 @@ void bp_tagescl_init() {
       tagescl_predictors.emplace_back(NODE_TABLE_SIZE);
     }
   }
-  ASSERTM(0, tagescl_predictors.size() == NUM_CORES, "tagescl_predictors not initialized correctly");
+  ASSERTM(0, tagescl_predictors.size() == NUM_CORES,
+          "tagescl_predictors not initialized correctly");
 }
 
 void bp_tagescl_timestamp(Op* op) {
