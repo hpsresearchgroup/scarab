@@ -127,7 +127,9 @@
 
 ### Prefetcher
 --pref_framework_on             1
---pref_stream_on 		1
+--pref_stream_on 		            1
+--pref_stream_per_core_enable   1
+--pref_shared_queues            0
 --pref_train_on_pref_misses     0
 --pref_oracle_train             0
 --pref_ul1req_queue_overwrite_on_full 1
