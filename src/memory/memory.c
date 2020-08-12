@@ -3580,6 +3580,8 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
     if(HIER_MSHR_ON) {
       ASSERT(0, !ALLOW_TYPE_MATCHES);  // we rely on the adjust function always
                                        // returning true
+      ASSERTM(0, ADDR_TRANSLATION == ADDR_TRANS_NONE,
+              "MLC && HIER_MSHR_ON && ADDR_TRANSLATION not supported\n");
       if(queue_full(&mem->mlc_queue))
         return FALSE;
       mem->mlc_queue.reserved_entry_count += 1;
@@ -3587,8 +3589,7 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
     }
     STAT_EVENT(proc_id, MLC_NEWREQ_MATCHED_L2_PREF);
     Addr line_addr;
-    ASSERTM(0, ADDR_TRANSLATION == ADDR_TRANS_NONE,
-            "MLC && HIER_MSHR_ON && ADDR_TRANSLATION not supported\n");
+
     if((MLC_Data*)cache_access(&MLC(proc_id)->cache, addr, &line_addr, FALSE)) {
       STAT_EVENT(proc_id, MLC_NEWREQ_MATCHED_L2_PREF_MLC_HIT);
     }
