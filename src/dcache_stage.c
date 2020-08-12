@@ -646,8 +646,28 @@ Flag dcache_fill_line(Mem_Req* req) {
              repl_line_addr || data->fetched_by_offpath || data->HW_prefetched);
       if(!new_mem_dc_wb_req(MRT_WB, repl_proc_id, repl_line_addr,
                             DCACHE_LINE_SIZE, 1, NULL, NULL, unique_count,
-                            TRUE))
+                            TRUE)) {
+        // This is a hack to get around a deadlock issue. It doesn't completely
+        // eliminate the deadlock, but makes it less likely...The deadlock
+        // occurs when all the mem_req buffers are used, and all pending
+        // mem_reqs need to fill the dcache, but the highest priority dcache
+        // fill ends up evicting a dirty line from the dcache, which then needs
+        // to be written back to L1/MLC. This dcache fill will aquire a write
+        // port via get_write_port(), but then fail here, because there are no
+        // more mem_req buffers available for dc wb req, and new_mem_dc_wb_req()
+        // will return FALSE. If we don't release the write port, then all other
+        // mem_reqs, which still need to fill the dcache, will fail, and we end
+        // up in a deadlock. So instead, we release the write port below.
+        // HOWEVER, a deadlock is still possible if all pending mem_reqs fill
+        // the dcache and all end up evicting a dirty line
+        ASSERT(dc->proc_id, 0 < dc->ports[bank].write_ports_in_use);
+        dc->ports[bank].write_ports_in_use--;
+        ASSERT(dc->proc_id,
+               dc->ports[bank].write_ports_in_use < dc->ports->num_write_ports);
+
+        cycle_count = old_cycle_count;
         return FAILURE;
+      }
       STAT_EVENT(dc->proc_id, DCACHE_WB_REQ_DIRTY);
       STAT_EVENT(dc->proc_id, DCACHE_WB_REQ);
     }
