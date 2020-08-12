@@ -490,8 +490,13 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
       return IC_FETCH;
     }
 
-    if(!op->off_path && op->table_info->mem_type != NOT_MEM &&
+    if(!op->off_path &&
+       (op->table_info->mem_type == MEM_LD ||
+        op->table_info->mem_type == MEM_ST) &&
        op->oracle_info.va == 0) {
+      // don't care if the va is 0x0 if mem_type is MEM_PF(SW prefetch),
+      // MEM_WH(write hint), or MEM_EVICT(cache block eviction hint)
+      print_func_op(op);
       FATAL_ERROR(ic->proc_id, "Access to 0x0\n");
     }
 
