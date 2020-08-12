@@ -385,7 +385,7 @@ void logging(ADDRINT n_eip, ADDRINT curr_eip, BOOL check_next_addr,
 
     DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
               "Curr EIP=%" PRIx64 ", next EIP=%" PRIx64 ", Curr uid=%" PRIu64
-              ", wrongpath=%d, wpnm=%d, instrumented=%zu\n",
+              ", wrongpath=%d, wpnm=%d, instrumented=%d\n",
               (uint64_t)curr_eip, (uint64_t)n_eip, uid_ctr, on_wrongpath,
               on_wrongpath_nop_mode,
               instrumented_rip_tracker.contains(next_eip));
