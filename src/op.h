@@ -288,6 +288,7 @@ struct Op_struct {
   uns  stephan_corr_index;
   Addr pred_addr;
   Flag recovery_scheduled;
+  Flag redirect_scheduled;
   // }}}
 };
 // }}}
