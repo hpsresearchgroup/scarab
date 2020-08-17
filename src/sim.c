@@ -676,8 +676,8 @@ void full_sim() {
 
     all_sim_done = TRUE;
     for(proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-      Flag reachedInstLimit = (INST_LIMIT && inst_count[node->proc_id] >=
-                                               inst_limit[node->proc_id]);
+      Flag reachedInstLimit = (INST_LIMIT &&
+                               inst_count[proc_id] >= inst_limit[proc_id]);
       if(SIM_MODEL != DUMB_MODEL && DUMB_CORE_ON && DUMB_CORE == proc_id)
         continue;
       if(!sim_done[proc_id] && (retired_exit[proc_id] || reachedInstLimit)) {
