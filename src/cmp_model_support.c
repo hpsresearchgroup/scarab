@@ -67,6 +67,7 @@ void cmp_init_thread_data(uns8 proc_id) {
   td->proc_id = proc_id;
   init_map(proc_id);
   init_list(&td->seq_op_list, "SEQ_OP_LIST", sizeof(Op*), TRUE);
+  td->inst_addr = convert_to_cmp_addr(td->proc_id, 0);
 }
 
 
@@ -108,8 +109,10 @@ void cmp_init_bogus_sim(uns8 proc_id) {
 
   trace_setup(proc_id);
   ic->next_fetch_addr = trace_next_fetch_addr(proc_id);
+  ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr);
 
   td->inst_addr = ic->next_fetch_addr;
+  ASSERT_PROC_ID_IN_ADDR(ic->proc_id, td->inst_addr);
   reset_seq_op_list(td);
   reset_map();
 

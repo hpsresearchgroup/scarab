@@ -157,7 +157,8 @@ void reset_icache_stage() {
   ic->sd.op_count = 0;
 
   /* set up the initial fetch state */
-  ic->next_fetch_addr                = td->inst_addr;
+  ic->next_fetch_addr = td->inst_addr;
+  ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr);
   ic->off_path                       = FALSE;
   ic->back_on_path                   = FALSE;
   op_count[ic->proc_id]              = 1;
@@ -175,8 +176,9 @@ void reset_all_ops_icache_stage() {
 
   /* set up the initial fetch state */
   ic->next_fetch_addr = td->inst_addr;
-  ic->off_path        = FALSE;
-  ic->back_on_path    = FALSE;
+  ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr);
+  ic->off_path     = FALSE;
+  ic->back_on_path = FALSE;
 }
 
 /**************************************************************************************/
@@ -220,8 +222,7 @@ void recover_icache_stage() {
   }
   op_count[ic->proc_id] = bp_recovery_info->recovery_op_num + 1;
   ic->next_fetch_addr   = bp_recovery_info->recovery_fetch_addr;
-  if(ic->proc_id)
-    ASSERT(ic->proc_id, ic->next_fetch_addr);
+  ASSERT(ic->proc_id, ic->next_fetch_addr);
 }
 
 
@@ -230,8 +231,9 @@ void recover_icache_stage() {
 
 void redirect_icache_stage() {
   ASSERT(bp_recovery_info->proc_id, bp_recovery_info->proc_id == ic->proc_id);
-  Op*  op              = bp_recovery_info->redirect_op;
-  Addr next_fetch_addr = op->oracle_info.pred_npc;
+  Op*  op                = bp_recovery_info->redirect_op;
+  Addr next_fetch_addr   = op->oracle_info.pred_npc;
+  op->redirect_scheduled = FALSE;
 
   DEBUG(ic->proc_id, "Icache stage redirect signaled. next_fetch_addr: 0x%s\n",
         hexstr64s(next_fetch_addr));
@@ -244,7 +246,8 @@ void redirect_icache_stage() {
   ic->back_on_path          = !(op->off_path || main_predictor_wrong ||
                        late_predictor_wrong);
   ic->next_fetch_addr       = next_fetch_addr;
-  ic->next_state            = IC_FETCH;
+  ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr);
+  ic->next_state = IC_FETCH;
 }
 
 
@@ -478,6 +481,7 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
       ASSERT_PROC_ID_IN_ADDR(ic->proc_id, op->fetch_addr)
       op->off_path  = ic->off_path;
       td->inst_addr = op->inst_info->addr;  // FIXME: BUG 54
+      ASSERT_PROC_ID_IN_ADDR(ic->proc_id, td->inst_addr);
       if(!op->off_path) {
         if(op->eom)
           issued_real_inst++;

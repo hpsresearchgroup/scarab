@@ -220,6 +220,7 @@ static inline void stage_process_op(Op* op) {
                                      ADDR_PLUS_OFFSET(
                                        op->inst_info->addr,
                                        op->inst_info->trace_info.inst_size);
+        ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
         // schedule a redirect using the predicted npc
         bp_sched_redirect(bp_recovery_info, op, cycle_count);
       }

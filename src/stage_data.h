@@ -49,10 +49,11 @@ typedef enum Rob_Stall_Reason_enum {
   ROB_STALL_NONE              = 0,
   ROB_STALL_OTHER             = 1,
   ROB_STALL_WAIT_FOR_RECOVERY = 2,
-  ROB_STALL_WAIT_FOR_GAP_FILL = 3,
-  ROB_STALL_WAIT_FOR_L1_MISS  = 4,
-  ROB_STALL_WAIT_FOR_MEMORY   = 5,
-  ROB_STALL_WAIT_FOR_DC_MISS  = 6,
+  ROB_STALL_WAIT_FOR_REDIRECT = 3,
+  ROB_STALL_WAIT_FOR_GAP_FILL = 4,
+  ROB_STALL_WAIT_FOR_L1_MISS  = 5,
+  ROB_STALL_WAIT_FOR_MEMORY   = 6,
+  ROB_STALL_WAIT_FOR_DC_MISS  = 7,
 } Rob_Stall_Reason;
 
 typedef struct Stage_Data_struct {
