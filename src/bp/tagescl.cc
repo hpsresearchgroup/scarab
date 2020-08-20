@@ -67,9 +67,14 @@ Branch_Type get_branch_type(uns proc_id, Cf_Type cf_type) {
 }  // end of anonymous namespace
 
 void bp_tagescl_init() {
-  for(uns i = 0; i < NUM_CORES; ++i) {
-    tagescl_predictors.emplace_back(NODE_TABLE_SIZE);
+  if(tagescl_predictors.size() == 0) {
+    tagescl_predictors.reserve(NUM_CORES);
+    for(uns i = 0; i < NUM_CORES; ++i) {
+      tagescl_predictors.emplace_back(NODE_TABLE_SIZE);
+    }
   }
+  ASSERTM(0, tagescl_predictors.size() == NUM_CORES,
+          "tagescl_predictors not initialized correctly");
 }
 
 void bp_tagescl_timestamp(Op* op) {

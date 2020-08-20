@@ -246,6 +246,8 @@ void op_pool_setup_op(uns proc_id, Op* op) {
   op->engine_info.num_srcs           = 0;
   op->engine_info.update_fpcr        = FALSE;
 
+  op->recovery_scheduled = FALSE;
+  op->redirect_scheduled = FALSE;
 
   for(ii = 0; ii < NUM_DEP_TYPES; ii++)
     op->wake_up_signaled[ii] = FALSE;

@@ -173,7 +173,8 @@ int ramulator_send(Mem_Req* scarab_req) {
 
   auto it_scarab_req = inflight_read_reqs.find(req.addr);
   if(it_scarab_req != inflight_read_reqs.end()) {
-    DEBUG(0, "Ramulator: Duplicate (%s) request to address %llu\n",
+    DEBUG(scarab_req->proc_id,
+          "Ramulator: Duplicate (%s) request to address %llx\n",
           Mem_Req_Type_str(scarab_req->type), scarab_req->addr);
 
     if(req.type == Request::Type::READ)
@@ -202,9 +203,10 @@ int ramulator_send(Mem_Req* scarab_req) {
   }
 
   if(is_sent) {
-    DEBUG(0, "Ramulator: The request has been enqueued.\n");
+    DEBUG(scarab_req->proc_id, "Ramulator: The request has been enqueued.\n");
   } else {
-    DEBUG(0, "Ramulator: The request has been rejected. Queue full?\n");
+    DEBUG(scarab_req->proc_id,
+          "Ramulator: The request has been rejected. Queue full?\n");
   }
 
   return (int)is_sent;
@@ -229,8 +231,10 @@ void enqueue_response(Request& req) {
 
 bool try_completing_request(Mem_Req* req) {
   if((unsigned int)mem->l1fill_queue.entry_count < MEM_L1_FILL_QUEUE_ENTRIES) {
-    DEBUG(0, "Ramulator: Completing a (%s) request to address %llu\n",
+    DEBUG(req->proc_id,
+          "Ramulator: Completing a (%s) request to address %llx\n",
           Mem_Req_Type_str(req->type), req->addr);
+
     mem_complete_bus_in_access(
       req, 0 /*mem->mem_queue.base[ii].priority*/);  // TODO_hasan: how do we
                                                      // need to set the

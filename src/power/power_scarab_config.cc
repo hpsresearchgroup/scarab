@@ -1058,7 +1058,7 @@ void power_print_memory_parts(std::ofstream& out) {
  ***********************************************************************************************************/
 
 void power_print_mcpat_xml_infile() {
-  std::string   mcpat_infile_name = "mcpat_infile.xml";
+  std::string   mcpat_infile_name = std::string(FILE_TAG) + "mcpat_infile.xml";
   std::ofstream out;
   out.open(mcpat_infile_name, std::ofstream::out | std::ofstream::trunc);
 
@@ -1099,9 +1099,9 @@ void power_print_mcpat_xml_infile() {
 }
 
 void power_print_cacti_cfg_infile() {
-  std::string   mcpat_infile_name = "cacti_infile.cfg";
+  std::string   cacti_infile_name = std::string(FILE_TAG) + "cacti_infile.cfg";
   std::ofstream out;
-  out.open(mcpat_infile_name, std::ofstream::out | std::ofstream::trunc);
+  out.open(cacti_infile_name, std::ofstream::out | std::ofstream::trunc);
 
   power_print_memory_parts(out);
 

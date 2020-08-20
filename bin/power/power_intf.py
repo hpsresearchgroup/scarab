@@ -21,13 +21,14 @@
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-import scarab_globals
+from scarab_globals import *
 
-list_command = ["perl", scarab_globals.__scarab_bin_dir__ + "/power/power_intf.pl", scarab_globals.MCPAT_BIN, scarab_globals.CACTI_BIN] + sys.argv[1:]
+list_command = ["perl", scarab_paths.bin_dir + "/power/power_intf.pl", scarab_paths.mcpat_bin, scarab_paths.cacti_bin] + sys.argv[1:]
 
 print("Scarab power interface: executing command:")
 print(list_command)
-exit_code = scarab_globals.run_command(list_command, None, None)
+cmd = command.Command(' '.join(list_command))
+exit_code = cmd.run()
 print("Scarab power interface: command finished with exit code: " + str(exit_code));
 
 exit(exit_code)
