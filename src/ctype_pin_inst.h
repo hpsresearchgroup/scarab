@@ -34,8 +34,8 @@
 #define MAX_SRC_REGS_NUM 8
 #define MAX_DST_REGS_NUM 8
 #define MAX_MEM_ADDR_REGS_NUM 2
-#define MAX_LD_NUM 16
-#define MAX_ST_NUM 16
+#define MAX_LD_NUM 8
+#define MAX_ST_NUM 8
 
 typedef uint8_t compressed_reg_t;
 
