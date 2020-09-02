@@ -171,6 +171,7 @@ int ramulator_send(Mem_Req* scarab_req) {
   // printf("Ramulator: Received a (%s) request to address %llu\n",
   // Mem_Req_Type_str(scarab_req->type), scarab_req->addr);
 
+  // does inflight_read_reqs have the proc_id in the req?
   auto it_scarab_req = inflight_read_reqs.find(req.addr);
   if(it_scarab_req != inflight_read_reqs.end()) {
     DEBUG(scarab_req->proc_id,
@@ -264,10 +265,13 @@ void to_ramulator_req(const Mem_Req* scarab_req, Request* ramulator_req) {
           " request in state %d cannot be issued to Ramulator\n",
           scarab_req->state);
 
-  if(scarab_req->type == MRT_WB || scarab_req->type == MRT_DSTORE)
+  // only MRT_WB should result in a DRAM write. A plain store miss should still
+  // result in a DRAM read
+  if(scarab_req->type == MRT_WB)
     ramulator_req->type = Request::Type::WRITE;
-  else if(scarab_req->type == MRT_DFETCH || scarab_req->type == MRT_IFETCH ||
-          scarab_req->type == MRT_IPRF || scarab_req->type == MRT_DPRF)
+  else if(scarab_req->type == MRT_DFETCH || scarab_req->type == MRT_DSTORE ||
+          scarab_req->type == MRT_IFETCH || scarab_req->type == MRT_IPRF ||
+          scarab_req->type == MRT_DPRF)
     ramulator_req->type = Request::Type::READ;
   else
     ASSERTM(scarab_req->proc_id, false,

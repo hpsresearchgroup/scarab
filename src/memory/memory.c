@@ -1669,12 +1669,14 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
           STAT_EVENT(req->proc_id, SEND_MISS_REQ_QUEUE);
           // return TRUE;
 
-          if(req->type == MRT_DSTORE) {  // write requests can be informed as
-                                         // done as soon as they are enqueued to
-                                         // Ramulator
-            mem->uncores[req->proc_id].num_outstanding_l1_misses--;
-            mem_free_reqbuf(req);
-          }
+          // BEN: THIS IS NOT TRUE!!!!!!!!
+          // if(req->type == MRT_DSTORE) {  // write requests can be informed as
+          //                                // done as soon as they are enqueued
+          //                                to
+          //                                // Ramulator
+          //   mem->uncores[req->proc_id].num_outstanding_l1_misses--;
+          //   mem_free_reqbuf(req);
+          // }
 
           ASSERTM(0,
                   req->type == MRT_DSTORE || req->type == MRT_IFETCH ||
@@ -4035,6 +4037,7 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
   Flag    is_sent = FALSE;
 
   ASSERT(proc_id, type == MRT_WB);
+  ASSERT(proc_id, NULL == done_func);
   ASSERTM(proc_id, proc_id == get_proc_id_from_cmp_addr(addr),
           "Proc ID (%d) does not match proc ID in address (%d)!\n", proc_id,
           get_proc_id_from_cmp_addr(addr));
@@ -4047,10 +4050,12 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
   }
 
   /* Step 1: Figure out if this access is already in the request buffer */
-
+  // after integration with Ramulator, we should no longer be using the bus_out
+  // queue
+  ASSERT(proc_id, 0 == mem->bus_out_queue.entry_count);
   matching_req = mem_search_reqbuf(
     proc_id, addr, type, size, &demand_hit_prefetch, &demand_hit_writeback,
-    QUEUE_BUS_OUT | /*QUEUE_MEM |*/ QUEUE_L1FILL, &queue_entry);
+    /*QUEUE_BUS_OUT | QUEUE_MEM |*/ QUEUE_L1FILL, &queue_entry);
 
   /* Step 2: Found matching request. Adjust it based on the current request */
 
@@ -4068,6 +4073,8 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
       new_priority));
   }
 
+  // TODO: obsolete now that we don't have a bus_out queue after Ramulator
+  // integration
   /* Step 2.5: Check if there is space in the bus_out queue */
   if(queue_full(&mem->bus_out_queue)) {
     STAT_EVENT(proc_id, REJECTED_QUEUE_BUS_OUT);
@@ -4077,6 +4084,7 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
   /* Step 3: Not already in request buffer. Figure out if a free request buffer
    * exists */
 
+  ASSERT(proc_id, type == MRT_WB);
   new_req = mem_allocate_req_buffer(proc_id, type);
 
   /* Step 4: No free request buffer - If demand, try to kick
@@ -4089,6 +4097,7 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
        ((type != MRT_IPRF) && (type != MRT_DPRF))) {  // FIXME: do we kick out
                                                       // stuff for writebacks
                                                       // also?
+      // all this bank computation is meaningless now that we use Ramulator
       if(KICKOUT_LOOK_FOR_OLDEST_FIRST)
         new_req = mem_kick_out_prefetch_from_queues(
           MEMORY_BANK_XOR_BANK ?
@@ -4140,20 +4149,14 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
   /* Step 5: Allocate a new request buffer -- new_req */
   mem_init_new_req(new_req, type, QUEUE_L1 /*fake*/, proc_id, addr, size, delay,
                    op, done_func, unique_num, kicked_out, new_priority);
-  // RAMULATOR_todo: set queue to null and state to MRS_MEM_NEW directly?
-  new_req->queue = &(mem->bus_out_queue); /* L1 WB reqs go to bus_out */
-  new_req->state =
-    MRS_BUS_NEW; /* will be presented to bus first: this is a wb */
+  new_req->queue = NULL;
+  new_req->state = MRS_MEM_NEW;
 
-  /* Step 6: Insert the request into the bus out queue if it is not already
-   * there */
-
+  /* Step 6: Try to insert into the Ramulator queue*/
   if(!ROUND_ROBIN_TO_L1) {
-    // mem_insert_req_into_queue (new_req, new_req->queue, ALL_FIFO_QUEUES ?
-    // bus_out_seq_num : 0); cycle_busoutq_insert_count++;
     bus_out_seq_num++;  // RAMULATOR_remove: this is not currently used
-    new_req->state = MRS_MEM_NEW;
-    is_sent        = ramulator_send(new_req);
+
+    is_sent = ramulator_send(new_req);
     if(!is_sent) {
       mem_free_reqbuf(new_req);  // RAMULATOR_todo: optimize this
       return FALSE;
@@ -4162,46 +4165,17 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
 
       mem_seq_num++;
       perf_pred_mem_req_start(new_req);
-      // mem->uncores[req->proc_id].num_outstanding_l1_misses++;
 
-      // if (TRACK_L1_MISS_DEPS || MARK_L1_MISSES)
-      //    mark_ops_as_l1_miss(req);
-
-      // req->state = MRS_BUS_NEW; // FIXME?
-      // req->rdy_cycle = cycle_count + L1Q_TO_FSB_TRANSFER_LATENCY; /* this req
-      // will be ready to be sent to memory in the next cycle */
-
-      // cmp FIXME
-      // if (STREAM_PREFETCH_ON)
-      //    stream_ul1_miss (req);
-
-      /* Set the priority so that this entry will be removed from the l1_queue
-       */
-      // l1_queue_entry->priority = Mem_Req_Priority_Offset[MRT_MIN_PRIORITY];
-
-      // STAT_EVENT(req->proc_id, SEND_MISS_REQ_QUEUE);
-      // return TRUE;
-
-      // if(req->type == MRT_DSTORE) { // write requests can be informed as done
-      // as soon as they are enqueued to Ramulator
-      //    mem->uncores[req->proc_id].num_outstanding_l1_misses--;
       mem_free_reqbuf(new_req);
-      //}
-
-      // ASSERTM(0, req->type == MRT_DSTORE || req->type == MRT_IFETCH ||
-      // req->type == MRT_DFETCH,
-      //        "ERROR: Issuing a currently unhandled request type (%s) to
-      //        Ramulator\n", Mem_Req_Type_str(req->type));
     }
   } else {
     Mem_Req** req_ptr = sl_list_add_tail(&mem->l1_in_buffer_core[proc_id]);
     *req_ptr          = new_req;
     l1_in_buf_count++;
+    ASSERTM(
+      proc_id, FALSE,
+      "Ramulator integration not complete if ROUND_ROBIN_TO_L1 is enabled");
   }
-  // FIXME: Do we sort the queue right away, or should we do it at the beginning
-  // of update memory? Perhaps we should keep a new_count and kill_count at each
-  // queue and sort the queues with counts > 0 every cycle when we call
-  // update_memory?
 
   return TRUE;
 }
@@ -4543,7 +4517,8 @@ Flag l1_fill_line(Mem_Req* req) {
   req->l1_miss_satisfied = TRUE;
 
   // cmp FIXME
-  if(req->type == MRT_DFETCH /*|| (req->type == MRT_DSTORE)*/) {
+  // when was MRT_DSTORE commented out...?
+  if(req->type == MRT_DFETCH || (req->type == MRT_DSTORE)) {
     uns latency = cycle_count - req->l1_miss_cycle;
     ASSERT(req->proc_id, req->l1_miss_cycle != MAX_CTR);
     INC_STAT_EVENT_ALL(TOTAL_DATA_MISS_LATENCY, latency);
