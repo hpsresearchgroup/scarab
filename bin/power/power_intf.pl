@@ -43,11 +43,11 @@ use FindBin qw($Bin); # find where this script is located
 
 die "Usage: $0 <work dir> <get voltage and frequency>\n" unless @ARGV >= 1;
 
-my $debug = 0;
 my $MCPAT_EXEC = shift;
 my $CACTI_EXEC = shift;
 my $dir = shift;
 my $get_voltage_and_freq = shift;
+my $debug = shift;
 my $file_tag = shift;
 
 sub parse_mcpat_output;
@@ -76,8 +76,12 @@ print("Running CACTI...\n");
 $rc = system("cd $dir && $CACTI_EXEC -infile $dir/$file_tag"."cacti_infile.cfg > $dir/$file_tag"."cacti_dram.out");
 die "Error running CACTI\n" if $rc;
 
+print("Parsing scarab params...\n");
 my %params = get_params($dir);
+
+print("Parsing scarab stats...\n");
 my %stats  = get_stats("$dir", 0, 1);
+
 my %values;
 
 print("Parsing McPAT output ($dir/$file_tag"."mcpat.out) and CACTI output ($dir/$file_tag"."cacti_dram.out)...\n");
@@ -218,12 +222,14 @@ sub parse_cacti_dram_output($$)
 
     while(<$file>) {
         my $line = $_;
+        print("Parsing CACTI Line: $line\n") if ($debug);
         last if $line =~ /Cache height/;
         if($line =~ /^\s*(.*\S)\s*:\s*(\S+)/) {
             my $result = $1;
             my $value = $2;
             if (exists $cacti_values{$result}) {
                 $cacti_values{$result} = $value;
+                print("\tFound: $cacti_values{$result}\n") if ($debug);
             }
         }
     }
@@ -302,6 +308,10 @@ sub get_params($@) {
             my $value = defined $specified_value ? $specified_value : $default_value;
 
             $params{$name} = $value;
+
+            if(defined $params{$name}) {
+              print("\t[get_params]: params{$name} = $params{$name}\n") if ($debug);
+            }
         }
     }
 
@@ -374,6 +384,7 @@ sub get_stats($$$@) {
                        $stats{$name} = [] if !exists $stats{$name};
                        die "Duplicate stat: $name\n" if exists $stats{$name}[$core_id];
                        $stats{$name}[$core_id] = $value;
+                       print("\t[get_stats]: stats{$name}[$core_id] = $stats{$name}[$core_id]\n") if ($debug);
                    }, $power_intf);
     return %stats;
 }

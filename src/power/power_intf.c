@@ -115,6 +115,7 @@ double power_intf_result(Power_Domain domain, Power_Result result) {
   ASSERTM(0, values[domain][result].set,
           "Requested power result {%s, %s} not set\n", Power_Domain_str(domain),
           Power_Result_str(result));
+
   return values[domain][result].scaled_value;
 }
 
@@ -134,9 +135,9 @@ void run_power_model_exec(void) {
   power_print_mcpat_xml_infile();
   power_print_cacti_cfg_infile();
 
-  char cmd[MAX_STR_LENGTH + 1];
-  uns  len = sprintf(cmd, "python %s/%s %s %d %s", BINDIR, POWER_INTF_EXEC, ".",
-                    POWER_INTF_ENABLE_SCALING, FILE_TAG);
+  char cmd[MAX_STR_LENGTH];
+  uns  len = sprintf(cmd, "python %s/%s %s %d %d %s", BINDIR, POWER_INTF_EXEC, ".",
+                    POWER_INTF_ENABLE_SCALING, DEBUG_POWER_UTILS, FILE_TAG);
   ASSERT(0, len < MAX_STR_LENGTH);
 
   int rc = system(cmd);
@@ -235,24 +236,27 @@ void update_energy_stats(void) {
       elapsed_time *
         power_intf_result(POWER_DOMAIN_CORE_0 + proc_id, POWER_RESULT_TOTAL));
   }
+
   INC_STAT_VALUE(
     0, ENERGY_UNCORE,
     elapsed_time * power_intf_result(POWER_DOMAIN_UNCORE, POWER_RESULT_TOTAL));
   INC_STAT_VALUE(
     0, ENERGY_UNCORE_STATIC,
     elapsed_time * power_intf_result(POWER_DOMAIN_UNCORE, POWER_RESULT_STATIC));
-  INC_STAT_VALUE(0, ENERGY_UNCORE_DYNAMIC,
-                 elapsed_time * power_intf_result(POWER_DOMAIN_UNCORE,
-                                                  POWER_RESULT_DYNAMIC));
+  INC_STAT_VALUE(
+    0, ENERGY_UNCORE_DYNAMIC,
+    elapsed_time * power_intf_result(POWER_DOMAIN_UNCORE, POWER_RESULT_DYNAMIC));
+
   INC_STAT_VALUE(
     0, ENERGY_MEMORY,
     elapsed_time * power_intf_result(POWER_DOMAIN_MEMORY, POWER_RESULT_TOTAL));
   INC_STAT_VALUE(
     0, ENERGY_MEMORY_STATIC,
     elapsed_time * power_intf_result(POWER_DOMAIN_MEMORY, POWER_RESULT_STATIC));
-  INC_STAT_VALUE(0, ENERGY_MEMORY_DYNAMIC,
-                 elapsed_time * power_intf_result(POWER_DOMAIN_MEMORY,
-                                                  POWER_RESULT_DYNAMIC));
+  INC_STAT_VALUE(
+    0, ENERGY_MEMORY_DYNAMIC,
+    elapsed_time * power_intf_result(POWER_DOMAIN_MEMORY, POWER_RESULT_DYNAMIC));
+
   INC_STAT_VALUE(
     0, ENERGY_OTHER,
     elapsed_time * power_intf_result(POWER_DOMAIN_OTHER, POWER_RESULT_TOTAL));

@@ -406,6 +406,7 @@ static void dvfs_reconfigure_perf_pred(void) {
   if(DVFS_LOG)
     fprintf(dvfs_log, "Time: %llu\tInsts: %llu\tPredictions:", sim_time,
             inst_count[0]);
+
   for(uns i = 0; i < num_configs; ++i) {
     Config* config = &configs[i];
     double  pred_slowdown =
