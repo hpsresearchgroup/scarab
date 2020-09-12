@@ -116,7 +116,7 @@ static void    run_master(void);
 static void    decouple_open_files(void);
 
 void init_slave(void) {
-  char buf[MAX_STR_LENGTH];
+  char buf[MAX_STR_LENGTH + 1];
   in_use = TRUE;
   decouple_open_files();
   sprintf(buf, "/tmp/scarab_opt2_feedback_fifo_%d", master_pid);
@@ -135,7 +135,7 @@ void init_slave(void) {
 }
 
 FILE* open_fifo(uns pid, const char* mode) {
-  char buf[MAX_STR_LENGTH];
+  char buf[MAX_STR_LENGTH + 1];
   sprintf(buf, "/tmp/scarab_opt2_fifo_%d", pid);
   FILE* stream = fopen(buf, mode);
   if(!stream)
@@ -267,7 +267,7 @@ void opt2_init(uns n, uns n_to_keep, void (*fn)(int)) {
           "at different times.\n");
   num_configs    = n;
   setup_param_fn = fn;
-  char buf[MAX_STR_LENGTH];
+  char buf[MAX_STR_LENGTH + 1];
   DEBUG(0, "Initializing optimizer2\n");
   signal(SIGCHLD, SIG_IGN); /* avoid zombie processes */
   master_pid = getpid();
@@ -292,7 +292,7 @@ void opt2_init(uns n, uns n_to_keep, void (*fn)(int)) {
 }
 
 void slave_clean_up(void) {
-  char buf[MAX_STR_LENGTH];
+  char buf[MAX_STR_LENGTH + 1];
   fclose(read_stream);
   sprintf(buf, "/tmp/scarab_opt2_fifo_%d", getpid());
   unlink(buf);
@@ -300,7 +300,7 @@ void slave_clean_up(void) {
 }
 
 void master_clean_up(void) {
-  char buf[MAX_STR_LENGTH];
+  char buf[MAX_STR_LENGTH + 1];
   fclose(feedback_read_stream);
   sprintf(buf, "/tmp/scarab_opt2_feedback_fifo_%d", getpid());
   unlink(buf);
@@ -404,7 +404,7 @@ void decouple_open_files(void) {
   uns       fds[MAX_FDS];
   uns       num_fds = 0;
 
-  char fdinfo_path[MAX_STR_LENGTH];
+  char fdinfo_path[MAX_STR_LENGTH + 1];
   uns  len = snprintf(fdinfo_path, MAX_STR_LENGTH, "/proc/%d/fdinfo", getpid());
   ASSERT(0, len < MAX_STR_LENGTH);
   DIR* dir = opendir(fdinfo_path);
@@ -431,11 +431,11 @@ void decouple_open_files(void) {
       int fd = fds[i];
       if(fd <= 2)
         continue;  // do not decouple standard input/output/error
-      char fd_path[MAX_STR_LENGTH];
+      char fd_path[MAX_STR_LENGTH + 1];
       uns  len = snprintf(fd_path, MAX_STR_LENGTH, "/proc/%d/fd/%d", getpid(),
                          fd);
       ASSERT(0, len < MAX_STR_LENGTH);
-      char path[MAX_STR_LENGTH];
+      char path[MAX_STR_LENGTH + 1];
       uns  path_len = readlink(fd_path, path, MAX_STR_LENGTH);
       ASSERT(0, path_len < MAX_STR_LENGTH);
       path[path_len] = 0;  // null terminator

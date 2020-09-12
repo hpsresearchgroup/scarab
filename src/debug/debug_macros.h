@@ -157,19 +157,19 @@ output when
   } while(0)
 
 /* Unused */
-#define _DEBUGL(proc_id, debug_lvl, which_lvl, args...)                       \
-  do {                                                                        \
-    if(which_lvl >= debug_lvl && DEBUG_RANGE_COND(proc_id)) {                 \
-      char str0[MAX_STR_LENGTH], str1[MAX_STR_LENGTH], str2[MAX_STR_LENGTH];  \
-      snprintf(str0, MAX_STR_LENGTH, "%s:%u:", __FILE__, __LINE__);           \
-      snprintf(str1, MAX_STR_LENGTH, " " #which_lvl ":" #debug_lvl);          \
-      snprintf(str2, MAX_STR_LENGTH,                                          \
-               " (P=%u O=%llu  I=%llu  C=%llu):", proc_id, op_count[proc_id], \
-               inst_count[proc_id], cycle_count);                             \
-      fprintf(GLOBAL_DEBUG_STREAM, "%-22s%-18s%-30s  ", str0, str1, str2);    \
-      fprintf(GLOBAL_DEBUG_STREAM, ##args);                                   \
-      fflush(GLOBAL_DEBUG_STREAM);                                            \
-    }                                                                         \
+#define _DEBUGL(proc_id, debug_lvl, which_lvl, args...)                                   \
+  do {                                                                                    \
+    if(which_lvl >= debug_lvl && DEBUG_RANGE_COND(proc_id)) {                             \
+      char str0[MAX_STR_LENGTH + 1], str1[MAX_STR_LENGTH + 1], str2[MAX_STR_LENGTH + 1];  \
+      snprintf(str0, MAX_STR_LENGTH, "%s:%u:", __FILE__, __LINE__);                       \
+      snprintf(str1, MAX_STR_LENGTH, " " #which_lvl ":" #debug_lvl);                      \
+      snprintf(str2, MAX_STR_LENGTH,                                                      \
+               " (P=%u O=%llu  I=%llu  C=%llu):", proc_id, op_count[proc_id],             \
+               inst_count[proc_id], cycle_count);                                         \
+      fprintf(GLOBAL_DEBUG_STREAM, "%-22s%-18s%-30s  ", str0, str1, str2);                \
+      fprintf(GLOBAL_DEBUG_STREAM, ##args);                                               \
+      fflush(GLOBAL_DEBUG_STREAM);                                                        \
+    }                                                                                     \
   } while(0)
 
 /* Unused */
@@ -224,19 +224,19 @@ output when
   } while(0)
 
 /* Unused */
-#define _DEBUGLA(proc_id, debug_lvl, which_lvl, args...)                      \
-  do {                                                                        \
-    if(which_lvl >= debug_lvl && DEBUG_RANGE_COND(proc_id)) {                 \
-      char str0[MAX_STR_LENGTH], str1[MAX_STR_LENGTH], str2[MAX_STR_LENGTH];  \
-      snprintf(str0, MAX_STR_LENGTH, "%s:%u:", __FILE__, __LINE__);           \
-      snprintf(str1, MAX_STR_LENGTH, " " #which_lvl ":" #debug_lvl);          \
-      snprintf(str2, MAX_STR_LENGTH,                                          \
-               " (P=%u O=%llu  I=%llu  C=%llu):", proc_id, op_count[proc_id], \
-               inst_count[proc_id], cycle_count);                             \
-      fprintf(GLOBAL_DEBUG_STREAM, "%-22s%-18s%-30s  ", str0, str1, str2);    \
-      fprintf(GLOBAL_DEBUG_STREAM, ##args);                                   \
-      fflush(GLOBAL_DEBUG_STREAM);                                            \
-    }                                                                         \
+#define _DEBUGLA(proc_id, debug_lvl, which_lvl, args...)                                  \
+  do {                                                                                    \
+    if(which_lvl >= debug_lvl && DEBUG_RANGE_COND(proc_id)) {                             \
+      char str0[MAX_STR_LENGTH + 1], str1[MAX_STR_LENGTH + 1], str2[MAX_STR_LENGTH + 1];  \
+      snprintf(str0, MAX_STR_LENGTH, "%s:%u:", __FILE__, __LINE__);                       \
+      snprintf(str1, MAX_STR_LENGTH, " " #which_lvl ":" #debug_lvl);                      \
+      snprintf(str2, MAX_STR_LENGTH,                                                      \
+               " (P=%u O=%llu  I=%llu  C=%llu):", proc_id, op_count[proc_id],             \
+               inst_count[proc_id], cycle_count);                                         \
+      fprintf(GLOBAL_DEBUG_STREAM, "%-22s%-18s%-30s  ", str0, str1, str2);                \
+      fprintf(GLOBAL_DEBUG_STREAM, ##args);                                               \
+      fflush(GLOBAL_DEBUG_STREAM);                                                        \
+    }                                                                                     \
   } while(0)
 
 

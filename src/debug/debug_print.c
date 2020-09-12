@@ -370,7 +370,7 @@ void print_op(Op* op) {
 /* print_func_op: */
 
 void print_func_op(Op* op) {
-  char opcode[MAX_STR_LENGTH];
+  char opcode[MAX_STR_LENGTH + 1];
   if(op->table_info->op_type == OP_CF) {
     sprintf(opcode, "%s", cf_type_names[op->table_info->cf_type]);
   } else if(op->table_info->op_type == OP_IMEM ||
@@ -383,7 +383,7 @@ void print_func_op(Op* op) {
   fprintf(GLOBAL_DEBUG_STREAM, "%2d  %08x  %10s", op->proc_id,
           (uns32)op->inst_info->addr, opcode);
 
-  char buf[MAX_STR_LENGTH];
+  char buf[MAX_STR_LENGTH + 1];
   print_reg_array(buf, op->inst_info->srcs, op->table_info->num_src_regs);
   fprintf(GLOBAL_DEBUG_STREAM, "  in: %-30s", buf);
 
@@ -445,7 +445,7 @@ void print_short_op_array(FILE* stream, Op* ops[], uns array_length) {
 /* disasm_op: */
 
 char* disasm_op(Op* op, Flag wide) {
-  static char buf[MAX_STR_LENGTH];
+  static char buf[MAX_STR_LENGTH + 1];
 
   const char* opcode;
   if(op->table_info->op_type == OP_CF) {

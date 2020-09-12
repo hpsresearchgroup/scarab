@@ -110,7 +110,7 @@ void cache_part_init(void) {
   proc_infos = calloc(NUM_CORES, sizeof(Proc_Info));
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
     Proc_Info* proc_info = &proc_infos[proc_id];
-    char       buf[MAX_STR_LENGTH];
+    char       buf[MAX_STR_LENGTH + 1];
     sprintf(buf, "SHADOW L1[%d]", proc_id);
     init_cache(&proc_info->shadow_cache, buf, L1_SIZE, L1_ASSOC, L1_LINE_SIZE,
                sizeof(Shadow_Cache_Data), REPL_TRUE_LRU);
@@ -383,7 +383,7 @@ void search_bruteforce(void) {
     /* check the metric for the partition */
     double metric = metric_func(partition);
     if(ENABLE_GLOBAL_DEBUG_PRINT && DEBUG_RANGE_COND(0)) {
-      char  buf[MAX_STR_LENGTH];
+      char  buf[MAX_STR_LENGTH + 1];
       char* ptr = buf;
       ptr += sprintf(buf, "{");
       for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
@@ -478,7 +478,7 @@ void set_partition(void) {
 }
 
 void debug_cache_part(uns* old_partition, uns* new_partition) {
-  char  buf[MAX_STR_LENGTH];
+  char  buf[MAX_STR_LENGTH + 1];
   char* ptr = buf;
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
     ptr += sprintf(ptr, "%d,", new_partition[proc_id]);

@@ -67,7 +67,7 @@ void pipeview_init(void) {
   files = malloc(sizeof(FILE*) * NUM_CORES);
   if(PIPEVIEW) {
     for(uns proc_id = 0; proc_id < NUM_CORES; ++proc_id) {
-      char filename[MAX_STR_LENGTH];
+      char filename[MAX_STR_LENGTH + 1];
       sprintf(filename, "%s.%d.trace", PIPEVIEW_FILE, proc_id);
       files[proc_id] = fopen(filename, "w");
       ASSERT(proc_id, files[proc_id]);

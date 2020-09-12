@@ -78,7 +78,7 @@ void set_map_stage(Map_Stage* new_map) {
 /* init_map_stage: */
 
 void init_map_stage(uns8 proc_id, const char* name) {
-  char tmp_name[MAX_STR_LENGTH];
+  char tmp_name[MAX_STR_LENGTH + 1];
   uns  ii;
   ASSERT(proc_id, map);
   ASSERT(proc_id, STAGE_MAX_DEPTH > 0);

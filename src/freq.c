@@ -75,7 +75,7 @@ static Freq_Domain_Id freq_domain_create(char* name, uns cycle_time);
 /* Function definitions */
 
 void freq_init(void) {
-  char buf[MAX_STR_LENGTH];
+  char buf[MAX_STR_LENGTH + 1];
   uns  core_cycle_times[MAX_NUM_PROCS] = {
     CORE_0_CYCLE_TIME,  CORE_1_CYCLE_TIME,  CORE_2_CYCLE_TIME,
     CORE_3_CYCLE_TIME,  CORE_4_CYCLE_TIME,  CORE_5_CYCLE_TIME,
