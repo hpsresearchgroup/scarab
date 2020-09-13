@@ -351,7 +351,7 @@ void init_memory() {
   mem->core_fill_queues = (Mem_Queue*)malloc(sizeof(Mem_Queue) * NUM_CORES);
   core_fill_seq_num     = (Counter*)malloc(sizeof(Counter) * NUM_CORES);
   for(proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    char buf[MAX_STR_LENGTH];
+    char buf[MAX_STR_LENGTH + 1];
     sprintf(buf, "CORE_%d_FILL_QUEUE", proc_id);
     init_mem_queue(&mem->core_fill_queues[proc_id], buf,
                    QUEUE_CORE_FILL_SIZE == 0 ? mem->total_mem_req_buffers :
@@ -397,7 +397,7 @@ void init_uncores(void) {
   mlc->num_banks = MLC_BANKS;
   mlc->ports     = (Ports*)malloc(sizeof(Ports) * mlc->num_banks);
   for(uns ii = 0; ii < mlc->num_banks; ii++) {
-    char name[MAX_STR_LENGTH];
+    char name[MAX_STR_LENGTH + 1];
     snprintf(name, MAX_STR_LENGTH, "MLC BANK %d PORTS", ii);
     init_ports(&mlc->ports[ii], name, MLC_READ_PORTS, MLC_WRITE_PORTS, FALSE);
   }
@@ -416,7 +416,7 @@ void init_uncores(void) {
     for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
       Ported_Cache* l1 = (Ported_Cache*)malloc(sizeof(Ported_Cache));
 
-      char buf[MAX_STR_LENGTH];
+      char buf[MAX_STR_LENGTH + 1];
       sprintf(buf, "L1[%d]", proc_id);
       init_cache(&l1->cache, buf, L1_SIZE / NUM_CORES, L1_ASSOC, L1_LINE_SIZE,
                  sizeof(L1_Data), L1_CACHE_REPL_POLICY);
@@ -424,7 +424,7 @@ void init_uncores(void) {
       l1->num_banks = L1_BANKS / NUM_CORES;
       l1->ports     = (Ports*)malloc(sizeof(Ports) * l1->num_banks);
       for(uns ii = 0; ii < l1->num_banks; ii++) {
-        char name[MAX_STR_LENGTH];
+        char name[MAX_STR_LENGTH + 1];
         snprintf(name, MAX_STR_LENGTH, "L1[%d] BANK %d PORTS", proc_id, ii);
         init_ports(&l1->ports[ii], name, L1_READ_PORTS, L1_WRITE_PORTS, FALSE);
       }
@@ -437,7 +437,7 @@ void init_uncores(void) {
     l1->num_banks = L1_BANKS;
     l1->ports     = (Ports*)malloc(sizeof(Ports) * l1->num_banks);
     for(uns ii = 0; ii < l1->num_banks; ii++) {
-      char name[MAX_STR_LENGTH];
+      char name[MAX_STR_LENGTH + 1];
       snprintf(name, MAX_STR_LENGTH, "L1 BANK %d PORTS", ii);
       init_ports(&l1->ports[ii], name, L1_READ_PORTS, L1_WRITE_PORTS, FALSE);
     }

@@ -77,7 +77,7 @@ void set_decode_stage(Decode_Stage* new_dec) {
 /* init_decode_stage: */
 
 void init_decode_stage(uns8 proc_id, const char* name) {
-  char tmp_name[MAX_STR_LENGTH];
+  char tmp_name[MAX_STR_LENGTH + 1];
   uns  ii;
   ASSERT(0, dec);
   ASSERT(0, STAGE_MAX_DEPTH > 0);

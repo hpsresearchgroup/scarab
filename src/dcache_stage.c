@@ -97,7 +97,7 @@ void init_dcache_stage(uns8 proc_id, const char* name) {
 
   dc->ports = (Ports*)malloc(sizeof(Ports) * DCACHE_BANKS);
   for(ii = 0; ii < DCACHE_BANKS; ii++) {
-    char name[MAX_STR_LENGTH];
+    char name[MAX_STR_LENGTH + 1];
     snprintf(name, MAX_STR_LENGTH, "DCACHE BANK %d PORTS", ii);
     init_ports(&dc->ports[ii], name, DCACHE_READ_PORTS, DCACHE_WRITE_PORTS,
                FALSE);

@@ -38,7 +38,7 @@
 
 // typedef in globals/global_types.h
 struct Ports_struct {
-  char    name[MAX_STR_LENGTH];
+  char    name[MAX_STR_LENGTH + 1];
   Counter read_last_cycle;
   Counter write_last_cycle;
   uns     num_read_ports;

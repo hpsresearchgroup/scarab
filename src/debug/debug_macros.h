@@ -160,7 +160,8 @@ output when
 #define _DEBUGL(proc_id, debug_lvl, which_lvl, args...)                       \
   do {                                                                        \
     if(which_lvl >= debug_lvl && DEBUG_RANGE_COND(proc_id)) {                 \
-      char str0[MAX_STR_LENGTH], str1[MAX_STR_LENGTH], str2[MAX_STR_LENGTH];  \
+      char str0[MAX_STR_LENGTH + 1], str1[MAX_STR_LENGTH + 1],                \
+        str2[MAX_STR_LENGTH + 1];                                             \
       snprintf(str0, MAX_STR_LENGTH, "%s:%u:", __FILE__, __LINE__);           \
       snprintf(str1, MAX_STR_LENGTH, " " #which_lvl ":" #debug_lvl);          \
       snprintf(str2, MAX_STR_LENGTH,                                          \
@@ -227,7 +228,8 @@ output when
 #define _DEBUGLA(proc_id, debug_lvl, which_lvl, args...)                      \
   do {                                                                        \
     if(which_lvl >= debug_lvl && DEBUG_RANGE_COND(proc_id)) {                 \
-      char str0[MAX_STR_LENGTH], str1[MAX_STR_LENGTH], str2[MAX_STR_LENGTH];  \
+      char str0[MAX_STR_LENGTH + 1], str1[MAX_STR_LENGTH + 1],                \
+        str2[MAX_STR_LENGTH + 1];                                             \
       snprintf(str0, MAX_STR_LENGTH, "%s:%u:", __FILE__, __LINE__);           \
       snprintf(str1, MAX_STR_LENGTH, " " #which_lvl ":" #debug_lvl);          \
       snprintf(str2, MAX_STR_LENGTH,                                          \

@@ -140,7 +140,7 @@ void byte_swap(void* ptr, size_t size) {
  from printf, so I need it to return a pointer to a string.  */
 
 char* hexstr64(uns64 value) {
-  static char hex64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH];
+  static char hex64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH + 1];
   static int  counter = 0;
 
   counter = CIRC_INC2(counter, MAX_SIMULTANEOUS_STRINGS);
@@ -154,7 +154,7 @@ char* hexstr64(uns64 value) {
 /* hexstr64s:  Just like hexstr64, except it strips off leading zeros */
 
 char* hexstr64s(uns64 value) {
-  static char hex64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH];
+  static char hex64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH + 1];
   static int  counter = 0;
   char*       temp;
 
@@ -173,7 +173,7 @@ char* hexstr64s(uns64 value) {
  from printf, so I need it to return a pointer to a string.  */
 
 char* binstr64(uns64 value) {
-  static char bin64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH];
+  static char bin64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH + 1];
   static int  counter = 0;
   int         ii      = 0;
   counter             = CIRC_INC2(counter, MAX_SIMULTANEOUS_STRINGS);
@@ -191,7 +191,7 @@ char* binstr64(uns64 value) {
 /* binstr64s:  Just like binstr64, except it strips off leading zeros */
 
 char* binstr64s(uns64 value) {
-  static char bin64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH];
+  static char bin64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH + 1];
   static int  counter = 0;
   char*       temp;
   int         ii = 0;
@@ -265,13 +265,13 @@ static char* print_ull_guts(char* d, uns64 ull, unsigned zero_p) {
 /* unsstr64:  Prints a 64-bit number in decimal format. */
 
 char* unsstr64(uns64 value) {
-  static char uns64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH];
+  static char uns64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH + 1];
   static int  counter = 0;
   char*       temp;
 
   counter = CIRC_INC2(counter, MAX_SIMULTANEOUS_STRINGS);
-  uns64_buffer[counter][MAX_STR_LENGTH - 1] = '\0';
-  temp = print_ull_guts(&uns64_buffer[counter][MAX_STR_LENGTH - 2], value, 1);
+  uns64_buffer[counter][MAX_STR_LENGTH] = '\0';
+  temp = print_ull_guts(&uns64_buffer[counter][MAX_STR_LENGTH - 1], value, 1);
 
   return temp;
 }
@@ -281,19 +281,19 @@ char* unsstr64(uns64 value) {
 /* unsstr64c:  Prints a 64-bit number in decimal format with commas. */
 
 char* unsstr64c(uns64 value) {
-  static char uns64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH];
+  static char uns64_buffer[MAX_SIMULTANEOUS_STRINGS][MAX_STR_LENGTH + 1];
   static int  counter = 0;
-  char        buffer[MAX_STR_LENGTH];
+  char        buffer[MAX_STR_LENGTH + 1];
   char *      temp, *temp2, *temp3;
   uns         comma_count = 0;
 
-  counter                    = CIRC_INC2(counter, MAX_SIMULTANEOUS_STRINGS);
-  buffer[MAX_STR_LENGTH - 1] = '\0';
-  uns64_buffer[counter][MAX_STR_LENGTH - 1] = '\0';
-  temp = print_ull_guts(&buffer[MAX_STR_LENGTH - 2], value, 1);
+  counter                = CIRC_INC2(counter, MAX_SIMULTANEOUS_STRINGS);
+  buffer[MAX_STR_LENGTH] = '\0';
+  uns64_buffer[counter][MAX_STR_LENGTH] = '\0';
+  temp = print_ull_guts(&buffer[MAX_STR_LENGTH - 1], value, 1);
 
-  for(temp2 = &buffer[MAX_STR_LENGTH - 2],
-  temp3     = &uns64_buffer[counter][MAX_STR_LENGTH - 2];
+  for(temp2 = &buffer[MAX_STR_LENGTH - 1],
+  temp3     = &uns64_buffer[counter][MAX_STR_LENGTH - 1];
       temp2 >= temp; temp2--, temp3--) {
     *temp3 = *temp2;
     comma_count++;
@@ -721,13 +721,13 @@ int compare_uns64(const void* a, const void* b) {
 
 static int parse_array(void* dest, const void* str, int max_num,
                        void (*parse_token)(void*, uns, const char*)) {
-  ASSERT(0, strlen((const char*)str) < MAX_STR_LENGTH - 1);
+  ASSERT(0, strlen((const char*)str) < MAX_STR_LENGTH);
   const char* tok_start = (const char*)str;
   const char* tok_end   = (const char*)str;
   uns         idx       = 0;
   do {
     ASSERTM(0, idx < max_num, "Too many values in array\n");
-    char buf[MAX_STR_LENGTH];
+    char buf[MAX_STR_LENGTH + 1];
     tok_end = strchr(tok_end, ',');
     if(!tok_end)
       tok_end = strchr(tok_start, 0);  // if no more commas, look for the end
@@ -823,7 +823,7 @@ int parse_double_array(double dest[], const void* str, int max_num) {
 /* parse_string_token: simply copy the string into the destination array */
 
 static void parse_string_token(void* dest, uns idx, const char* token) {
-  char(*array)[MAX_STR_LENGTH] = (char(*)[MAX_STR_LENGTH])dest;
+  char(*array)[MAX_STR_LENGTH + 1] = (char(*)[MAX_STR_LENGTH + 1]) dest;
   strncpy(array[idx], token, MAX_STR_LENGTH);
 }
 
@@ -831,7 +831,7 @@ static void parse_string_token(void* dest, uns idx, const char* token) {
 /* parse_string_array: parse comma-separated array of stringegers, up to max_num
  */
 
-int parse_string_array(char dest[][MAX_STR_LENGTH], const void* str,
+int parse_string_array(char dest[][MAX_STR_LENGTH + 1], const void* str,
                        int max_num) {
   return parse_array(dest, str, max_num, parse_string_token);
 }
