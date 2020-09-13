@@ -86,10 +86,10 @@ void init_global_stats_array() {
 
 void gen_stat_output_file(char* buf, uns8 proc_id, Stat* stat) {
   char temp[MAX_STR_LENGTH + 1];
-  char temp2[16]; //assuming proc id can not be more than 15 bytes
+  char temp2[16];  // assuming proc id can not be more than 15 bytes
 
   /* prepend the stat tag, cut off the 'def' ending and add 'out' */
-  //strncpy(temp, stat->file_name, strlen(stat->file_name) - 3);
+  // strncpy(temp, stat->file_name, strlen(stat->file_name) - 3);
   strncpy(temp, stat->file_name, MAX_STR_LENGTH);
   temp[strlen(stat->file_name) - 3] = '\0';
   sprintf(temp2, "%u", proc_id);

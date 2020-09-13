@@ -569,7 +569,7 @@ static void invoke_dram_sharing_solver(double* pred_speedups, Config* config) {
                      (double)config->core_cycle_times[proc_id]);
   }
   buf += sprintf(buf, " | grep SCARAB");
-  FILE* solver_pipe                   = popen(cmd, "r");
+  FILE* solver_pipe                       = popen(cmd, "r");
   char  solver_output[MAX_STR_LENGTH + 1] = "";
   uns   num_matches = fscanf(solver_pipe, "SCARAB %s", solver_output);
   pclose(solver_pipe);

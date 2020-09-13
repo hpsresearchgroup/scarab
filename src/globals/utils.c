@@ -287,7 +287,7 @@ char* unsstr64c(uns64 value) {
   char *      temp, *temp2, *temp3;
   uns         comma_count = 0;
 
-  counter                    = CIRC_INC2(counter, MAX_SIMULTANEOUS_STRINGS);
+  counter                = CIRC_INC2(counter, MAX_SIMULTANEOUS_STRINGS);
   buffer[MAX_STR_LENGTH] = '\0';
   uns64_buffer[counter][MAX_STR_LENGTH] = '\0';
   temp = print_ull_guts(&buffer[MAX_STR_LENGTH - 1], value, 1);
@@ -823,7 +823,7 @@ int parse_double_array(double dest[], const void* str, int max_num) {
 /* parse_string_token: simply copy the string into the destination array */
 
 static void parse_string_token(void* dest, uns idx, const char* token) {
-  char(*array)[MAX_STR_LENGTH + 1] = (char(*)[MAX_STR_LENGTH + 1])dest;
+  char(*array)[MAX_STR_LENGTH + 1] = (char(*)[MAX_STR_LENGTH + 1]) dest;
   strncpy(array[idx], token, MAX_STR_LENGTH);
 }
 
