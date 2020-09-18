@@ -36,10 +36,13 @@ from scarab_globals import *
 run_commands = None
 
 def define_benchmarks_and_suites():
+  #spec2006_int_benchmarks = [
+  #    'perlbench_06', 'bzip2_06', 'gcc_06', 'mcf_06', 'gobmk_06', 'hmmer_06',
+  #    'sjeng_06', 'libquantum_06', 'h264ref_06', 'omnetpp_06', 'astar_06',
+  #    'xalancbmk_06']
   spec2006_int_benchmarks = [
-      'perlbench_06', 'bzip2_06', 'gcc_06', 'mcf_06', 'gobmk_06', 'hmmer_06',
-      'sjeng_06', 'libquantum_06', 'h264ref_06', 'omnetpp_06', 'astar_06',
-      'xalancbmk_06']
+      'hmmer_06',
+      'astar_06']
   spec2006_fp_benchmarks = [
       'bwaves_06', 'gamess_06', 'milc_06', 'zeusmp_06', 'gromacs_06',
       'cactusADM_06', 'leslie3d_06', 'namd_06', 'dealII_06', 'soplex_06',
