@@ -313,7 +313,7 @@ def read_all_simpoints():
           weights_map[checkpoint_num], icounts_map[checkpoint_num], length_map[checkpoint_num])
     benchmark.weight = total_instructions_in_workload
 
-    benchmark_info = [ {'benchmark.weight': benchmark.weight} ]
+    benchmark_info = {'benchmark.weight': benchmark.weight}
     with open("{}/{}".format(Path(workload_path).parent, benchmark_info_file), 'w') as f:
       yaml.dump(benchmark_info, f)
 
@@ -342,12 +342,12 @@ def get_create_checkpoint_command(workload_path, benchmark_name,
   os.makedirs(checkpoint_path, exist_ok=__args__.force_write)
   checkpoint_rundir_path = ('{}/RUN_DIR'.format(checkpoint_path))
 
-  checkpoint_info = [{
+  checkpoint_info = {
     'checkpoint.num': checkpoint_num,
     'checkpoint.weight': weight,
     'checkpoint.starting_icount': icount,
     'checkpoint.length': length
-  }]
+  }
   with open('{}/{}'.format(checkpoint_path, checkpoint_info_file), 'w') as f:
     yaml.dump(checkpoint_info, f)
 
