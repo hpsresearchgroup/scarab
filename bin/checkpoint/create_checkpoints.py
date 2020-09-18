@@ -395,8 +395,11 @@ def get_all_checkpoint_paths(workload_path, workload_name):
   return checkpoint_paths 
 
 def get_checkpoint_and_benchmark_info(checkpoint_path):
-  checkpoint_info = yaml.load(os.path.join(checkpoint_path, checkpoint_info_file))
-  benchmark_info = yaml.load(os.path.join(Path(checkpoint_path).parent, benchmark_info_file))
+  with open(os.path.join(checkpoint_path, checkpoint_info_file)) as f:
+    checkpoint_info = yaml.load(f, Loader=yaml.FullLoader)
+
+  with open(os.path.join(Path(checkpoint_path).parent, benchmark_info_file)) as f:
+    benchmark_info = yaml.load(f, Loader=yaml.FullLoader)
   return checkpoint_info, benchmark_info
 
 def verify_checkpoints_are_sane(checkpoint_paths):
@@ -419,12 +422,13 @@ def get_descriptor_definitions(benchmark, benchmark_name, checkpoint_paths):
     checkpoint_info, benchmark_info = get_checkpoint_and_benchmark_info(checkpoint_path)
     checkpoint_num = checkpoint_info['checkpoint.num']
     weight         = checkpoint_info['checkpoint.weight']
-    _info.append((checkpoint_path, checkpoint_num, weight,))
+    length         = checkpoint_info['checkpoint.length']
+    _info.append((checkpoint_path, checkpoint_num, weight,length))
 
   definitions = ''
 
   checkpoint_name_list = []
-  for path, checkpoint_num, weight in _info:
+  for path, checkpoint_num, weight, length in _info:
     name = '{}_ckpt{}'.format(benchmark_name, checkpoint_num)
     checkpoint_name_list.append(name)
     definitions += ('{name} = Checkpoint("{name}", "{path}", scarab_args='
@@ -432,7 +436,7 @@ def get_descriptor_definitions(benchmark, benchmark_name, checkpoint_paths):
                     'weight={weight})\n'.format(
         name=name,
         path=path,
-        num_instructions=__args__.simpoint_length,
+        num_instructions=length,
         weight=weight))
 
   definitions += '{name} = Benchmark("{name}", [{checkpoint_list}], weight={weight})\n\n'.format(
