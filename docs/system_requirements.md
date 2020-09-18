@@ -14,12 +14,13 @@ Scarab relies on the following software packages:
 * Python 3.6.3
 
 ## Required Python Packages
-* numpy
-* pandas
-* sphinx
+See `$SCARAB_ROOT/bin/requirements.txt`
 
 ##### E.g. Install with pip:
-> pip3 install numpy pandas sphinx
+```
+cd $SCARAB_ROOT/bin
+pip3 install -r requirements.txt
+```
 
 # Other Useful Packages
 

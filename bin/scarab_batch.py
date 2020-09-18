@@ -29,6 +29,9 @@ import argparse
 
 from scarab_globals import *
 from scarab_globals.scarab_batch_types import *
+from scarab_globals.batch_manager import *
+from scarab_globals.command import *
+from scarab_globals.object_manager import *
 
 parser = argparse.ArgumentParser(description="Scarab Batch")
 parser.add_argument('jobfile', help="Jobfile to operator on.")
@@ -70,18 +73,18 @@ def import_jobfile(jobfile):
 ###############################################
 
 def run_all():
-  JobManager.make()
-  JobManager.run()
+  scarab_run_manager.make()
+  scarab_run_manager.run()
 
 def show_progress():
-  JobManager.print_progress()
+  scarab_run_manager.print_progress()
 
 def get_stats(stat_name, cores, results_dirs):
   if not cores:
     cores = [0]
 
   if not results_dirs:
-    job_stat = JobManager.get_stats()
+    job_stat = scarab_run_manager.get_stats()
   else:
     job_stat = scarab_stats.StatFrame()
     for results_dir in results_dirs:

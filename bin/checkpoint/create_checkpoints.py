@@ -29,10 +29,16 @@ import os
 import subprocess
 import re
 import sys
+import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from scarab_globals import *
 from scarab_globals.scarab_batch_types import *
+
+# Global Variables
+checkpoint_info_file = "CHECKPOINT_INFO.yaml"
+benchmark_info_file = "BENCHMARK_INFO.yaml"
+##
 
 def define_commandline_arguments():
   parser = argparse.ArgumentParser(
@@ -58,7 +64,7 @@ def define_commandline_arguments():
   ##################### Environment Configuration #####################
   parser.add_argument(
       '-m', '--mode',
-      choices=['pbs', 'local'],
+      choices=['local'],
       default='local',
       help='Specify the platform to run on')
   parser.add_argument(
@@ -66,8 +72,8 @@ def define_commandline_arguments():
       default='./checkpoints',
       help='Path to the descriptor file containting list of programs to get checkpoint for')
   parser.add_argument(
-      '-dp', '--checkpoint_descriptor_path',
-      default='./checkpoints/checkpoint_descriptor.def',
+      '-d', '--program_descriptor_path',
+      default='./checkpoints/program_descriptor.def',
       help='Path to the descriptor file containting list of programs to get checkpoint for')
   parser.add_argument(
       '-f', '--force_write',
@@ -97,23 +103,38 @@ def define_commandline_arguments():
   return parser.parse_args()
 
 def define_programs_list(descriptor_path):
-  #scarab_batch.import_descriptor(descriptor_path)
+  """Reads descriptor file and returns list of all program objects declared
+
+  Args:
+      descriptor_path (string): Path to descriptor file
+
+  Returns:
+      list of Program objects: A list of all program objects declared in descriptor file.
+  """
   with open(descriptor_path, 'r') as f:
     exec(f.read(), globals(), globals())
-  return scarab_batch_types.programs_list
+  return object_manager.program_manager.pool
 
 def initialize_globals():
+  """Initialize command line arguments and global program list.
+     If programs are to be copied to a new run directory, create that directory now.
+  """
   global __args__
-  global __benchmarks__
+  global __programs__
 
   __args__ = define_commandline_arguments()
-  __benchmarks__ = define_programs_list(__args__.checkpoint_descriptor_path)
+  __programs__ = define_programs_list(__args__.program_descriptor_path)
 
-  for benchmark in __benchmarks__:
-    benchmark.make(__args__.output_dir)
+  # If program is to be copied before run, then create the copy destination directory now
+  for benchmark in __programs__:
+    if benchmark.copy:
+      benchmark.make(__args__.output_dir)
 
 def verify_run_dirs():
-  for benchmark in __benchmarks__:
+  """Verify that the run directory (either the current directory or the
+     results directory on a copy) is a valid directory
+  """
+  for benchmark in __programs__:
     run_dir_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
     if not os.path.isdir(run_dir_path):
       print('ERROR: run directory for benchmark {} is not created '
@@ -121,6 +142,13 @@ def verify_run_dirs():
       sys.exit(1)
 
 def fix_simpoint_scripts():
+  """Validate that....
+       1. PIN_ROOT has been set
+       2. That simpoint scripts exist (under PIN_ROOT)
+     Then update the scripts to have a python2 shebang line.
+     Unlike all other scripts, the simpoint scripts require python2,
+     which is no longer the default version of pythong.
+  """
   for file_name in ['simpoint.py', 'regions.py', 'pcregions.py']:
     if 'PIN_ROOT' not in os.environ:
       print('ERROR: PIN_ROOT environment variable is not set.')
@@ -142,9 +170,6 @@ def fix_simpoint_scripts():
     else:
       print('Warining: expected file at {} to start with a shebang line'.format(file_path))
 
-def get_submission_system():
-  return command.SubmissionSystems[__args__.mode.upper()]
-
 SIMPOINTS_RUN_CMD_TEMPLATE = (
 'export PATH=$PIN_ROOT/extras/pinplay/scripts/:$PATH\n'
 'export PATH=$PIN_ROOT/extras/pinplay/PinPoints/bin/:$PATH\n'
@@ -158,8 +183,15 @@ SIMPOINTS_RUN_CMD_TEMPLATE = (
 '--simpoint_file simpoints -f 0 --maxk {maxk}\n')
 
 def setup_simpoint_dir_and_get_simpoint_commands():
+  """For each benchmark:
+       1. Generate benchmark run command and save to file
+       2. Generate simpoints run command, save to a file, and return
+
+  Returns:
+      list of Command objects: simpoint command objects to be run
+  """
   run_simpoint_commands = []
-  for benchmark in __benchmarks__:
+  for benchmark in __programs__:
     run_name = benchmark.name
     run_dir_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
     run_cmd = benchmark.run_cmd
@@ -170,31 +202,32 @@ def setup_simpoint_dir_and_get_simpoint_commands():
     with open('{}/BENCHMARK_RUN_CMD'.format(simpoints_dir_path), 'w') as f:
       f.write(run_cmd)
 
-      cmd_file_path = '{}/SIMPOINTS_RUN_CMD'.format(simpoints_dir_path)
-      with open(cmd_file_path, 'w') as f:
-        f.write(SIMPOINTS_RUN_CMD_TEMPLATE.format(
-            run_dir_path=run_dir_path,
-            slice_size=__args__.simpoint_length,
-            simpoints_relative_dir='simpoints_{}.Data'.format(run_name),
-            run_command=run_cmd,
-            maxk=__args__.max_num_simpoints))
+    cmd_file_path = '{}/SIMPOINTS_RUN_CMD'.format(simpoints_dir_path)
+    with open(cmd_file_path, 'w') as f:
+      f.write(SIMPOINTS_RUN_CMD_TEMPLATE.format(
+          run_dir_path=run_dir_path,
+          slice_size=__args__.simpoint_length,
+          simpoints_relative_dir='simpoints_{}.Data'.format(run_name),
+          run_command=run_cmd,
+          maxk=__args__.max_num_simpoints))
 
-      # Append the command to run simpoint to global runfile for later use.
-      run_simpoint_commands.append(
-          command.generate(get_submission_system(),
-                           'bash ' + cmd_file_path,
-                           stdout=simpoints_dir_path +'/simpoints_cmd.out',
-                           stderr=simpoints_dir_path +'/simpoints_cmd.err'))
+    # Append the command to run simpoint to global runfile for later use.
+    run_simpoint_commands.append(
+                          Command('bash ' + cmd_file_path,
+                          stdout=simpoints_dir_path +'/simpoints_cmd.out',
+                          stderr=simpoints_dir_path +'/simpoints_cmd.err'))
   return run_simpoint_commands
 
 def run_simpoints_phase():
+  """Create simpoint commands and run them.
+  """
   print('================================================')
   print('Verify all run directories are created properly...')
   verify_run_dirs()
   fix_simpoint_scripts()
   print('Running Simpoints on all benchmarks ...')
   cmds = setup_simpoint_dir_and_get_simpoint_commands()
-  command.launch(get_submission_system(), cmds)
+  BatchManager([ Phase(cmds) ], processor_cores_per_node=__args__.num_threads).run()
 
 def get_subinput_numbers_for_csv_paths(simpoint_csv_paths):
   subinput_numbers = []
@@ -210,18 +243,37 @@ def get_subinput_numbers_for_csv_paths(simpoint_csv_paths):
   return subinput_numbers
 
 def parse_simpoint_csv_path(simpoint_csv_path):
+  """Parse simpoints CSV file to extract:
+         - The weight of each simpoint in the benchmark
+         - The icounts (starting point) of each simpoint
+         - The lengths (instruction count) of each simpoint
+         - The total number of instructions in the benchmark
+
+  Args:
+      simpoint_csv_path (string): path to the simpoints csv
+
+  Returns:
+      [type]: [description]
+  """
   weights = []
   icounts = []
+  lengths = []
   simpoint_nums = []
+  total_instructions_in_workload = 0
+
   with open(simpoint_csv_path) as f:
     for line in f.readlines():
       if len(line.strip()) == 0:
         continue
       elif line.strip()[0] == '#':
+        m = re.match(r'# Total instructions in workload = ([0-9]+)', line)
+        if m:
+          total_instructions_in_workload = int(m.group(1))
         continue
       words = line.strip().split(',')
       simpoint_nums.append(int(words[2]))
       icounts.append(int(words[3]))
+      lengths.append(int(words[4]) - icounts[-1])
       weights.append(float(words[5]))
 
   while min(weights) < __args__.min_simpoint_weight:
@@ -229,21 +281,24 @@ def parse_simpoint_csv_path(simpoint_csv_path):
     min_idx = weights.index(min(weights))
     del weights[min_idx]
     del icounts[min_idx]
+    del lengths[min_idx]
     del simpoint_nums[min_idx]
     sum_weights = sum(weights)
     weights = [w / sum_weights for w in weights]
 
   weights_map = {}
   icounts_map = {}
-  for simpoint_num, weight, icount in zip(simpoint_nums, weights, icounts):
+  length_map = {}
+  for simpoint_num, weight, icount, length in zip(simpoint_nums, weights, icounts, lengths):
     weights_map[simpoint_num] = weight
     icounts_map[simpoint_num] = icount
+    length_map[simpoint_num] = length
 
-  return weights_map, icounts_map
+  return weights_map, icounts_map, length_map, total_instructions_in_workload
 
 def read_all_simpoints():
   simpoints = {}
-  for benchmark in __benchmarks__:
+  for benchmark in __programs__:
     workload_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
     workload_name = benchmark.name
     simpoint_csv_path = '{}/simpoints_{}.Data/simpoints_{}.pinpoints.csv'.format(workload_path, workload_name, workload_name)
@@ -251,10 +306,16 @@ def read_all_simpoints():
       print('ERROR: could not find the simpoint output file in {}'.format(simpoint_csv_path))
       sys.exit(1)
 
-    weights_map, icounts_map = parse_simpoint_csv_path(simpoint_csv_path)
+    weights_map, icounts_map, length_map, total_instructions_in_workload = \
+        parse_simpoint_csv_path(simpoint_csv_path)
     for checkpoint_num in weights_map:
       simpoints[(benchmark.name, checkpoint_num)] = (benchmark,
-          weights_map[checkpoint_num], icounts_map[checkpoint_num])
+          weights_map[checkpoint_num], icounts_map[checkpoint_num], length_map[checkpoint_num])
+    benchmark.weight = total_instructions_in_workload
+
+    benchmark_info = {'benchmark.weight': benchmark.weight}
+    with open("{}/{}".format(Path(workload_path).parent, benchmark_info_file), 'w') as f:
+      yaml.dump(benchmark_info, f)
 
   return simpoints
 
@@ -265,7 +326,7 @@ CREATE_CHECKPOINT_CMD_TEMPLATE = (
 'CHECKPOINT_PATH={checkpoint_path} make checkpoint')
 
 def get_create_checkpoint_command(workload_path, benchmark_name,
-                                  checkpoint_num, weight, icount):
+                                  checkpoint_num, weight, icount, length):
   run_command_file_path = ('{}/simpoints_{}.Data/BENCHMARK_RUN_CMD'.format(workload_path, benchmark_name))
   with open(run_command_file_path) as f:
     run_command = f.read()
@@ -280,6 +341,16 @@ def get_create_checkpoint_command(workload_path, benchmark_name,
       icount=icount))
   os.makedirs(checkpoint_path, exist_ok=__args__.force_write)
   checkpoint_rundir_path = ('{}/RUN_DIR'.format(checkpoint_path))
+
+  checkpoint_info = {
+    'checkpoint.num': checkpoint_num,
+    'checkpoint.weight': weight,
+    'checkpoint.starting_icount': icount,
+    'checkpoint.length': length
+  }
+  with open('{}/{}'.format(checkpoint_path, checkpoint_info_file), 'w') as f:
+    yaml.dump(checkpoint_info, f)
+
   with open(checkpoint_path + '/CREATE_CMD', 'w') as f:
     f.write(CREATE_CHECKPOINT_CMD_TEMPLATE.format(
           checkpoint_creator_dir=scarab_paths.checkpoint_creator_dir,
@@ -290,8 +361,7 @@ def get_create_checkpoint_command(workload_path, benchmark_name,
           checkpoint_path=checkpoint_path))
   distutils.dir_util.copy_tree(workload_path, checkpoint_rundir_path) 
 
-  return command.generate(
-      get_submission_system(),
+  return Command(
       'bash {}/CREATE_CMD'.format(checkpoint_path),
       stdout=checkpoint_path +'/creation_log.out',
       stderr=checkpoint_path +'/creation_log.err')
@@ -300,10 +370,10 @@ def setup_checkpoint_dirs_and_get_create_commands(simpoints):
   create_checkpoint_commands = []
   for key_tuple in simpoints:
     benchmark_name, checkpoint_num = key_tuple
-    benchmark, weight, icount = simpoints[key_tuple]
+    benchmark, weight, icount, length = simpoints[key_tuple]
     workload_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
     create_checkpoint_commands.append(get_create_checkpoint_command(
-          workload_path, benchmark_name, checkpoint_num, weight, icount))
+          workload_path, benchmark_name, checkpoint_num, weight, icount, length))
 
   return create_checkpoint_commands
 
@@ -313,7 +383,7 @@ def create_checkpoints_phase():
   simpoints = read_all_simpoints()
   print('Create checkpoints for all benchmarks ...')
   cmds = setup_checkpoint_dirs_and_get_create_commands(simpoints)
-  command.launch(get_submission_system(), cmds)
+  BatchManager([ Phase(cmds) ], processor_cores_per_node=__args__.num_threads).run()
 
 def get_all_checkpoint_paths(workload_path, workload_name):
   glob_search_path = '{}/{}_checkpoint*'.format(workload_path, workload_name)
@@ -324,17 +394,19 @@ def get_all_checkpoint_paths(workload_path, workload_name):
     sys.exit(1)
   return checkpoint_paths 
 
-def parse_checkpoint_path(checkpoint_path):
-  m = re.match(r'.*_checkpoint(\d+)_([\.\d]+)_[\d]+', os.path.basename(checkpoint_path))
-  if m is None:
-    print('Checkpoint name in {} is ill-formed'.format(checkpoint_path))
-  return int(m.group(1)), float(m.group(2))
+def get_checkpoint_and_benchmark_info(checkpoint_path):
+  with open(os.path.join(checkpoint_path, checkpoint_info_file)) as f:
+    checkpoint_info = yaml.load(f, Loader=yaml.FullLoader)
+
+  with open(os.path.join(Path(checkpoint_path).parent, benchmark_info_file)) as f:
+    benchmark_info = yaml.load(f, Loader=yaml.FullLoader)
+  return checkpoint_info, benchmark_info
 
 def verify_checkpoints_are_sane(checkpoint_paths):
   total_weights = 0.0
   for checkpoint_path in checkpoint_paths:
-    _, weight = parse_checkpoint_path(checkpoint_path)
-    total_weights += weight
+    checkpoint_info, _ = get_checkpoint_and_benchmark_info(checkpoint_path)
+    total_weights += checkpoint_info['checkpoint.weight']
 
   if total_weights < 0.99:
     print('The weights of identified checkpoints do not add up to 1 for ')
@@ -347,13 +419,16 @@ def get_descriptor_definitions(benchmark, benchmark_name, checkpoint_paths):
   _info = []
 
   for checkpoint_path in checkpoint_paths:
-    checkpoint_num, weight = parse_checkpoint_path(checkpoint_path)
-    _info.append((checkpoint_path, checkpoint_num, weight,))
+    checkpoint_info, benchmark_info = get_checkpoint_and_benchmark_info(checkpoint_path)
+    checkpoint_num = checkpoint_info['checkpoint.num']
+    weight         = checkpoint_info['checkpoint.weight']
+    length         = checkpoint_info['checkpoint.length']
+    _info.append((checkpoint_path, checkpoint_num, weight,length))
 
   definitions = ''
 
   checkpoint_name_list = []
-  for path, checkpoint_num, weight in _info:
+  for path, checkpoint_num, weight, length in _info:
     name = '{}_ckpt{}'.format(benchmark_name, checkpoint_num)
     checkpoint_name_list.append(name)
     definitions += ('{name} = Checkpoint("{name}", "{path}", scarab_args='
@@ -361,13 +436,14 @@ def get_descriptor_definitions(benchmark, benchmark_name, checkpoint_paths):
                     'weight={weight})\n'.format(
         name=name,
         path=path,
-        num_instructions=__args__.simpoint_length,
+        num_instructions=length,
         weight=weight))
 
-  definitions += '{name} = Benchmark("{name}", ['.format(name=benchmark_name)
-  for checkpoint_name in checkpoint_name_list:
-    definitions += checkpoint_name + ', '
-  definitions += '])\n\n'
+  definitions += '{name} = Benchmark("{name}", [{checkpoint_list}], weight={weight})\n\n'.format(
+    name=benchmark_name,
+    checkpoint_list=', '.join(checkpoint_name_list),
+    weight=benchmark_info['benchmark.weight']
+  )
 
   return definitions
 
@@ -377,7 +453,7 @@ def create_descriptor_file_phase():
 
   descriptor_str = 'import os\n\n'
   name_list = []
-  for benchmark in __benchmarks__:
+  for benchmark in __programs__:
     workload_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
     workload_parent = Path(workload_path).parent
     checkpoint_paths = get_all_checkpoint_paths(workload_parent, benchmark.name)
@@ -387,12 +463,16 @@ def create_descriptor_file_phase():
     descriptor_str += benchmarks_descriptor_str
     name_list.append(benchmark.name)
 
+  descriptor_str += "# Group benchmarks with different inputs\n"
+  for collection in object_manager.collection_manager.pool:
+    descriptor_str += '{name} = {type}("{name}", [{collection_str}])\n\n'.format(
+      name=collection.name,
+      type=collection.typestr(),
+      collection_str=', '.join( [item.name for item in collection.exec_list] )
+    )
+
   with open(__args__.output_dir + '/descriptor.def', 'w') as f:
     f.write(descriptor_str)
-    f.write('{suite} = Suite("{suite}", ['.format(suite="the_suite"))
-    for name in name_list:
-      f.write(name + ', ')
-    f.write('])\n')
 
 def main():
   initialize_globals()
@@ -410,7 +490,6 @@ def main():
 
   if __args__.create_descriptor_file or run_all_phases:
     create_descriptor_file_phase()
-
 
 if __name__ == '__main__':
   main()
