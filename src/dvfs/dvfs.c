@@ -267,7 +267,7 @@ void init_configs_from_file(void) {
   num_configs = 0;
   FILE* f     = fopen(DVFS_CONFIG_FILE, "r");
   ASSERTM(0, f, "Could not open DVFS config file %s\n", DVFS_CONFIG_FILE);
-  char buf[MAX_STR_LENGTH];
+  char buf[MAX_STR_LENGTH + 1];
   while(fgets(buf, MAX_STR_LENGTH, f)) {
     num_configs++;
   }
@@ -536,7 +536,7 @@ static double gmean(const double* array, uns num) {
 static void invoke_dram_sharing_solver(double* pred_speedups, Config* config) {
   ASSERT(0, DVFS_DRAM_SHARING_SOLVER_BIN);
 
-  char  cmd[MAX_STR_LENGTH];
+  char  cmd[MAX_STR_LENGTH + 1];
   char* buf = cmd;
   // buf += sprintf(buf, "%s %d %d ", DVFS_DRAM_SHARING_SOLVER_BIN, NUM_CORES,
   // MEMORY_CHANNELS*MEMORY_BANKS);
@@ -569,8 +569,8 @@ static void invoke_dram_sharing_solver(double* pred_speedups, Config* config) {
                      (double)config->core_cycle_times[proc_id]);
   }
   buf += sprintf(buf, " | grep SCARAB");
-  FILE* solver_pipe                   = popen(cmd, "r");
-  char  solver_output[MAX_STR_LENGTH] = "";
+  FILE* solver_pipe                       = popen(cmd, "r");
+  char  solver_output[MAX_STR_LENGTH + 1] = "";
   uns   num_matches = fscanf(solver_pipe, "SCARAB %s", solver_output);
   pclose(solver_pipe);
   if(DVFS_DRAM_SHARING_SOLVER_STRICT) {

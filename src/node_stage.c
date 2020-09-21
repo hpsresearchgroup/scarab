@@ -1010,7 +1010,7 @@ void debug_print_retired_uop(Op* op) {
 
 Flag op_not_ready_for_retire(Op* op) {
   return !(op->state == OS_DONE || OP_DONE(op)) || op->off_path ||
-         op->recovery_scheduled;
+         op->recovery_scheduled || op->redirect_scheduled;
 }
 
 Flag is_node_table_empty() {
@@ -1029,6 +1029,8 @@ void collect_not_ready_to_retire_stats(Op* op) {
   rob_stall_reason = ROB_STALL_OTHER;
   if(op->recovery_scheduled) {
     rob_stall_reason = ROB_STALL_WAIT_FOR_RECOVERY;
+  } else if(op->redirect_scheduled) {
+    rob_stall_reason = ROB_STALL_WAIT_FOR_REDIRECT;
   }
 
   if(op->engine_info.l1_miss) {

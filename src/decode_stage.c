@@ -77,7 +77,7 @@ void set_decode_stage(Decode_Stage* new_dec) {
 /* init_decode_stage: */
 
 void init_decode_stage(uns8 proc_id, const char* name) {
-  char tmp_name[MAX_STR_LENGTH];
+  char tmp_name[MAX_STR_LENGTH + 1];
   uns  ii;
   ASSERT(0, dec);
   ASSERT(0, STAGE_MAX_DEPTH > 0);
@@ -220,6 +220,7 @@ static inline void stage_process_op(Op* op) {
                                      ADDR_PLUS_OFFSET(
                                        op->inst_info->addr,
                                        op->inst_info->trace_info.inst_size);
+        ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
         // schedule a redirect using the predicted npc
         bp_sched_redirect(bp_recovery_info, op, cycle_count);
       }

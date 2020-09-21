@@ -368,7 +368,7 @@ int   parse_uns_array(uns dest[], const void* str, int max_num);
 int   parse_uns64_array(uns64 dest[], const void* str, int max_num);
 int   parse_float_array(float dest[], const void* str, int max_num);
 int   parse_double_array(double dest[], const void* str, int max_num);
-int   parse_string_array(char dest[][MAX_STR_LENGTH], const void* str,
+int   parse_string_array(char dest[][MAX_STR_LENGTH + 1], const void* str,
                          int max_num);
 
 /* for use in qsort */

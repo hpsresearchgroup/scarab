@@ -142,7 +142,7 @@ char* compiled_param_dump_array[][3] = {
 
 typedef struct Param_Record_struct {
   Flag used;
-  char optarg[MAX_STR_LENGTH];
+  char optarg[MAX_STR_LENGTH + 1];
 } Param_Record;
 
 void dump_params(char** arg_list, Param_Record used_params[], Flag exe_found);
@@ -543,8 +543,8 @@ int get_rest_of_line(FILE* f, char* buffer) {
  *    4    //(2 parameters + 2 values)
  */
 int count_parameters_in_file(FILE* f) {
-  char param_name[MAX_STR_LENGTH];
-  char param_val[MAX_STR_LENGTH];
+  char param_name[MAX_STR_LENGTH + 1];
+  char param_val[MAX_STR_LENGTH + 1];
   int  param_file_arg_count = 0;
 
   while(get_next_parameter(f, param_name)) {
@@ -566,8 +566,8 @@ Flag param_is_exe_option(char* param) {
 }
 
 Flag contains_exe_option_in_file(FILE* param_file_fp) {
-  char param_name[MAX_STR_LENGTH];
-  char param_val[MAX_STR_LENGTH];
+  char param_name[MAX_STR_LENGTH + 1];
+  char param_val[MAX_STR_LENGTH + 1];
 
   while(get_next_parameter(param_file_fp, param_name)) {
     if(param_is_exe_option(param_name)) {
@@ -617,8 +617,8 @@ int remove_trailing_whitespace(char* str) {
 uns fill_arg_list_with_param_file_args(FILE*     param_file_fp,
                                        const int param_file_arg_count,
                                        char** arg_list, int argc) {
-  char param_name[MAX_STR_LENGTH];
-  char param_val[MAX_STR_LENGTH];
+  char param_name[MAX_STR_LENGTH + 1];
+  char param_val[MAX_STR_LENGTH + 1];
   uns  exe_option_found     = 0;
   uns  arg_list_index       = 1;
   uns  validation_arg_count = 0; /*used to verify number of args counted earlier

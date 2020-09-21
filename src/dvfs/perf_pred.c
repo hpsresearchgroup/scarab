@@ -149,7 +149,7 @@ void init_perf_pred(void) {
     proc->bank_infos = (Bank_Info*)malloc(sizeof(Bank_Info) * RAMULATOR_BANKS *
                                           RAMULATOR_CHANNELS);
     if(CRITICAL_ACCESS_PLOT_ENABLE) {
-      char filename[MAX_STR_LENGTH];
+      char filename[MAX_STR_LENGTH + 1];
       sprintf(filename, "%s.%d.out", CRITICAL_ACCESS_PLOT_FILE, proc_id);
       proc->critical_access_plot_file = fopen(filename, "w");
       ASSERTM(0, proc->critical_access_plot_file, "Could not open %s",

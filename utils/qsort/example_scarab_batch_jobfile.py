@@ -33,5 +33,7 @@ baseline_params += "--heartbeat 1000"
 perfect_bp_params="--perfect_bp 1"
 perfect_params = baseline_params + perfect_bp_params
 
-Job("Baseline", suite1, baseline_params, results_dir="./results")
-Job("Perfect",  suite1, perfect_params,  results_dir="./results")
+ScarabRun("Baseline", suite1, baseline_params, results_dir="./results")
+ScarabRun("Perfect",  suite1, perfect_params,  results_dir="./results")
+
+BatchManager()

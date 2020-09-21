@@ -134,7 +134,7 @@ void run_power_model_exec(void) {
   power_print_mcpat_xml_infile();
   power_print_cacti_cfg_infile();
 
-  char cmd[MAX_STR_LENGTH];
+  char cmd[MAX_STR_LENGTH + 1];
   uns  len = sprintf(cmd, "python %s/%s %s %d %s", BINDIR, POWER_INTF_EXEC, ".",
                     POWER_INTF_ENABLE_SCALING, FILE_TAG);
   ASSERT(0, len < MAX_STR_LENGTH);
@@ -154,9 +154,9 @@ void parse_power_model_results(void) {
   FILE* file = file_tag_fopen(NULL, model_results_filename, "r");
   ASSERTM(0, file, "Could not open %s\n", model_results_filename);
 
-  char   line[MAX_STR_LENGTH];
-  char   domain_str[MAX_STR_LENGTH];
-  char   result_str[MAX_STR_LENGTH];
+  char   line[MAX_STR_LENGTH + 1];
+  char   domain_str[MAX_STR_LENGTH + 1];
+  char   result_str[MAX_STR_LENGTH + 1];
   double value;
   Flag   read[POWER_DOMAIN_NUM_ELEMS][POWER_RESULT_NUM_ELEMS] = {};
 

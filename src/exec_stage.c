@@ -367,6 +367,8 @@ void update_exec_stage(Stage_Data* src_sd) {
           op->recovery_scheduled = TRUE;
       } else if(op->table_info->cf_type >= CF_IBR &&
                 op->oracle_info.no_target) {
+        ASSERT(bp_recovery_info->proc_id,
+               bp_recovery_info->proc_id == op->proc_id);
         bp_sched_redirect(bp_recovery_info, op, op->exec_cycle);
       }
     }

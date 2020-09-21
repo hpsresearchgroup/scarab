@@ -82,7 +82,8 @@ typedef enum Cache_Insert_Repl_enum {
 } Cache_Insert_Repl;
 
 typedef struct Cache_struct {
-  char name[MAX_STR_LENGTH]; /* name to identify the cache (for debugging) */
+  char name[MAX_STR_LENGTH + 1]; /* name to identify the cache (for debugging)
+                                  */
   uns data_size; /* how big are the data items in each cache entry? (for malloc)
                   */
 

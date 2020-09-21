@@ -3,12 +3,22 @@
 
 _start:
       kmovw mask, %k1
+      kmovw mask, %k2
+      kmovw mask, %k3
       lea input_ints, %rbx
       lea output_ints, %rcx
+
+      xor %rax, %rax
+
+ again:
       vmovdqa64 indices,%zmm0
       vpgatherdd (%rbx,%zmm0,4),%zmm1{%k1}
-      kmovw mask, %k1
-      vpscatterdd %zmm1,(%rcx,%zmm0,4){%k1}
+      vpscatterdd %zmm1,(%rcx,%zmm0,4){%k2}
+      knotw %k3, %k1
+      knotw %k3, %k2
+      add $1, %rax
+      cmp $1, %rax
+      jle again
 
       xor %edi, %edi
       xor %rax, %rax

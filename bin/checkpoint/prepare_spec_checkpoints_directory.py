@@ -95,7 +95,7 @@ def define_commandline_arguments(all_benchmarks, benchmark_suites_dict):
       '-c', '--spec_config_name',
       default='*',
       help='The SPEC configuration you want to run, used by glob '
-          '(the name of the directory in benchspec/*/run/)')
+          '(the name of the directory in benchspec/CPU*/*/run/run_base_<input>*_<config_name>*)')
   parser.add_argument(
       '--inputs',
       nargs='+',
@@ -279,21 +279,32 @@ def create_checkpoints_descriptor_file():
 
   descriptor_str = 'import os\n\n'
   name_list = []
+  suite_list = []
   for benchmark, input_name in product(__benchmarks__, __args__.inputs):
     run_dir_path = os.path.abspath(
         '{}/{}/{}/run_dir'.format(__args__.output_dir, benchmark, input_name))
     cmd_file_path = '{}/RUN_CMDS'.format(run_dir_path)
     with open(cmd_file_path, 'r') as f:
       run_commands = f.read().splitlines()
+      bench_list = []
 
-      for run_cmd in range(len(run_commands)):
-        benchmark_name = '{}_{}{}'.format(benchmark, input_name, run_cmd)
+      for run_cmd_idx in range(len(run_commands)):
+        benchmark_name = '{}_{}{}'.format(benchmark, input_name, run_cmd_idx)
         name_list.append(benchmark_name)
         descriptor_str += '{name} = Program("{name}", "{cmd}", path="{path}")\n'.format(
-            name=benchmark_name, cmd=run_commands[run_cmd], path=run_dir_path)
-      descriptor_str += '\n'
+            name=benchmark_name, cmd=run_commands[run_cmd_idx], path=run_dir_path)
+        bench_list.append(benchmark_name)
 
-  with open(__args__.output_dir + '/checkpoint_descriptor.def', 'w') as f:
+      benchmark_name = '{}_{}'.format(benchmark, input_name)
+      descriptor_str += '{name} = Benchmark("{name}", [{bench_list}])\n'.format(
+          name=benchmark_name, bench_list=', '.join(bench_list))
+      suite_list.append(benchmark_name)
+      descriptor_str += '\n'
+  
+  descriptor_str += '{name} = Suite("{name}", [{bench_list}])\n'.format(
+      name=__args__.suite, bench_list=', '.join(suite_list))
+
+  with open(__args__.output_dir + '/program_descriptor.def', 'w') as f:
     f.write(descriptor_str)
   return
 

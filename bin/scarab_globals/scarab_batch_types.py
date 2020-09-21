@@ -44,18 +44,15 @@ import scarab_utils
 import command
 import progress
 import scarab_stats
+import scarab_snapshot
+from object_manager import *
 
-programs_list = []
-checkpoints_list = []
-
-class SystemConfig:
+class ScarabParamDefaults:
   """
-  System Settings for JobFiles
-  """
-  submission_system = command.SubmissionSystems.LOCAL
-  pintool_args = ""
-  scarab_args = ""
+  Default Scarab Parameter Values
 
+  These are values that are not likely to change, so we provide defaults for them.
+  """
   scarab_stdout = "scarab.stdout"
   scarab_stderr = "scarab.stderr"
   pin_stdout = "pin.stdout"
@@ -68,66 +65,50 @@ class SystemConfig:
   scarab = scarab_paths.scarab_bin
   frontend_pin_tool = scarab_paths.pin_bin
 
+  # Batch Variables
+  walltime = None
+  memory_per_core = None
+  cores = 10
+
 class ScarabParams:
-  def __init__(self, command_line_params="", params_file=None):
-    self.command_line_params = command_line_params
+  def __init__(self, scarab_args="", pintool_args="", params_file=None):
+    self.scarab_args = scarab_args
+    self.pintool_args = pintool_args
     self.params_file = params_file
+
+    self.scarab_stdout = ScarabParamDefaults.scarab_stdout
+    self.scarab_stderr = ScarabParamDefaults.scarab_stderr
+    self.pin_stdout    = ScarabParamDefaults.pin_stdout
+    self.pin_stderr    = ScarabParamDefaults.pin_stderr
+    self.scarab_launch_stdout = ScarabParamDefaults.scarab_launch_stdout
+    self.scarab_launch_stderr = ScarabParamDefaults.scarab_launch_stderr
+
+    self.python_bin = ScarabParamDefaults.python_bin
+    self.scarab_launch = ScarabParamDefaults.scarab_launch
+    self.scarab = ScarabParamDefaults.scarab
+    self.frontend_pin_tool = ScarabParamDefaults.frontend_pin_tool
+
+    self.walltime = ScarabParamDefaults.walltime
+    self.memory_per_core = ScarabParamDefaults.memory_per_core
+    self.cores = ScarabParamDefaults.cores
+
+    self.snapshot_log = None
 
   def __add__(self, rhs):
     if type(rhs) == ScarabParams:
-      rhs_str = " " + rhs.command_lime_params
+      rhs_str = " " + rhs.scarab_args
     else:
       rhs_str = " " + rhs
 
-    x = ScarabParams(self.command_line_params, self.params_file)
-    x.command_line_params += rhs_str
+    x = ScarabParams(scarab_args=self.scarab_args, params_file=self.params_file)
+    x.scarab_args += rhs_str
     return x
-
-  def args(self):
-    return self.command_line_params
 
 ################################################################################
 # Below are Scarab Job objects
 ################################################################################
 
-class JobManager:
-  """
-  Static class that manages all Jobs that have been created
-  """
-  job_pool = []
-
-  @classmethod
-  def register_job(cls, job):
-    cls.job_pool.append(job)
-
-  @classmethod
-  def make(cls):
-    for job in cls.job_pool:
-      job.make()
-
-  @classmethod
-  def run(cls):
-    for job in cls.job_pool:
-      job.run()
-
-  @classmethod
-  def print_progress(cls):
-    for job in cls.job_pool:
-      job.print_progress()
-
-  @classmethod
-  def get_stats(cls):
-    job_stat = scarab_stats.StatFrame()
-    for job in cls.job_pool:
-      job_stat.push(job.job_name, job.get_stats())
-    return job_stat
-
-  @classmethod
-  def print_commands(cls):
-    for job in cls.job_pool:
-      job.print_commands()
-
-class Job:
+class ScarabRun:
   """
   Top level object for Suites, Benchmarks, Mixes, Programs and Checkpoints
   """
@@ -137,16 +118,21 @@ class Job:
     self.params = params
     self.results_parent_dir = os.path.abspath(results_dir)
     self.results_dir = self.results_parent_dir + "/" + self.job_name
-    JobManager.register_job(self)
+    scarab_run_manager.register(self)
+    scarab_snapshot.create_snapshot(self.params, self.results_dir)
 
   def make(self):
     os.makedirs(self.results_parent_dir, exist_ok=True)
     os.makedirs(self.results_dir, exist_ok=True)
     self.job.make(self.results_dir)
 
-  def run(self):
+  def get_commands(self):
     self.cmd_list = self.job.create_joblist(self.results_dir, self.params)
-    cmd = command.launch(SystemConfig.submission_system, self.cmd_list, jobname=self.job_name)
+    return self.cmd_list
+
+  def process_command_list(self):
+    self.make()
+    return self.get_commands()
 
   def print_progress(self):
     progress = self.job.get_progress(self.results_dir)
@@ -159,7 +145,7 @@ class Job:
     return suite_stat
 
   def print_commands(self):
-    self.cmd_list = self.job.create_joblist(self.results_dir, self.params)
+    self.get_commands()
     for cmd in self.cmd_list:
       print(cmd)
 
@@ -189,8 +175,7 @@ class Executable:
   def create_joblist(self, basename, scarab_params):
     assert scarab_params.params_file, "Must provide a PARAMS file to create_joblist for {name}".format(name=self.name)
     results_dir = self._results_dir(basename)
-    scarab_args = self.scarab_args + scarab_params.args() + " --num_cores {num_cores} --output_dir {output_dir}".format(num_cores=self.num_cores, output_dir=results_dir)
-    return [ generate_run_command(self, results_dir, scarab_params.params_file, scarab_args) ]
+    return [ generate_run_command(self, results_dir, scarab_params) ]
 
   def get_progress(self, basename):
     results_dir = self._results_dir(basename)
@@ -203,18 +188,20 @@ class Executable:
 class Checkpoint(Executable):
   def __init__(self, name, path, scarab_args="", pintool_args="", weight=1.0):
     super().__init__(name, path, scarab_args, pintool_args, weight)
-    checkpoints_list.append(self)
+    checkpoint_manager.register(self)
+
+  def typestr(self):
+    return "Checkpoint"
 
 class Program(Executable):
   def __init__(self, name, run_cmd, path=None, scarab_args="", pintool_args="", weight=1.0, copy=False):
     super().__init__(name, path, scarab_args, pintool_args, weight)
     self.run_cmd = run_cmd
     self.copy = copy
-    programs_list.append(self)
+    program_manager.register(self)
 
-  def _run_program_at_path(self):
-    """Returns True if PIN process needs to be run at directory specified by path attribute."""
-    return self.path and not self.copy
+  def typestr(self):
+    return "Program"
 
   def make(self, basename):
     super().make(basename)
@@ -238,6 +225,10 @@ class Mix(Executable):
     self.pintool_args = pintool_args
     self.num_cores = len(self.mix_list)
     self.weight = 1.0
+    mix_manager.register(self)
+
+  def typestr(self):
+    return "Checkpoint"
 
   def make(self, basename):
     super().make(basename)
@@ -257,9 +248,10 @@ class Collection:
     -name: The name of the benchmark. Used for the results directory.
     -bench_list: The list of Checkpoints and/or Programs.
   """
-  def __init__(self, name, exec_list):
+  def __init__(self, name, exec_list, weight=1.0):
     self.name = name
     self.exec_list = exec_list
+    collection_manager.register(self)
 
   def _results_dir(self, basename):
     return os.path.join(os.path.abspath(basename), self.name)
@@ -297,6 +289,9 @@ class Benchmark(Collection):
   A Benchmark is a collection of weighted checkpoints or programs. When stats are collected,
   the weighted average of stats must be collected
   """
+  def typestr(self):
+    return "Benchmark"
+
   def get_stats(self, basename):
     stat_list = super().get_stats(basename)
     bench_stat = scarab_stats.BenchmarkStat(label=self.name, collection=stat_list)
@@ -307,6 +302,9 @@ class Suite(Collection):
   A Suite is a collection of checkpoints, programs, mixes, or benchmarks. When stats are
   collected, the stats should be reported together as a group
   """
+  def typestr(self):
+    return "Suite"
+
   def get_stats(self, basename):
     bench_list = super().get_stats(basename)
     suite_stat = scarab_stats.SuiteStat(label=self.name, collection=bench_list)
@@ -335,21 +333,29 @@ def get_program_or_checkpoint_options(job):
 
   return run_exec
 
-def generate_run_command(job, results_dir, params_file, scarab_args):
-  scarab_launch_cmd = SystemConfig.python_bin + " " +                                       \
-          SystemConfig.scarab_launch +                                                      \
-          " --scarab " + SystemConfig.scarab +                                              \
-          " --frontend_pin_tool " + SystemConfig.frontend_pin_tool +                        \
-          " --pintool_args=\"" + SystemConfig.pintool_args + " " + job.pintool_args + "\""  \
-          " --scarab_args=\""  + SystemConfig.scarab_args  + " " + scarab_args  + "\""      \
-          " --params " + params_file +                                                      \
-          " --scarab_stdout " + results_dir + "/" + SystemConfig.scarab_stdout +            \
-          " --scarab_stderr " + results_dir + "/" + SystemConfig.scarab_stderr +            \
-          " --pin_stdout " + results_dir + "/" + SystemConfig.pin_stdout +                  \
-          " --pin_stderr " + results_dir + "/" + SystemConfig.pin_stderr +                  \
+def generate_run_command(job, results_dir, scarab_params):
+  scarab_args = job.scarab_args + scarab_params.scarab_args + \
+          " --num_cores {num_cores} --output_dir {output_dir}".format(num_cores=job.num_cores, output_dir=results_dir)
+  params_file = scarab_params.params_file
+
+  scarab_launch_cmd = scarab_params.python_bin + " " +                                       \
+          scarab_params.scarab_launch +                                                      \
+          " --scarab " + scarab_params.scarab +                                              \
+          " --frontend_pin_tool " + scarab_params.frontend_pin_tool +                        \
+          " --pintool_args=\"" + scarab_params.pintool_args + " " + job.pintool_args + "\""  \
+          " --scarab_args=\""  + scarab_params.scarab_args  + " " + scarab_args  + "\""      \
+          " --params " + params_file +                                                       \
+          " --scarab_stdout " + results_dir + "/" + scarab_params.scarab_stdout +            \
+          " --scarab_stderr " + results_dir + "/" + scarab_params.scarab_stderr +            \
+          " --pin_stdout " + results_dir + "/" + scarab_params.pin_stdout +                  \
+          " --pin_stderr " + results_dir + "/" + scarab_params.pin_stderr +                  \
           get_program_or_checkpoint_options(job)
 
-  launch_out = results_dir + "/" + SystemConfig.scarab_launch_stdout
-  launch_err = results_dir + "/" + SystemConfig.scarab_launch_stderr
-  cmd = command.generate(SystemConfig.submission_system, scarab_launch_cmd, run_dir=results_dir, results_dir=results_dir, stdout=launch_out, stderr=launch_err)
+  launch_out = results_dir + "/" + scarab_params.scarab_launch_stdout
+  launch_err = results_dir + "/" + scarab_params.scarab_launch_stderr
+  cmd = command.Command(scarab_launch_cmd, name=job.name, run_dir=results_dir, results_dir=results_dir, stdout=launch_out, stderr=launch_err)
+  cmd.walltime = scarab_params.walltime
+  cmd.memory_per_core = scarab_params.memory_per_core
+  cmd.cores = scarab_params.cores
+  cmd.snapshot_log = scarab_params.snapshot_log
   return cmd

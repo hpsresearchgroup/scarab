@@ -180,9 +180,16 @@ void bp_sched_redirect(Bp_Recovery_Info* bp_recovery_info, Op* op,
                                        (op->table_info->cf_type == CF_SYS ?
                                           EXTRA_CALLSYS_CYCLES :
                                           0);
-    bp_recovery_info->redirect_op     = op;
-    bp_recovery_info->redirect_op_num = op->op_num;
+    bp_recovery_info->redirect_op                     = op;
+    bp_recovery_info->redirect_op_num                 = op->op_num;
+    bp_recovery_info->redirect_op->redirect_scheduled = TRUE;
+    ASSERT(bp_recovery_info->proc_id, bp_recovery_info->proc_id == op->proc_id);
+    ASSERT_PROC_ID_IN_ADDR(op->proc_id,
+                           bp_recovery_info->redirect_op->oracle_info.pred_npc);
   }
+  ASSERT(bp_recovery_info->proc_id, bp_recovery_info->proc_id == op->proc_id);
+  ASSERT_PROC_ID_IN_ADDR(op->proc_id,
+                         bp_recovery_info->redirect_op->oracle_info.pred_npc);
 }
 
 
@@ -311,6 +318,7 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
     op->oracle_info.late_mispred  = FALSE;
     op->oracle_info.btb_miss      = FALSE;
     op->oracle_info.no_target     = FALSE;
+    ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.npc);
     op->oracle_info.pred_npc      = op->oracle_info.npc;
     op->oracle_info.late_pred_npc = op->oracle_info.npc;
     bp_data->bp->spec_update_func(op);
@@ -465,6 +473,8 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
   }
   // }}}
 
+  // pred_target = convert_to_cmp_addr(op->proc_id, pred_target);
+
   bp_data->bp->spec_update_func(op);
   if(USE_LATE_BP) {
     bp_data->late_bp->spec_update_func(op);
@@ -475,6 +485,7 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
 
   const Addr prediction = op->oracle_info.pred ? pred_target : pc_plus_offset;
   op->oracle_info.pred_npc = prediction;
+  ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
   // If the direction prediction is wrong, but next address happens to be right
   // anyway, do not treat this as a misprediction.
   op->oracle_info.mispred = (op->oracle_info.pred != op->oracle_info.dir) &&

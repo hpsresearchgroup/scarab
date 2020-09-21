@@ -146,7 +146,7 @@ void pin_exec_driven_redirect(uns proc_id, uns64 inst_uid, Addr fetch_addr) {
    * finish. Processes will synchronize when Scarab sends next command to PIN*/
   Scarab_To_Pin_Msg msg;
   msg.type      = FE_REDIRECT;
-  msg.inst_addr = fetch_addr;
+  msg.inst_addr = convert_to_cmp_addr(0, fetch_addr);  // removing proc_id
   msg.inst_uid  = inst_uid;
   uop_generator_recover(proc_id);
 

@@ -134,9 +134,9 @@ void init_cache(Cache* cache, const char* name, uns cache_size, uns assoc,
 
     /* initialize the unsure lists (if necessary) */
     if(cache->repl_policy == REPL_IDEAL) {
-      char list_name[MAX_STR_LENGTH];
+      char list_name[MAX_STR_LENGTH + 1];
       snprintf(list_name, MAX_STR_LENGTH, "%.*s unsure [%d]",
-               MAX_STR_LENGTH - 21, cache->name, ii);  // 21 guaruntees the
+               MAX_STR_LENGTH - 20, cache->name, ii);  // 21 guaruntees the
                                                        // string will always be
                                                        // smaller than
                                                        // MAX_STR_LENGTH

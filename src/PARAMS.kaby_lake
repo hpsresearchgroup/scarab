@@ -127,7 +127,9 @@
 
 ### Prefetcher
 --pref_framework_on             1
---pref_stream_on 		1
+--pref_stream_on 		            1
+--pref_stream_per_core_enable   1
+--pref_shared_queues            0
 --pref_train_on_pref_misses     0
 --pref_oracle_train             0
 --pref_ul1req_queue_overwrite_on_full 1
@@ -162,6 +164,7 @@
 --mem_priority_wb_nodirty    5
 
 --mem_req_buffer_entries        32
+--mem_l1_fill_queue_entries     32
 --memory_interleave_factor      4096
 --bus_width_in_bytes            8
 
@@ -217,7 +220,6 @@
 ####################################
 --set_off_path_confirmed        1
 
---fetch_off_path_ops            1
 --order_beyond_bus              1
 
 --mem_ooo_stores                1

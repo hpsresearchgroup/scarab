@@ -173,6 +173,9 @@ void cmp_istreams(void) {
       }
       if(cycle_count >= bp_recovery_info->redirect_cycle) {
         set_icache_stage(&cmp_model.icache_stage[proc_id]);
+        ASSERT(proc_id, proc_id == bp_recovery_info->redirect_op->proc_id);
+        ASSERT_PROC_ID_IN_ADDR(
+          proc_id, bp_recovery_info->redirect_op->oracle_info.pred_npc);
         cmp_redirect();
       }
     }
@@ -311,6 +314,7 @@ void cmp_recover() {
     Op* op                   = bp_recovery_info->recovery_op;
     op->oracle_info.pred     = op->oracle_info.late_pred;
     op->oracle_info.pred_npc = op->oracle_info.late_pred_npc;
+    ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
     op->oracle_info.mispred  = op->oracle_info.late_mispred;
     op->oracle_info.misfetch = op->oracle_info.late_misfetch;
 
@@ -343,6 +347,8 @@ void cmp_redirect() {
          bp_recovery_info->redirect_cycle != MAX_CTR);
   bp_recovery_info->redirect_cycle                             = MAX_CTR;
   bp_recovery_info->redirect_op->oracle_info.btb_miss_resolved = TRUE;
+  ASSERT_PROC_ID_IN_ADDR(bp_recovery_info->proc_id,
+                         bp_recovery_info->redirect_op->oracle_info.pred_npc);
   redirect_icache_stage();
 }
 
@@ -397,8 +403,10 @@ void cmp_warmup(Op* op) {
   // Warmup caches for instructions
   Icache_Stage* ic = &(cmp_model.icache_stage[proc_id]);
   // keep next_fetch_addr current to avoid confusing simulation mode
-  if(op->eom)
+  if(op->eom) {
     ic->next_fetch_addr = op->oracle_info.npc;
+    ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
+  }
   Cache*      icache  = &(ic->icache);
   Inst_Info** ic_data = (Inst_Info**)cache_access(icache, ia, &dummy_line_addr,
                                                   TRUE);
