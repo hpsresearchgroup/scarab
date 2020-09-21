@@ -44,8 +44,11 @@ static uns32 hsieh_hash(const char* data, int len);
 /* addr_translate: translate virtual address to physical address */
 
 Addr addr_translate(Addr virt_addr) {
+  Addr masked_virt_addr = check_and_remove_addr_sign_extended_bits(
+    virt_addr, ADDR_NON_SIGN_EXTEND_NUM_BITS);
+
   if(ADDR_TRANSLATION == ADDR_TRANS_NONE)
-    return virt_addr;
+    return masked_virt_addr;
 
   /* Generate DRAM bank bits by hashing all address bits */
   uns   num_page_offset_bits = LOG2(MEMORY_INTERLEAVE_FACTOR);
