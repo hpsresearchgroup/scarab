@@ -3370,11 +3370,6 @@ static void mem_init_new_req(
   new_req->mem_flat_bank        = BANK(
     new_req->phys_addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
     MEMORY_INTERLEAVE_FACTOR);  // bank# = channel# + real_bank#_per_channel
-  if(MEMORY_BANK_XOR_BANK) {
-    new_req->mem_flat_bank ^= BANK_HASH(
-      addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS, MEMORY_INTERLEAVE_FACTOR,
-      MEMORY_BANK_XOR_BANK_HASH_BIT);
-  }
   new_req->mem_channel = CHANNEL(new_req->mem_flat_bank, RAMULATOR_BANKS);
   new_req->mem_bank = BANK_IN_CHANNEL(new_req->mem_flat_bank, RAMULATOR_BANKS);
   new_req->mlc_bank = BANK(addr, MLC(proc_id)->num_banks,
@@ -3659,31 +3654,23 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
      out of there) */
   if(new_req == NULL) {
     // cmp IGNORE (MLC IGNORE too =)
+    ASSERTM(proc_id, !KICKOUT_PREFETCHES,
+            "KICKOUT_PREFETCHES currently not supported, because the mem bank "
+            "we use is wrong. Instead, we need a way to get "
+            "the bank of the request from Ramulator");
     if(KICKOUT_PREFETCHES && (type != MRT_IPRF) && (type != MRT_DPRF)) {
       if(!KICKOUT_LOOK_FOR_OLDEST_FIRST)
         new_req = mem_kick_out_prefetch_from_queues(
-          MEMORY_BANK_XOR_BANK ?
-            BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                 MEMORY_INTERLEAVE_FACTOR) ^
-              BANK_HASH(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                        MEMORY_INTERLEAVE_FACTOR,
-                        MEMORY_BANK_XOR_BANK_HASH_BIT) :
-            BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                 MEMORY_INTERLEAVE_FACTOR),
+          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
+               MEMORY_INTERLEAVE_FACTOR),
           new_priority,
           QUEUE_L1 | QUEUE_BUS_OUT | QUEUE_MEM); /* FIXME: need to make this
                                                     more realistic and modular
                                                   */
       else
         new_req = mem_kick_out_oldest_first_prefetch_from_queues(
-          MEMORY_BANK_XOR_BANK ?
-            BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                 MEMORY_INTERLEAVE_FACTOR) ^
-              BANK_HASH(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                        MEMORY_INTERLEAVE_FACTOR,
-                        MEMORY_BANK_XOR_BANK_HASH_BIT) :
-            BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                 MEMORY_INTERLEAVE_FACTOR),
+          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
+               MEMORY_INTERLEAVE_FACTOR),
           new_priority, QUEUE_L1 | QUEUE_BUS_OUT | QUEUE_MEM);
     }
 
@@ -4093,6 +4080,10 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
      out of there) */
   if(new_req == NULL) {
     // cmp FIXME prefechers // MLC IGNORE
+    ASSERTM(proc_id, !KICKOUT_PREFETCHES,
+            "KICKOUT_PREFETCHES currently not supported, because the mem bank "
+            "we use is wrong. Instead, we need a way to get "
+            "the bank of the request from Ramulator");
     if(KICKOUT_PREFETCHES &&
        ((type != MRT_IPRF) && (type != MRT_DPRF))) {  // FIXME: do we kick out
                                                       // stuff for writebacks
@@ -4100,25 +4091,13 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
       // all this bank computation is meaningless now that we use Ramulator
       if(KICKOUT_LOOK_FOR_OLDEST_FIRST)
         new_req = mem_kick_out_prefetch_from_queues(
-          MEMORY_BANK_XOR_BANK ?
-            BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                 MEMORY_INTERLEAVE_FACTOR) ^
-              BANK_HASH(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                        MEMORY_INTERLEAVE_FACTOR,
-                        MEMORY_BANK_XOR_BANK_HASH_BIT) :
-            BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                 MEMORY_INTERLEAVE_FACTOR),
+          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
+               MEMORY_INTERLEAVE_FACTOR),
           new_priority, QUEUE_L1 | QUEUE_BUS_OUT | QUEUE_MEM);
       else
         new_req = mem_kick_out_oldest_first_prefetch_from_queues(
-          MEMORY_BANK_XOR_BANK ?
-            BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                 MEMORY_INTERLEAVE_FACTOR) ^
-              BANK_HASH(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                        MEMORY_INTERLEAVE_FACTOR,
-                        MEMORY_BANK_XOR_BANK_HASH_BIT) :
-            BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-                 MEMORY_INTERLEAVE_FACTOR),
+          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
+               MEMORY_INTERLEAVE_FACTOR),
           new_priority, QUEUE_L1 | QUEUE_BUS_OUT | QUEUE_MEM);
     }
 

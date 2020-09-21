@@ -85,8 +85,6 @@ DEF_PARAM(  prefetch_update_lru_l1         , PREFETCH_UPDATE_LRU_L1          , F
 DEF_PARAM(  memory_random_addr             , MEMORY_RANDOM_ADDR              , Flag   , Flag    , FALSE                  ,       )
 // memory_interleave_factor is the size of the row buffer
 DEF_PARAM(  memory_interleave_factor           , MEMORY_INTERLEAVE_FACTOR        , uns    , uns     , 63                 ,       )
-DEF_PARAM(  memory_bank_xor_bank               , MEMORY_BANK_XOR_BANK            , Flag   , Flag    , FALSE              ,       )
-DEF_PARAM(  memory_bank_xor_bank_hash_bit      , MEMORY_BANK_XOR_BANK_HASH_BIT   , uns    , uns     , 4                  ,       )
 DEF_PARAM(  addr_translation                   , ADDR_TRANSLATION                , uns, Addr_Translation, 0              ,       )
 
 DEF_PARAM(  constant_memory_latency        , CONSTANT_MEMORY_LATENCY         , Flag   , Flag    , FALSE                  ,       )
