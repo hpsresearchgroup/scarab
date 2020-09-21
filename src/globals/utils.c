@@ -704,6 +704,21 @@ uns get_proc_id_from_cmp_addr(Addr addr) {
 }
 
 /**************************************************************************************/
+/* check_and_remove_addr_sign_extended_bits */
+
+Addr check_and_remove_addr_sign_extended_bits(Addr virt_addr,
+                                              uns  num_non_sign_extended_bits) {
+  const uns  proc_id = get_proc_id_from_cmp_addr(virt_addr);
+  const Addr mask    = CMP_ADDR_MASK | N_BIT_MASK(num_non_sign_extended_bits);
+
+  // the bits we're masked out should be all 0s or all 1s
+  const Addr bits_masked_out = virt_addr & ~mask;
+  ASSERT(proc_id, 0 == bits_masked_out || mask == ~bits_masked_out);
+
+  return (virt_addr & mask);
+}
+
+/**************************************************************************************/
 /* compare_uns64 */
 
 int compare_uns64(const void* a, const void* b) {

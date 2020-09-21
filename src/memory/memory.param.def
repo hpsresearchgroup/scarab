@@ -85,6 +85,8 @@ DEF_PARAM(  prefetch_update_lru_l1         , PREFETCH_UPDATE_LRU_L1          , F
 DEF_PARAM(  memory_random_addr             , MEMORY_RANDOM_ADDR              , Flag   , Flag    , FALSE                  ,       )
 // memory_interleave_factor is the size of the row buffer
 DEF_PARAM(  memory_interleave_factor           , MEMORY_INTERLEAVE_FACTOR        , uns    , uns     , 63                 ,       )
+// we assume the high bits of the virt address are all 1s or 0s, and can be removed. This knob tells us how many bits to keep
+DEF_PARAM(  addr_non_sign_extend_num_bits   , ADDR_NON_SIGN_EXTEND_NUM_BITS  , uns    , uns     , 48                 ,       )
 DEF_PARAM(  addr_translation                   , ADDR_TRANSLATION                , uns, Addr_Translation, 0              ,       )
 
 DEF_PARAM(  constant_memory_latency        , CONSTANT_MEMORY_LATENCY         , Flag   , Flag    , FALSE                  ,       )
