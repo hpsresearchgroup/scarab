@@ -299,7 +299,9 @@ void init_memory() {
   ASSERT(0, mem);
   ASSERT(0, L1_LINE_SIZE <= L1_INTERLEAVE_FACTOR);
   ASSERT(0, L1_LINE_SIZE <= MLC_INTERLEAVE_FACTOR);
-  ASSERT(0, L1_LINE_SIZE <= MEMORY_INTERLEAVE_FACTOR);
+  ASSERT(0, L1_LINE_SIZE <= VA_PAGE_SIZE_BYTES);
+  ASSERT(0, NUM_ADDR_NON_SIGN_EXTEND_BITS <= 58);
+  ASSERT(0, LOG2(VA_PAGE_SIZE_BYTES) <= NUM_ADDR_NON_SIGN_EXTEND_BITS);
   memset(mem, 0, sizeof(Memory));
 
   init_mem_req_type_priorities();
@@ -1587,6 +1589,7 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
           req->state  = MRS_L1_WAIT;
           access_done = FALSE;
         } else {
+          ASSERT(req->proc_id, req->mem_queue_cycle >= req->rdy_cycle);
           DEBUG(req->proc_id,
                 "L1 write through request is sent to Ramulator\n");
           mem_seq_num++;
@@ -1644,6 +1647,7 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
           req->state  = MRS_L1_WAIT;
           access_done = FALSE;
         } else {
+          ASSERT(req->proc_id, req->mem_queue_cycle >= req->rdy_cycle);
           req->queue = NULL;
 
           DEBUG(req->proc_id, "l1 miss request is sent to ramulator\n");
@@ -2287,8 +2291,12 @@ static void mem_process_bus_out_reqs() {
     // else
     //    mem_insert_req_into_queue (req, req->queue, ALL_FIFO_QUEUES ?
     //    mem_seq_num : 0);
-    ramulator_send(req);  // Ramulator_note: Does ramulator need to do anything
-                          // with mem_seq_num?
+    Flag sent = ramulator_send(
+      req);  // Ramulator_note: Does ramulator need to do anything
+             // with mem_seq_num?
+    if(sent) {
+      ASSERT(req->proc_id, req->mem_queue_cycle >= req->rdy_cycle);
+    }
 
     mem_seq_num++;  // Ramulator_note: Do we need to move this after
                     // ramulator_send()?
@@ -3358,20 +3366,23 @@ static void mem_init_new_req(
   new_req->proc_id            = proc_id;
   new_req->addr               = addr;
   new_req->phys_addr          = addr_translate(addr);
-  // if (DRAM_RANDOM_ADDR) new_req->phys_addr = convert_to_cmp_addr(proc_id,
-  // rand()*MEMORY_INTERLEAVE_FACTOR);
+
   if(MEMORY_RANDOM_ADDR)
     new_req->phys_addr = convert_to_cmp_addr(proc_id,
-                                             rand() * MEMORY_INTERLEAVE_FACTOR);
+                                             rand() * VA_PAGE_SIZE_BYTES);
   new_req->priority = new_priority;
   new_req->size     = size;
-  ASSERT(new_req->proc_id, new_req->size <= MEMORY_INTERLEAVE_FACTOR);
+  ASSERT(new_req->proc_id, new_req->size <= VA_PAGE_SIZE_BYTES);
   new_req->reserved_entry_count = 0;
+  // TODO: actually populate mem_flat_bank, mem_channel, and mem_bank by
+  // grabbing that information from Ramulator
+  /*
   new_req->mem_flat_bank        = BANK(
     new_req->phys_addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-    MEMORY_INTERLEAVE_FACTOR);  // bank# = channel# + real_bank#_per_channel
+    VA_PAGE_SIZE_BYTES);  // bank# = channel# + real_bank#_per_channel
   new_req->mem_channel = CHANNEL(new_req->mem_flat_bank, RAMULATOR_BANKS);
   new_req->mem_bank = BANK_IN_CHANNEL(new_req->mem_flat_bank, RAMULATOR_BANKS);
+  */
   new_req->mlc_bank = BANK(addr, MLC(proc_id)->num_banks,
                            MLC_INTERLEAVE_FACTOR);
   new_req->l1_bank  = BANK(addr, L1(proc_id)->num_banks, L1_INTERLEAVE_FACTOR);
@@ -3661,16 +3672,14 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
     if(KICKOUT_PREFETCHES && (type != MRT_IPRF) && (type != MRT_DPRF)) {
       if(!KICKOUT_LOOK_FOR_OLDEST_FIRST)
         new_req = mem_kick_out_prefetch_from_queues(
-          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-               MEMORY_INTERLEAVE_FACTOR),
+          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS, VA_PAGE_SIZE_BYTES),
           new_priority,
           QUEUE_L1 | QUEUE_BUS_OUT | QUEUE_MEM); /* FIXME: need to make this
                                                     more realistic and modular
                                                   */
       else
         new_req = mem_kick_out_oldest_first_prefetch_from_queues(
-          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-               MEMORY_INTERLEAVE_FACTOR),
+          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS, VA_PAGE_SIZE_BYTES),
           new_priority, QUEUE_L1 | QUEUE_BUS_OUT | QUEUE_MEM);
     }
 
@@ -4028,6 +4037,9 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
   ASSERTM(proc_id, proc_id == get_proc_id_from_cmp_addr(addr),
           "Proc ID (%d) does not match proc ID in address (%d)!\n", proc_id,
           get_proc_id_from_cmp_addr(addr));
+  ASSERTM(proc_id, 0 == delay,
+          "does not support non-zero delay, because we will try to send the wb "
+          "request to Ramulator right away");
 
   new_priority = Mem_Req_Priority_Offset[type] + priority_offset;
 
@@ -4091,13 +4103,11 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
       // all this bank computation is meaningless now that we use Ramulator
       if(KICKOUT_LOOK_FOR_OLDEST_FIRST)
         new_req = mem_kick_out_prefetch_from_queues(
-          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-               MEMORY_INTERLEAVE_FACTOR),
+          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS, VA_PAGE_SIZE_BYTES),
           new_priority, QUEUE_L1 | QUEUE_BUS_OUT | QUEUE_MEM);
       else
         new_req = mem_kick_out_oldest_first_prefetch_from_queues(
-          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS,
-               MEMORY_INTERLEAVE_FACTOR),
+          BANK(addr, RAMULATOR_BANKS * RAMULATOR_CHANNELS, VA_PAGE_SIZE_BYTES),
           new_priority, QUEUE_L1 | QUEUE_BUS_OUT | QUEUE_MEM);
     }
 
@@ -4140,6 +4150,7 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
       mem_free_reqbuf(new_req);  // RAMULATOR_todo: optimize this
       return FALSE;
     } else {
+      ASSERT(new_req->proc_id, new_req->mem_queue_cycle >= new_req->rdy_cycle);
       DEBUG(new_req->proc_id, "L1 WB request is sent to ramulator\n");
 
       mem_seq_num++;
@@ -4230,7 +4241,7 @@ Flag l1_fill_line(Mem_Req* req) {
         printf("Scheduling L2 writeback of addr:0x%s ins addr:0x%s\n",
                hexstr64s(repl_line_addr), hexstr64s(req->addr));
       if(!new_mem_l1_wb_req(MRT_WB, data->proc_id, repl_line_addr, L1_LINE_SIZE,
-                            1, NULL, NULL, unique_count))
+                            0, NULL, NULL, unique_count))
         return FAILURE;
       STAT_EVENT(req->proc_id, L1_FILL_DIRTY);
     }

@@ -30,6 +30,7 @@
 
 #include "addr_trans.h"
 #include "debug/debug_macros.h"
+#include "globals/assert.h"
 #include "globals/utils.h"
 #include "memory/memory.param.h"
 #include "ramulator.param.h"
@@ -44,17 +45,24 @@ static uns32 hsieh_hash(const char* data, int len);
 /* addr_translate: translate virtual address to physical address */
 
 Addr addr_translate(Addr virt_addr) {
-  Addr masked_virt_addr = check_and_remove_addr_sign_extended_bits(
-    virt_addr, ADDR_NON_SIGN_EXTEND_NUM_BITS);
-
   if(ADDR_TRANSLATION == ADDR_TRANS_NONE)
-    return masked_virt_addr;
+    return virt_addr;
 
-  /* Generate DRAM bank bits by hashing all address bits */
-  uns   num_page_offset_bits = LOG2(MEMORY_INTERLEAVE_FACTOR);
-  Addr  page_index           = virt_addr >> num_page_offset_bits;
-  uns   num_bank_bits        = LOG2(RAMULATOR_BANKS * RAMULATOR_CHANNELS);
-  uns32 bank_bits            = page_index & N_BIT_MASK(num_bank_bits);
+  /* We fake the virtual->physical address translation by scrambling the addr
+   * bits just above the page offset. However, aliasing during the scrambling
+   * can end up mapping two distinct virtual pages to the same physical frame.
+   * To avoid this, when we stick in the scrambled bits, we keep around the
+   * original bits and shift them into the high redundant address bits. The high
+   * address bits are redundant because they are the output of sign extension
+   * (i.e., all 0s or all 1s). */
+  uns  num_page_offset_bits = LOG2(VA_PAGE_SIZE_BYTES);
+  Addr page_index           = virt_addr >> num_page_offset_bits;
+  // we already use the 6 highest bits to store the proc_id.
+  // NUM_ADDR_NON_SIGN_EXTEND_BITS tells us how many bits we actually need to
+  // keep, and the bits that are left are used to store the original bits after
+  // scrambling
+  uns   num_bits_to_scramble = 58 - NUM_ADDR_NON_SIGN_EXTEND_BITS;
+  uns32 orig_bits            = page_index & N_BIT_MASK(num_bits_to_scramble);
   Addr  hash_source;
 
   if(ADDR_TRANSLATION == ADDR_TRANS_RANDOM ||
@@ -62,48 +70,53 @@ Addr addr_translate(Addr virt_addr) {
     hash_source = page_index;
   } else if(ADDR_TRANSLATION == ADDR_TRANS_PRESERVE_BLP ||
             ADDR_TRANSLATION == ADDR_TRANS_PRESERVE_STREAM) {
-    /* excluding bank bits from hash source will preserve
+    /* excluding original_bits from hash source will preserve
        bank-level parallelism among requests with the same upper
        bits */
-    hash_source = page_index >> num_bank_bits;
+    hash_source = page_index >> num_bits_to_scramble;
   } else {
     FATAL_ERROR(0, "Unknown ADDR_TRANSLATION: %s\n",
                 Addr_Translation_str(ADDR_TRANSLATION));
   }
   uns32 hash;
   if(ADDR_TRANSLATION == ADDR_TRANS_FLIP) {
-    hash = hash_source ^ N_BIT_MASK(sizeof(uns32) * CHAR_BIT);
+    hash = hash_source ^ N_BIT_MASK(num_bits_to_scramble);
   } else {
     hash = hsieh_hash((char*)&hash_source, sizeof(Addr));
   }
-  uns32 new_bank_bits = (hash & N_BIT_MASK(num_bank_bits));
+  uns32 scrambled_bits = (hash & N_BIT_MASK(num_bits_to_scramble));
   if(ADDR_TRANSLATION == ADDR_TRANS_PRESERVE_BLP) {
-    new_bank_bits ^= bank_bits;
+    scrambled_bits ^= orig_bits;
   } else if(ADDR_TRANSLATION == ADDR_TRANS_PRESERVE_STREAM) {
-    new_bank_bits ^= bank_bits;
-    Addr top_bank_bit = (page_index >> (num_bank_bits - 1)) & 1;
-    CLRBIT(new_bank_bits, num_bank_bits - 1);
-    new_bank_bits |= top_bank_bit << (num_bank_bits - 1);
+    scrambled_bits ^= orig_bits;
+    Addr top_orig_bit = (page_index >> (num_bits_to_scramble - 1)) & 1;
+    CLRBIT(scrambled_bits, num_bits_to_scramble - 1);
+    scrambled_bits |= top_orig_bit << (num_bits_to_scramble - 1);
   }
 
   /* Construct the physical address subject to two constraints:
      1. the address should retain proc_id in the upper bits
      2. no two page indices should map to the same frame number (otherwise such
         collisions artifically reduce the application's working set) */
-  uns  proc_id                = get_proc_id_from_cmp_addr(virt_addr);
-  Addr page_offset            = virt_addr & N_BIT_MASK(num_page_offset_bits);
-  Addr orig_virt_addr         = convert_to_cmp_addr(0, virt_addr);
-  Addr orig_page_index        = orig_virt_addr >> num_page_offset_bits;
-  Addr orig_hashed_page_index = (orig_page_index &
-                                 (~N_BIT_MASK(num_bank_bits))) |
-                                new_bank_bits;
-  Addr orig_hashed_addr = ((Addr)bank_bits << (sizeof(uns32) * CHAR_BIT)) |
-                          (orig_hashed_page_index << num_page_offset_bits) |
-                          page_offset;
+  uns  proc_id          = get_proc_id_from_cmp_addr(virt_addr);
+  Addr page_offset      = virt_addr & N_BIT_MASK(num_page_offset_bits);
+  Addr masked_virt_addr = check_and_remove_addr_sign_extended_bits(
+    virt_addr, NUM_ADDR_NON_SIGN_EXTEND_BITS);
+  Addr orig_masked_virt_addr  = convert_to_cmp_addr(0, masked_virt_addr);
+  Addr orig_masked_page_index = orig_masked_virt_addr >> num_page_offset_bits;
+  Addr masked_page_index_with_scrambled_bits =
+    (orig_masked_page_index & (~N_BIT_MASK(num_bits_to_scramble))) |
+    scrambled_bits;
+  ASSERT(proc_id, 0 == (masked_page_index_with_scrambled_bits &
+                        ~N_BIT_MASK(NUM_ADDR_NON_SIGN_EXTEND_BITS)));
+  Addr new_phys_addr = ((Addr)orig_bits << NUM_ADDR_NON_SIGN_EXTEND_BITS) |
+                       (masked_page_index_with_scrambled_bits
+                        << num_page_offset_bits) |
+                       page_offset;
 
-  Addr hashed_addr = convert_to_cmp_addr(proc_id, orig_hashed_addr);
-  DEBUG(proc_id, "%llx => %llx\n", virt_addr, hashed_addr);
-  return hashed_addr;
+  Addr cmp_addr = convert_to_cmp_addr(proc_id, new_phys_addr);
+  DEBUG(proc_id, "%llx => %llx\n", virt_addr, cmp_addr);
+  return cmp_addr;
 }
 
   /**************************************************************************************

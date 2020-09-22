@@ -16,7 +16,7 @@
 --l1_cycles 18
 --l1_banks 1
 --l1_interleave_factor 64
---memory_interleave_factor 4096
+--va_page_size_bytes 4096
 --addr_translation random
 --icache_size 32768
 --icache_assoc 4
@@ -206,7 +206,7 @@ L1_USE_CORE_FREQ                         FALSE
 MARK_L1_MISSES                           TRUE                            
 PREFETCH_UPDATE_LRU_L1                   TRUE                            
 MEMORY_RANDOM_ADDR                       FALSE                           
-MEMORY_INTERLEAVE_FACTOR                 63                              4096
+VA_PAGE_SIZE_BYTES                       4096                            4096
 MEMORY_BANK_XOR_BANK                     FALSE                           
 MEMORY_BANK_XOR_BANK_HASH_BIT            4                               
 ADDR_TRANSLATION                         0                               random

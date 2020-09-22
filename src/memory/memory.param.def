@@ -1,14 +1,14 @@
 /* Copyright 2020 HPS/SAFARI Research Groups
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -21,251 +21,308 @@
 
 /* -*- Mode: c -*- */
 
-/* These ".param.def" files contain the various parameters that can be given to the
-   simulator.  NOTE: Don't screw around with the order of these macro fields without
-   fixing the etags regexps.
+/* These ".param.def" files contain the various parameters that can be given to
+   the simulator.  NOTE: Don't screw around with the order of these macro fields
+   without fixing the etags regexps.
 
-   DEF_PARAM(  Option, Variable Name, Type, Function, Default Value, Const	    ) 
+   DEF_PARAM(  Option, Variable Name, Type, Function, Default Value, Const )
 
-   Option -- The name of the parameter when given on the command line (eg. "--param_0"								    ).
-	   All parameters take an argument.  Thus , "--param_0=3" would be a valid
-	   specification.
+   Option -- The name of the parameter when given on the command line (eg.
+   "--param_0"								    ). All parameters take an argument.  Thus ,
+   "--param_0=3" would be a valid specification.
 
-   Variable Name -- The name of the variable that will be created in 'parameters.c' and
-	    externed in 'parameters.h'.
+   Variable Name -- The name of the variable that will be created in
+   'parameters.c' and externed in 'parameters.h'.
 
-   Type -- The type of the variable that will be created in 'parameters.c' and externed
-	   in 'parameters.h'.
+   Type -- The type of the variable that will be created in 'parameters.c' and
+   externed in 'parameters.h'.
 
-   Function -- The name of the function declared in 'parameters.c' that will parse the
-	    text after the '='.
+   Function -- The name of the function declared in 'parameters.c' that will
+   parse the text after the '='.
 
-   Default Value -- The default value that the variable created will have.  This must be
-	    the same type as the 'Type' field indicates (or be able to be cast to it								    ).
+   Default Value -- The default value that the variable created will have.  This
+   must be the same type as the 'Type' field indicates (or be able to be cast to
+   it								    ).
 
-   Const -- Put the word "const" here if you want this parameter to be constant.  An
-	    error messsage will be printed if the user tries to set it with a command
-	    line option.
+   Const -- Put the word "const" here if you want this parameter to be constant.
+   An error messsage will be printed if the user tries to set it with a command
+      line option.
 
 */
-DEF_PARAM(  enable_swprf                   , ENABLE_SWPRF                    , Flag   , Flag    , FALSE                  ,       )
+DEF_PARAM(enable_swprf, ENABLE_SWPRF, Flag, Flag, FALSE, )
 
 /* MLC */
-DEF_PARAM(  mlc_present                    , MLC_PRESENT                     , Flag   , Flag    , FALSE                  ,       )
-DEF_PARAM(  mlc_size                       , MLC_SIZE                        , uns    , uns     , (512*1024),                    )
-DEF_PARAM(  mlc_assoc                      , MLC_ASSOC                       , uns    , uns     , 4                      ,       )
-DEF_PARAM(  mlc_line_size                  , MLC_LINE_SIZE                   , uns    , uns     , 64                     ,       )
-DEF_PARAM(  mlc_cycles                     , MLC_CYCLES                      , uns    , uns     , 12                     ,       )
-DEF_PARAM(  perfect_mlc                    , PERFECT_MLC                     , Flag   , Flag    , FALSE                  ,       )
-DEF_PARAM(  mlc_read_ports                 , MLC_READ_PORTS                  , uns    , uns     , 1                      ,       )
-DEF_PARAM(  mlc_write_ports                , MLC_WRITE_PORTS                 , uns    , uns     , 1                      ,       )
-DEF_PARAM(  mlc_banks                      , MLC_BANKS                       , uns    , uns     , 8                      ,       )
-DEF_PARAM(  mlc_interleave_factor          , MLC_INTERLEAVE_FACTOR           , uns    , uns     , 64                     ,       )
-DEF_PARAM(  mlc_cache_repl_policy          , MLC_CACHE_REPL_POLICY           , uns    , uns     , 0                      ,       )   
-DEF_PARAM(  mlc_write_through              , MLC_WRITE_THROUGH               , Flag   , Flag    , FALSE                  ,       )
-DEF_PARAM(  prefetch_update_lru_mlc        , PREFETCH_UPDATE_LRU_MLC         , Flag   , Flag    , TRUE                   ,       )
+DEF_PARAM(mlc_present, MLC_PRESENT, Flag, Flag, FALSE, )
+DEF_PARAM(mlc_size, MLC_SIZE, uns, uns, (512 * 1024), )
+DEF_PARAM(mlc_assoc, MLC_ASSOC, uns, uns, 4, )
+DEF_PARAM(mlc_line_size, MLC_LINE_SIZE, uns, uns, 64, )
+DEF_PARAM(mlc_cycles, MLC_CYCLES, uns, uns, 12, )
+DEF_PARAM(perfect_mlc, PERFECT_MLC, Flag, Flag, FALSE, )
+DEF_PARAM(mlc_read_ports, MLC_READ_PORTS, uns, uns, 1, )
+DEF_PARAM(mlc_write_ports, MLC_WRITE_PORTS, uns, uns, 1, )
+DEF_PARAM(mlc_banks, MLC_BANKS, uns, uns, 8, )
+DEF_PARAM(mlc_interleave_factor, MLC_INTERLEAVE_FACTOR, uns, uns, 64, )
+DEF_PARAM(mlc_cache_repl_policy, MLC_CACHE_REPL_POLICY, uns, uns, 0, )
+DEF_PARAM(mlc_write_through, MLC_WRITE_THROUGH, Flag, Flag, FALSE, )
+DEF_PARAM(prefetch_update_lru_mlc, PREFETCH_UPDATE_LRU_MLC, Flag, Flag, TRUE, )
 /* L1 */
-DEF_PARAM(  force_l1_miss                  , FORCE_L1_MISS                   , Flag   , Flag    , FALSE                  ,       )
-DEF_PARAM(  l1_size                        , L1_SIZE                         , uns    , uns     , (4*1024*1024),                 )
-DEF_PARAM(  l1_assoc                       , L1_ASSOC                        , uns    , uns     , 8                      ,       )
-DEF_PARAM(  l1_line_size                   , L1_LINE_SIZE                    , uns    , uns     , 64                     ,       ) /* MEMORY_INTERLEAVE_FACTOR, L1_INTERLEAVE_FACTOR is dependent on this size*/
-DEF_PARAM(  l1_cycles                      , L1_CYCLES                       , uns    , uns     , 24                     ,       )
-DEF_PARAM(  perfect_l1                     , PERFECT_L1                      , Flag   , Flag    , FALSE                  ,       )
-DEF_PARAM(  private_l1                     , PRIVATE_L1                      , Flag   , Flag    , FALSE                  ,       )
-DEF_PARAM(  l1_read_ports                  , L1_READ_PORTS                   , uns    , uns     , 1                      ,       )
-DEF_PARAM(  l1_write_ports                 , L1_WRITE_PORTS                  , uns    , uns     , 1                      ,       )
-DEF_PARAM(  l1_banks                       , L1_BANKS                        , uns    , uns     , 8                      ,       )
-DEF_PARAM(  l1_interleave_factor           , L1_INTERLEAVE_FACTOR            , uns    , uns     , 64                     ,       )
-DEF_PARAM(  l1_cache_repl_policy           , L1_CACHE_REPL_POLICY            , uns    , uns     , 0                      ,       )   
-DEF_PARAM(  l1_write_through               , L1_WRITE_THROUGH                , Flag   , Flag    , FALSE                  ,       )
-DEF_PARAM(  l1_ignore_wb                   , L1_IGNORE_WB                    , Flag   , Flag    , FALSE                  ,       )
-DEF_PARAM(  l1_use_core_freq               , L1_USE_CORE_FREQ                , Flag   , Flag    , FALSE                  ,       )
-DEF_PARAM(  mark_l1_misses                 , MARK_L1_MISSES                  , Flag   , Flag    , TRUE                   ,       )
-DEF_PARAM(  prefetch_update_lru_l1         , PREFETCH_UPDATE_LRU_L1          , Flag   , Flag    , TRUE                   ,       )
-DEF_PARAM(  memory_random_addr             , MEMORY_RANDOM_ADDR              , Flag   , Flag    , FALSE                  ,       )
-// memory_interleave_factor is the size of the row buffer
-DEF_PARAM(  memory_interleave_factor           , MEMORY_INTERLEAVE_FACTOR        , uns    , uns     , 63                 ,       )
-// we assume the high bits of the virt address are all 1s or 0s, and can be removed. This knob tells us how many bits to keep
-DEF_PARAM(  addr_non_sign_extend_num_bits   , ADDR_NON_SIGN_EXTEND_NUM_BITS  , uns    , uns     , 48                 ,       )
-DEF_PARAM(  addr_translation                   , ADDR_TRANSLATION                , uns, Addr_Translation, 0              ,       )
+DEF_PARAM(force_l1_miss, FORCE_L1_MISS, Flag, Flag, FALSE, )
+DEF_PARAM(l1_size, L1_SIZE, uns, uns, (4 * 1024 * 1024), )
+DEF_PARAM(l1_assoc, L1_ASSOC, uns, uns, 8, )
+DEF_PARAM(l1_line_size, L1_LINE_SIZE, uns, uns,
+          64, ) /* VA_PAGE_SIZE_BYTES, L1_INTERLEAVE_FACTOR is
+                   dependent on this size*/
+DEF_PARAM(l1_cycles, L1_CYCLES, uns, uns, 24, )
+DEF_PARAM(perfect_l1, PERFECT_L1, Flag, Flag, FALSE, )
+DEF_PARAM(private_l1, PRIVATE_L1, Flag, Flag, FALSE, )
+DEF_PARAM(l1_read_ports, L1_READ_PORTS, uns, uns, 1, )
+DEF_PARAM(l1_write_ports, L1_WRITE_PORTS, uns, uns, 1, )
+DEF_PARAM(l1_banks, L1_BANKS, uns, uns, 8, )
+DEF_PARAM(l1_interleave_factor, L1_INTERLEAVE_FACTOR, uns, uns, 64, )
+DEF_PARAM(l1_cache_repl_policy, L1_CACHE_REPL_POLICY, uns, uns, 0, )
+DEF_PARAM(l1_write_through, L1_WRITE_THROUGH, Flag, Flag, FALSE, )
+DEF_PARAM(l1_ignore_wb, L1_IGNORE_WB, Flag, Flag, FALSE, )
+DEF_PARAM(l1_use_core_freq, L1_USE_CORE_FREQ, Flag, Flag, FALSE, )
+DEF_PARAM(mark_l1_misses, MARK_L1_MISSES, Flag, Flag, TRUE, )
+DEF_PARAM(prefetch_update_lru_l1, PREFETCH_UPDATE_LRU_L1, Flag, Flag, TRUE, )
+DEF_PARAM(memory_random_addr, MEMORY_RANDOM_ADDR, Flag, Flag, FALSE, )
+DEF_PARAM(va_page_size_bytes, VA_PAGE_SIZE_BYTES, uns, uns, 4096, )
+// we assume the high bits of the virt address are all 1s or 0s, and can be
+// removed. This knob tells us how many bits to keep
+DEF_PARAM(num_addr_non_sign_extend_bits, NUM_ADDR_NON_SIGN_EXTEND_BITS, uns,
+          uns, 48, )
+DEF_PARAM(addr_translation, ADDR_TRANSLATION, uns, Addr_Translation, 0, )
 
-DEF_PARAM(  constant_memory_latency        , CONSTANT_MEMORY_LATENCY         , Flag   , Flag    , FALSE                  ,       )
+DEF_PARAM(constant_memory_latency, CONSTANT_MEMORY_LATENCY, Flag, Flag, FALSE, )
 // Use with CONSTANT_MEMORY_LATENCY
-DEF_PARAM(  memory_cycles                  , MEMORY_CYCLES                   , uns    , uns     , 100                    ,       )
-DEF_PARAM(  stall_mem_reqs_only            , STALL_MEM_REQS_ONLY             , Flag   , Flag    , FALSE                  ,       )
+DEF_PARAM(memory_cycles, MEMORY_CYCLES, uns, uns, 100, )
+DEF_PARAM(stall_mem_reqs_only, STALL_MEM_REQS_ONLY, Flag, Flag, FALSE, )
 
 /* Icache */
-DEF_PARAM(  icache_size                    , ICACHE_SIZE                     , uns    , uns     , (64 * 1024),                   ) /* total size in bytes */                      
-DEF_PARAM(  icache_assoc                   , ICACHE_ASSOC                    , uns    , uns     , 4                      ,       ) /* associativity */                            
-DEF_PARAM(  icache_line_size               , ICACHE_LINE_SIZE                , uns    , uns     , 64                     ,       ) /* line size in bytes */                       
-DEF_PARAM(  perfect_icache                 , PERFECT_ICACHE                  , Flag   , Flag    , FALSE                  ,       ) /* it always hits? */
-DEF_PARAM(  icache_read_ports              , ICACHE_READ_PORTS               , uns    , uns     , 2                      ,       )
-DEF_PARAM(  icache_write_ports             , ICACHE_WRITE_PORTS              , uns    , uns     , 1                      ,       )
-DEF_PARAM(  icache_banks                   , ICACHE_BANKS                    , uns    , uns     , 8                      ,       )
-DEF_PARAM(  icache_repl                    , ICACHE_REPL                     , uns    , uns     , 0                      ,       )
+DEF_PARAM(icache_size, ICACHE_SIZE, uns, uns,
+          (64 * 1024), )                             /* total size in bytes */
+DEF_PARAM(icache_assoc, ICACHE_ASSOC, uns, uns, 4, ) /* associativity */
+DEF_PARAM(icache_line_size, ICACHE_LINE_SIZE, uns, uns,
+          64, ) /* line size in bytes */
+DEF_PARAM(perfect_icache, PERFECT_ICACHE, Flag, Flag,
+          FALSE, ) /* it always hits? */
+DEF_PARAM(icache_read_ports, ICACHE_READ_PORTS, uns, uns, 2, )
+DEF_PARAM(icache_write_ports, ICACHE_WRITE_PORTS, uns, uns, 1, )
+DEF_PARAM(icache_banks, ICACHE_BANKS, uns, uns, 8, )
+DEF_PARAM(icache_repl, ICACHE_REPL, uns, uns, 0, )
 
 /* L0 data */
-DEF_PARAM(  dcache_size                    , DCACHE_SIZE                     , uns    , uns     , (64 * 1024)            ,       )
-DEF_PARAM(  dcache_assoc                   , DCACHE_ASSOC                    , uns    , uns     , 1                      ,       )
-DEF_PARAM(  dcache_line_size               , DCACHE_LINE_SIZE                , uns    , uns     , 64                     ,       )
-DEF_PARAM(  dcache_cycles                  , DCACHE_CYCLES                   , uns    , uns     , 2                      ,       )
-DEF_PARAM(  perfect_dcache                 , PERFECT_DCACHE                  , Flag   , Flag    , FALSE                  ,       )
-DEF_PARAM(  dcache_read_ports              , DCACHE_READ_PORTS               , uns    , uns     , 8                      ,       )
-DEF_PARAM(  dcache_write_ports             , DCACHE_WRITE_PORTS              , uns    , uns     , 1                      ,       )
-DEF_PARAM(  dcache_banks                   , DCACHE_BANKS                    , uns    , uns     , 1                      ,       )
-DEF_PARAM(  dcache_repl                    , DCACHE_REPL                     , uns    , uns     , 0                      ,       )
-DEF_PARAM(  dcache_repl_pref_thresh        , DCACHE_REPL_PREF_THRESH         , uns    , uns     , 1                      ,       )
-                                                                              
-DEF_PARAM(  mem_ooo_stores                 , MEM_OOO_STORES                  , Flag   , Flag     , TRUE                   ,       )
-DEF_PARAM(  mem_obey_store_dep             , MEM_OBEY_STORE_DEP              , Flag   , Flag     , TRUE                   ,       )
+DEF_PARAM(dcache_size, DCACHE_SIZE, uns, uns, (64 * 1024), )
+DEF_PARAM(dcache_assoc, DCACHE_ASSOC, uns, uns, 1, )
+DEF_PARAM(dcache_line_size, DCACHE_LINE_SIZE, uns, uns, 64, )
+DEF_PARAM(dcache_cycles, DCACHE_CYCLES, uns, uns, 2, )
+DEF_PARAM(perfect_dcache, PERFECT_DCACHE, Flag, Flag, FALSE, )
+DEF_PARAM(dcache_read_ports, DCACHE_READ_PORTS, uns, uns, 8, )
+DEF_PARAM(dcache_write_ports, DCACHE_WRITE_PORTS, uns, uns, 1, )
+DEF_PARAM(dcache_banks, DCACHE_BANKS, uns, uns, 1, )
+DEF_PARAM(dcache_repl, DCACHE_REPL, uns, uns, 0, )
+DEF_PARAM(dcache_repl_pref_thresh, DCACHE_REPL_PREF_THRESH, uns, uns, 1, )
+
+DEF_PARAM(mem_ooo_stores, MEM_OOO_STORES, Flag, Flag, TRUE, )
+DEF_PARAM(mem_obey_store_dep, MEM_OBEY_STORE_DEP, Flag, Flag, TRUE, )
 
 /* params for prefetching*/
-DEF_PARAM(  pref_insert_lru                , PREF_INSERT_LRU                  , Flag   , Flag     , FALSE                   ,       )
-DEF_PARAM(  pref_insert_middle             , PREF_INSERT_MIDDLE               , Flag   , Flag     , FALSE                   ,       )
-DEF_PARAM(  pref_insert_lowqtr             , PREF_INSERT_LOWQTR               , Flag   , Flag     , FALSE                   ,       ) 
-DEF_PARAM(  pref_insert_dynacc             , PREF_INSERT_DYNACC               , Flag   , Flag     , FALSE                   ,       ) /* Use Dynamic accuracy */
+DEF_PARAM(pref_insert_lru, PREF_INSERT_LRU, Flag, Flag, FALSE, )
+DEF_PARAM(pref_insert_middle, PREF_INSERT_MIDDLE, Flag, Flag, FALSE, )
+DEF_PARAM(pref_insert_lowqtr, PREF_INSERT_LOWQTR, Flag, Flag, FALSE, )
+DEF_PARAM(pref_insert_dynacc, PREF_INSERT_DYNACC, Flag, Flag,
+          FALSE, ) /* Use Dynamic accuracy */
 
 
-DEF_PARAM(  mem_req_buffer_entries            , MEM_REQ_BUFFER_ENTRIES                      , uns    , uns      , 32                     ,       )
-DEF_PARAM(  private_mshr_on                   , PRIVATE_MSHR_ON                             , Flag   , Flag     , TRUE                   ,       )
-DEF_PARAM(  mem_priority_ifetch               , MEM_PRIORITY_IFETCH                         , uns    , uns      , 0                      ,       )
-DEF_PARAM(  mem_priority_dfetch               , MEM_PRIORITY_DFETCH                         , uns    , uns      , 0                      ,       )
-DEF_PARAM(  mem_priority_dstore               , MEM_PRIORITY_DSTORE                         , uns    , uns      , 0                      ,       )
-DEF_PARAM(  mem_priority_iprf                 , MEM_PRIORITY_IPRF                           , uns    , uns      , 9                      ,       )
-DEF_PARAM(  mem_priority_dprf                 , MEM_PRIORITY_DPRF                           , uns    , uns      , 10                     ,       )
-DEF_PARAM(  mem_priority_wb                   , MEM_PRIORITY_WB                             , uns    , uns      , 0                      ,       )
-DEF_PARAM(  mem_priority_wb_nodirty           , MEM_PRIORITY_WB_NODIRTY                     , uns    , uns      , 0                      ,       )
-DEF_PARAM(  promote_to_higher_priority_mem_req_type, PROMOTE_TO_HIGHER_PRIORITY_MEM_REQ_TYPE, Flag   , Flag     , FALSE                  ,       )
+DEF_PARAM(mem_req_buffer_entries, MEM_REQ_BUFFER_ENTRIES, uns, uns, 32, )
+DEF_PARAM(private_mshr_on, PRIVATE_MSHR_ON, Flag, Flag, TRUE, )
+DEF_PARAM(mem_priority_ifetch, MEM_PRIORITY_IFETCH, uns, uns, 0, )
+DEF_PARAM(mem_priority_dfetch, MEM_PRIORITY_DFETCH, uns, uns, 0, )
+DEF_PARAM(mem_priority_dstore, MEM_PRIORITY_DSTORE, uns, uns, 0, )
+DEF_PARAM(mem_priority_iprf, MEM_PRIORITY_IPRF, uns, uns, 9, )
+DEF_PARAM(mem_priority_dprf, MEM_PRIORITY_DPRF, uns, uns, 10, )
+DEF_PARAM(mem_priority_wb, MEM_PRIORITY_WB, uns, uns, 0, )
+DEF_PARAM(mem_priority_wb_nodirty, MEM_PRIORITY_WB_NODIRTY, uns, uns, 0, )
+DEF_PARAM(promote_to_higher_priority_mem_req_type,
+          PROMOTE_TO_HIGHER_PRIORITY_MEM_REQ_TYPE, Flag, Flag, FALSE, )
 
-// if there are fewer mem req buffer entries than the watermark, prefetches are rejected (otherwise demands can get delayed)
-// alternative is kicking out prefetches
-DEF_PARAM(  mem_req_buffer_pref_watermark        , MEM_REQ_BUFFER_PREF_WATERMARK            , uns    , uns      , 0                     ,       )
-DEF_PARAM(  mem_req_buffer_wb_valve              , MEM_REQ_BUFFER_WB_VALVE                  , uns    , uns      , 2                     ,       )
+// if there are fewer mem req buffer entries than the watermark, prefetches are
+// rejected (otherwise demands can get delayed) alternative is kicking out
+// prefetches
+DEF_PARAM(mem_req_buffer_pref_watermark, MEM_REQ_BUFFER_PREF_WATERMARK, uns,
+          uns, 0, )
+DEF_PARAM(mem_req_buffer_wb_valve, MEM_REQ_BUFFER_WB_VALVE, uns, uns, 2, )
 
 // l1_queue size is the same as mem_req_buffer_entries
 // FOR independently sized queues beyond the l1
-DEF_PARAM(  mem_l1_fill_queue_entries         , MEM_L1_FILL_QUEUE_ENTRIES                   , uns    , uns      , 32                     ,       )
+DEF_PARAM(mem_l1_fill_queue_entries, MEM_L1_FILL_QUEUE_ENTRIES, uns, uns, 32, )
 // Ramulator_remove: Ramulator manages the request queues itself. Implemented
 // an equivalent of MEM_MEM_QUEUE_ENTRIES in ramulator.param.def
-// DEF_PARAM(  mem_mem_queue_entries             , MEM_MEM_QUEUE_ENTRIES                       , uns    , uns      , 32                     ,       )
-DEF_PARAM(  mem_bus_out_queue_partition_enable, MEM_BUS_OUT_QUEUE_PARTITION_ENABLE          , Flag   , Flag     , FALSE                  ,       )
-DEF_PARAM(  mem_mem_queue_partition_enable    , MEM_MEM_QUEUE_PARTITION_ENABLE              , Flag   , Flag     , FALSE                  ,       )
-DEF_PARAM(  mem_bus_out_queue_as_fifo         , MEM_BUS_OUT_QUEUE_AS_FIFO                   , Flag   , Flag     , TRUE                   ,       )
+// DEF_PARAM(  mem_mem_queue_entries             , MEM_MEM_QUEUE_ENTRIES
+// , uns    , uns      , 32                     ,       )
+DEF_PARAM(mem_bus_out_queue_partition_enable,
+          MEM_BUS_OUT_QUEUE_PARTITION_ENABLE, Flag, Flag, FALSE, )
+DEF_PARAM(mem_mem_queue_partition_enable, MEM_MEM_QUEUE_PARTITION_ENABLE, Flag,
+          Flag, FALSE, )
+DEF_PARAM(mem_bus_out_queue_as_fifo, MEM_BUS_OUT_QUEUE_AS_FIFO, Flag, Flag,
+          TRUE, )
 
 // Scheduling from bus_out_queue to mem_queue
 // oldest_first_to_mem_queue is base on global oldest first (original scarab)
-DEF_PARAM(  oldest_first_to_mem_queue         , OLDEST_FIRST_TO_MEM_QUEUE                   , Flag   , Flag     , TRUE                   ,       ) 
-DEF_PARAM(  round_robin_to_mem_queue          , ROUND_ROBIN_TO_MEM_QUEUE                    , Flag   , Flag     , FALSE                  ,       )
-DEF_PARAM(  one_core_first_to_mem_queue       , ONE_CORE_FIRST_TO_MEM_QUEUE                 , Flag   , Flag     , FALSE                  ,       )
-DEF_PARAM(  one_core_first_to_mem_queue_th    , ONE_CORE_FIRST_TO_MEM_QUEUE_TH              , uns    , uns      , 0                      ,       )
+DEF_PARAM(oldest_first_to_mem_queue, OLDEST_FIRST_TO_MEM_QUEUE, Flag, Flag,
+          TRUE, )
+DEF_PARAM(round_robin_to_mem_queue, ROUND_ROBIN_TO_MEM_QUEUE, Flag, Flag,
+          FALSE, )
+DEF_PARAM(one_core_first_to_mem_queue, ONE_CORE_FIRST_TO_MEM_QUEUE, Flag, Flag,
+          FALSE, )
+DEF_PARAM(one_core_first_to_mem_queue_th, ONE_CORE_FIRST_TO_MEM_QUEUE_TH, uns,
+          uns, 0, )
 
-DEF_PARAM(  l1_cycle_time                     , L1_CYCLE_TIME                               , uns    , uns      , 312500                 ,       )
-DEF_PARAM(  mlcq_to_l1q_transfer_latency      , MLCQ_TO_L1Q_TRANSFER_LATENCY		    , uns    , uns      , 1                      ,       )
-DEF_PARAM(  l1q_to_fsb_transfer_latency       , L1Q_TO_FSB_TRANSFER_LATENCY		    , uns    , uns      , 1                      ,       )
-DEF_PARAM(  prioritize_prefetches_with_unique , PRIORITIZE_PREFETCHES_WITH_UNIQUE           , Flag   , Flag     , FALSE                  ,       ) 
+DEF_PARAM(l1_cycle_time, L1_CYCLE_TIME, uns, uns, 312500, )
+DEF_PARAM(mlcq_to_l1q_transfer_latency, MLCQ_TO_L1Q_TRANSFER_LATENCY, uns, uns,
+          1, )
+DEF_PARAM(l1q_to_fsb_transfer_latency, L1Q_TO_FSB_TRANSFER_LATENCY, uns, uns,
+          1, )
+DEF_PARAM(prioritize_prefetches_with_unique, PRIORITIZE_PREFETCHES_WITH_UNIQUE,
+          Flag, Flag, FALSE, )
 
-DEF_PARAM(  kickout_prefetches                , KICKOUT_PREFETCHES                          , Flag   , Flag     , FALSE                   ,       ) /* do demand requests kickout prefs to free reqbufs? */
-DEF_PARAM(  kickout_look_for_oldest_first     , KICKOUT_LOOK_FOR_OLDEST_FIRST               , Flag   , Flag     , FALSE                   ,       ) /* do demand requests kickout prefs to free reqbufs? */
-DEF_PARAM(  kickout_oldest_prefetch           , KICKOUT_OLDEST_PREFETCH                     , Flag   , Flag     , FALSE                   ,       ) /* do demand requests kickout prefs to free reqbufs? */
-DEF_PARAM(  kickout_oldest_prefetch_within_bank, KICKOUT_OLDEST_PREFETCH_WITHIN_BANK        , Flag   , Flag     , FALSE                   ,       ) /* do demand requests kickout prefs to free reqbufs? */
+DEF_PARAM(kickout_prefetches, KICKOUT_PREFETCHES, Flag, Flag,
+          FALSE, ) /* do demand requests kickout prefs to free reqbufs? */
+DEF_PARAM(kickout_look_for_oldest_first, KICKOUT_LOOK_FOR_OLDEST_FIRST, Flag,
+          Flag, FALSE, ) /* do demand requests kickout prefs to free reqbufs? */
+DEF_PARAM(kickout_oldest_prefetch, KICKOUT_OLDEST_PREFETCH, Flag, Flag,
+          FALSE, ) /* do demand requests kickout prefs to free reqbufs? */
+DEF_PARAM(kickout_oldest_prefetch_within_bank,
+          KICKOUT_OLDEST_PREFETCH_WITHIN_BANK, Flag, Flag,
+          FALSE, ) /* do demand requests kickout prefs to free reqbufs? */
 
-DEF_PARAM(  order_beyond_bus		      , ORDER_BEYOND_BUS                            , Flag   , Flag     , FALSE                   ,       ) /* order reqs by unique even after they're on the bus */
-DEF_PARAM(  all_fifo_queues		      , ALL_FIFO_QUEUES                             , Flag   , Flag     , FALSE                   ,       ) /* do all queues behave as FIFO? */
+DEF_PARAM(order_beyond_bus, ORDER_BEYOND_BUS, Flag, Flag,
+          FALSE, ) /* order reqs by unique even after they're on the bus */
+DEF_PARAM(all_fifo_queues, ALL_FIFO_QUEUES, Flag, Flag,
+          FALSE, ) /* do all queues behave as FIFO? */
 
-DEF_PARAM(  queue_mlc_size                 , QUEUE_MLC_SIZE                           , uns    , uns      , 0,                            ) /* 0 = HPS_MEM_REQ_BUFFER_ENTRIES */
-DEF_PARAM(  queue_l1_size                  , QUEUE_L1_SIZE                            , uns    , uns      , 0,                            ) /* 0 = HPS_MEM_REQ_BUFFER_ENTRIES */
-DEF_PARAM(  queue_bus_out_size             , QUEUE_BUS_OUT_SIZE                       , uns    , uns      , 0,                            ) /* 0 = HPS_MEM_REQ_BUFFER_ENTRIES */
-DEF_PARAM(  queue_core_fill_size           , QUEUE_CORE_FILL_SIZE                     , uns    , uns      , 0                     ,       ) /* 0 = HPS_MEM_REQ_BUFFER_ENTRIES */
+DEF_PARAM(queue_mlc_size, QUEUE_MLC_SIZE, uns, uns,
+          0, ) /* 0 = HPS_MEM_REQ_BUFFER_ENTRIES */
+DEF_PARAM(queue_l1_size, QUEUE_L1_SIZE, uns, uns,
+          0, ) /* 0 = HPS_MEM_REQ_BUFFER_ENTRIES */
+DEF_PARAM(queue_bus_out_size, QUEUE_BUS_OUT_SIZE, uns, uns,
+          0, ) /* 0 = HPS_MEM_REQ_BUFFER_ENTRIES */
+DEF_PARAM(queue_core_fill_size, QUEUE_CORE_FILL_SIZE, uns, uns,
+          0, ) /* 0 = HPS_MEM_REQ_BUFFER_ENTRIES */
 
-     /* are we allowing mem requests that cause exceptions? */
-DEF_PARAM(  allow_type_matches       , ALLOW_TYPE_MATCHES                       , Flag   , Flag     , FALSE                 ,       ) 
+/* are we allowing mem requests that cause exceptions? */
+DEF_PARAM(allow_type_matches, ALLOW_TYPE_MATCHES, Flag, Flag, FALSE, )
 
-/* prefetcher */ 
-DEF_PARAM(stream_prefetch_on               , STREAM_PREFETCH_ON              , Flag    , Flag    , FALSE                      , )  
+/* prefetcher */
+DEF_PARAM(stream_prefetch_on, STREAM_PREFETCH_ON, Flag, Flag, FALSE, )
 
 /* dcache prefetcher cache */
-DEF_PARAM(dc_pref_cache_enable             , DC_PREF_CACHE_ENABLE            , Flag    , Flag    , FALSE              , )  
-DEF_PARAM(dc_pref_cache_cycle              , DC_PREF_CACHE_CYCLE             , uns     , uns     , 0                  , )
-DEF_PARAM(pref_insert_dcache_imm           , PREF_INSERT_DCACHE_IMM          , Flag    , Flag    , TRUE               , )  
-DEF_PARAM(dc_pref_cache_size               , DC_PREF_CACHE_SIZE              , uns     , uns     , (64*1024)        , )
-DEF_PARAM(dc_pref_cache_assoc              , DC_PREF_CACHE_ASSOC             , uns     , uns     , 4                 , )
-DEF_PARAM(dc_pref_only_l1hit               , DC_PREF_ONLY_L1HIT              , Flag    , Flag    , FALSE              , )
+DEF_PARAM(dc_pref_cache_enable, DC_PREF_CACHE_ENABLE, Flag, Flag, FALSE, )
+DEF_PARAM(dc_pref_cache_cycle, DC_PREF_CACHE_CYCLE, uns, uns, 0, )
+DEF_PARAM(pref_insert_dcache_imm, PREF_INSERT_DCACHE_IMM, Flag, Flag, TRUE, )
+DEF_PARAM(dc_pref_cache_size, DC_PREF_CACHE_SIZE, uns, uns, (64 * 1024), )
+DEF_PARAM(dc_pref_cache_assoc, DC_PREF_CACHE_ASSOC, uns, uns, 4, )
+DEF_PARAM(dc_pref_only_l1hit, DC_PREF_ONLY_L1HIT, Flag, Flag, FALSE, )
 
-DEF_PARAM(pref_cache_use_rdy_cycle         , PREF_CACHE_USE_RDY_CYCLE        , Flag    , Flag    , FALSE              , )  
+DEF_PARAM(pref_cache_use_rdy_cycle, PREF_CACHE_USE_RDY_CYCLE, Flag, Flag,
+          FALSE, )
 
-DEF_PARAM(ic_pref_cache_enable             , IC_PREF_CACHE_ENABLE            , Flag    , Flag    , FALSE              , )  
-DEF_PARAM(ic_pref_cache_size               , IC_PREF_CACHE_SIZE              , uns     , uns     , (64*1024)        , )
-DEF_PARAM(ic_pref_cache_assoc              , IC_PREF_CACHE_ASSOC             , uns     , uns     , 4                  , )
+DEF_PARAM(ic_pref_cache_enable, IC_PREF_CACHE_ENABLE, Flag, Flag, FALSE, )
+DEF_PARAM(ic_pref_cache_size, IC_PREF_CACHE_SIZE, uns, uns, (64 * 1024), )
+DEF_PARAM(ic_pref_cache_assoc, IC_PREF_CACHE_ASSOC, uns, uns, 4, )
 
-DEF_PARAM(l1_pref_cache_enable             , L1_PREF_CACHE_ENABLE            , Flag    , Flag    , FALSE              , )  
-DEF_PARAM(l1_pref_cache_size               , L1_PREF_CACHE_SIZE              , uns     , uns     , (1024*1024)        , )
-DEF_PARAM(l1_pref_cache_assoc              , L1_PREF_CACHE_ASSOC             , uns     , uns     , 8                  , )
+DEF_PARAM(l1_pref_cache_enable, L1_PREF_CACHE_ENABLE, Flag, Flag, FALSE, )
+DEF_PARAM(l1_pref_cache_size, L1_PREF_CACHE_SIZE, uns, uns, (1024 * 1024), )
+DEF_PARAM(l1_pref_cache_assoc, L1_PREF_CACHE_ASSOC, uns, uns, 8, )
 
-DEF_PARAM(set_off_path_confirmed           , SET_OFF_PATH_CONFIRMED          , Flag    , Flag    , FALSE              , )  
-DEF_PARAM(use_confirmed_off                , USE_CONFIRMED_OFF               , Flag    , Flag    , FALSE              , )   // to use confirmend_off set_off_path_confirmed should be set 
+DEF_PARAM(set_off_path_confirmed, SET_OFF_PATH_CONFIRMED, Flag, Flag, FALSE, )
+DEF_PARAM(use_confirmed_off, USE_CONFIRMED_OFF, Flag, Flag,
+          FALSE, )  // to use confirmend_off set_off_path_confirmed should be
+                    // set
 
-DEF_PARAM(prefcache_move_offpath           , PREFCACHE_MOVE_OFFPATH          , Flag    , Flag    , FALSE              , )  
+DEF_PARAM(prefcache_move_offpath, PREFCACHE_MOVE_OFFPATH, Flag, Flag, FALSE, )
 
-DEF_PARAM( cache_stat_enable               , CACHE_STAT_ENABLE               , Flag    , Flag    ,FALSE               , ) 
+DEF_PARAM(cache_stat_enable, CACHE_STAT_ENABLE, Flag, Flag, FALSE, )
 
-DEF_PARAM(pref_dcache_hit_fill_l1          , PREF_DCACHE_HIT_FILL_L1         , Flag    , Flag    , TRUE               , )  
-DEF_PARAM(pref_icache_hit_fill_l1          , PREF_ICACHE_HIT_FILL_L1         , Flag    , Flag    , TRUE               , )  
+DEF_PARAM(pref_dcache_hit_fill_l1, PREF_DCACHE_HIT_FILL_L1, Flag, Flag, TRUE, )
+DEF_PARAM(pref_icache_hit_fill_l1, PREF_ICACHE_HIT_FILL_L1, Flag, Flag, TRUE, )
 
-DEF_PARAM(critical_access_plot_enable      , CRITICAL_ACCESS_PLOT_ENABLE            , Flag    , Flag   , FALSE               , )
-DEF_PARAM(critical_access_plot_file        , CRITICAL_ACCESS_PLOT_FILE              , char*   , string , "critical_access_plot.dat"      , )
+DEF_PARAM(critical_access_plot_enable, CRITICAL_ACCESS_PLOT_ENABLE, Flag, Flag,
+          FALSE, )
+DEF_PARAM(critical_access_plot_file, CRITICAL_ACCESS_PLOT_FILE, char*, string,
+          "critical_access_plot.dat", )
 
-DEF_PARAM(round_robin_to_l1                 , ROUND_ROBIN_TO_L1                                , Flag    , Flag   , FALSE              , ) 
-DEF_PARAM(pref_i_together                   , PREF_I_TOGETHER                                  , Flag    , Flag   , FALSE              , )
+DEF_PARAM(round_robin_to_l1, ROUND_ROBIN_TO_L1, Flag, Flag, FALSE, )
+DEF_PARAM(pref_i_together, PREF_I_TOGETHER, Flag, Flag, FALSE, )
 
 // ONE MORE CACHE LINE
-DEF_PARAM(one_more_cache_line_enable        , ONE_MORE_CACHE_LINE_ENABLE                       , Flag    , Flag   , FALSE              , )
+DEF_PARAM(one_more_cache_line_enable, ONE_MORE_CACHE_LINE_ENABLE, Flag, Flag,
+          FALSE, )
 
 // STATIC PARTITIO
 // work with REPL_PARTITION if l1_dynamic_partition_enable is not set
 
-DEF_PARAM(l1_static_partition_enable        , L1_STATIC_PARTITION_ENABLE                         , uns     , uns    , 0                  , )
-DEF_PARAM(l1_static_partition               , L1_STATIC_PARTITION                              , char*   , string , NULL               , )
+DEF_PARAM(l1_static_partition_enable, L1_STATIC_PARTITION_ENABLE, uns, uns, 0, )
+DEF_PARAM(l1_static_partition, L1_STATIC_PARTITION, char*, string, NULL, )
 
 // DYNAMIC PARTITION
-DEF_PARAM(l1_dynamic_partition_enable       , L1_DYNAMIC_PARTITION_ENABLE                      , Flag    , Flag   , FALSE              , )
-DEF_PARAM(l1_dynamic_partition_policy       , L1_DYNAMIC_PARTITION_POLICY                      , uns     , uns    , 0                  , )
-DEF_PARAM(partition_umon_dss_pref_enable    , PARTITION_UMON_DSS_PREF_ENABLE                   , Flag    , Flag   , FALSE              , )
+DEF_PARAM(l1_dynamic_partition_enable, L1_DYNAMIC_PARTITION_ENABLE, Flag, Flag,
+          FALSE, )
+DEF_PARAM(l1_dynamic_partition_policy, L1_DYNAMIC_PARTITION_POLICY, uns, uns,
+          0, )
+DEF_PARAM(partition_umon_dss_pref_enable, PARTITION_UMON_DSS_PREF_ENABLE, Flag,
+          Flag, FALSE, )
 
 // Collect hit position data
-DEF_PARAM(l1_cache_hit_position_collect     , L1_CACHE_HIT_POSITION_COLLECT                    , Flag    , Flag   , FALSE              , )
+DEF_PARAM(l1_cache_hit_position_collect, L1_CACHE_HIT_POSITION_COLLECT, Flag,
+          Flag, FALSE, )
 
-DEF_PARAM(l1_part_on                        , L1_PART_ON                                       , Flag    , Flag   , FALSE              , )
-DEF_PARAM(l1_part_trigger                   , L1_PART_TRIGGER                                  , char*   , string , "c:1000000"        , )
-DEF_PARAM(l1_part_start                     , L1_PART_START                                    , char*   , string , "t:0"              , )
-DEF_PARAM(l1_part_warmup                    , L1_PART_WARMUP                                   , Flag    , Flag   , FALSE              , )
-DEF_PARAM(l1_part_shadow_warmup             , L1_PART_SHADOW_WARMUP                            , Flag    , Flag   , FALSE              , )
-DEF_PARAM(l1_part_metric                    , L1_PART_METRIC                                   , uns     , Cache_Part_Metric, 0        , )
-DEF_PARAM(l1_part_search                    , L1_PART_SEARCH                                   , uns     , Cache_Part_Search, 0        , )
-DEF_PARAM(l1_part_use_stalling              , L1_PART_USE_STALLING                             , Flag    , Flag   , TRUE               , )
-DEF_PARAM(l1_part_fill_delay                , L1_PART_FILL_DELAY                               , uns     , uns    , 0                  , )
-DEF_PARAM(l1_shadow_tags_modulo             , L1_SHADOW_TAGS_MODULO                            , uns     , uns    , 1                  , )
+DEF_PARAM(l1_part_on, L1_PART_ON, Flag, Flag, FALSE, )
+DEF_PARAM(l1_part_trigger, L1_PART_TRIGGER, char*, string, "c:1000000", )
+DEF_PARAM(l1_part_start, L1_PART_START, char*, string, "t:0", )
+DEF_PARAM(l1_part_warmup, L1_PART_WARMUP, Flag, Flag, FALSE, )
+DEF_PARAM(l1_part_shadow_warmup, L1_PART_SHADOW_WARMUP, Flag, Flag, FALSE, )
+DEF_PARAM(l1_part_metric, L1_PART_METRIC, uns, Cache_Part_Metric, 0, )
+DEF_PARAM(l1_part_search, L1_PART_SEARCH, uns, Cache_Part_Search, 0, )
+DEF_PARAM(l1_part_use_stalling, L1_PART_USE_STALLING, Flag, Flag, TRUE, )
+DEF_PARAM(l1_part_fill_delay, L1_PART_FILL_DELAY, uns, uns, 0, )
+DEF_PARAM(l1_shadow_tags_modulo, L1_SHADOW_TAGS_MODULO, uns, uns, 1, )
 
 // Hierarchical MSHR behavior for MLC and L1 queues
-DEF_PARAM(hier_mshr_on                      , HIER_MSHR_ON                                     , Flag    , Flag   , FALSE              , )
+DEF_PARAM(hier_mshr_on, HIER_MSHR_ON, Flag, Flag, FALSE, )
 
-DEF_PARAM(perf_pred_enable                  , PERF_PRED_ENABLE                                 , Flag    , Flag   , FALSE              , )
-DEF_PARAM(perf_pred_mech                    , PERF_PRED_MECH                                   , uns, Perf_Pred_Mech, PERF_PRED_CP, )
-DEF_PARAM(perf_pred_req_latency_mech        , PERF_PRED_REQ_LATENCY_MECH                       , uns, Perf_Pred_Req_Latency_Mech, PERF_PRED_REQ_LATENCY_MECH_REQ_LATENCY, )
-DEF_PARAM(perf_pred_count_all               , PERF_PRED_COUNT_ALL                              , Flag    , Flag   , FALSE              , )
-DEF_PARAM(perf_pred_count_inst_misses       , PERF_PRED_COUNT_INST_MISSES                      , Flag    , Flag   , TRUE               , )
-DEF_PARAM(perf_pred_count_prefetches        , PERF_PRED_COUNT_PREFETCHES                       , Flag    , Flag   , FALSE              , )
-DEF_PARAM(perf_pred_count_offpath_reqs      , PERF_PRED_COUNT_OFFPATH_REQS                     , Flag    , Flag   , FALSE              , )
-DEF_PARAM(perf_pred_count_bw_reqs           , PERF_PRED_COUNT_BW_REQS                          , Flag    , Flag   , TRUE               , )
-DEF_PARAM(perf_pred_update_mem_req_type     , PERF_PRED_UPDATE_MEM_REQ_TYPE                    , Flag    , Flag   , FALSE              , )
-DEF_PARAM(perf_pred_slack_period_size       , PERF_PRED_SLACK_PERIOD_SIZE                      , uns     , uns    , 32                 , )
-DEF_PARAM(perf_pred_reqs_finish_at_fill     , PERF_PRED_REQS_FINISH_AT_FILL                    , Flag    , Flag   , FALSE              , )
-DEF_PARAM(perf_pred_mem_util_via_bus_bw     , PERF_PRED_MEM_UTIL_VIA_BUS_BW                    , Flag    , Flag   , FALSE              , )
-DEF_PARAM(perf_pred_chip_util_via_mem_stall , PERF_PRED_CHIP_UTIL_VIA_MEM_STALL                , Flag    , Flag   , FALSE              , )
+DEF_PARAM(perf_pred_enable, PERF_PRED_ENABLE, Flag, Flag, FALSE, )
+DEF_PARAM(perf_pred_mech, PERF_PRED_MECH, uns, Perf_Pred_Mech, PERF_PRED_CP, )
+DEF_PARAM(perf_pred_req_latency_mech, PERF_PRED_REQ_LATENCY_MECH, uns,
+          Perf_Pred_Req_Latency_Mech, PERF_PRED_REQ_LATENCY_MECH_REQ_LATENCY, )
+DEF_PARAM(perf_pred_count_all, PERF_PRED_COUNT_ALL, Flag, Flag, FALSE, )
+DEF_PARAM(perf_pred_count_inst_misses, PERF_PRED_COUNT_INST_MISSES, Flag, Flag,
+          TRUE, )
+DEF_PARAM(perf_pred_count_prefetches, PERF_PRED_COUNT_PREFETCHES, Flag, Flag,
+          FALSE, )
+DEF_PARAM(perf_pred_count_offpath_reqs, PERF_PRED_COUNT_OFFPATH_REQS, Flag,
+          Flag, FALSE, )
+DEF_PARAM(perf_pred_count_bw_reqs, PERF_PRED_COUNT_BW_REQS, Flag, Flag, TRUE, )
+DEF_PARAM(perf_pred_update_mem_req_type, PERF_PRED_UPDATE_MEM_REQ_TYPE, Flag,
+          Flag, FALSE, )
+DEF_PARAM(perf_pred_slack_period_size, PERF_PRED_SLACK_PERIOD_SIZE, uns, uns,
+          32, )
+DEF_PARAM(perf_pred_reqs_finish_at_fill, PERF_PRED_REQS_FINISH_AT_FILL, Flag,
+          Flag, FALSE, )
+DEF_PARAM(perf_pred_mem_util_via_bus_bw, PERF_PRED_MEM_UTIL_VIA_BUS_BW, Flag,
+          Flag, FALSE, )
+DEF_PARAM(perf_pred_chip_util_via_mem_stall, PERF_PRED_CHIP_UTIL_VIA_MEM_STALL,
+          Flag, Flag, FALSE, )
 
-DEF_PARAM(dumb_model_avg_req_distance       , DUMB_MODEL_AVG_REQ_DISTANCE                      , uns     , uns    , 100                , )
-DEF_PARAM(dumb_model_randomize_distance     , DUMB_MODEL_RANDOMIZE_DISTANCE                    , Flag    , Flag   , FALSE              , )
-DEF_PARAM(dumb_model_avg_req_distance_per_core, DUMB_MODEL_AVG_REQ_DISTANCE_PER_CORE           , char*   , string , NULL               , )
-DEF_PARAM(dumb_model_avg_row_hits           , DUMB_MODEL_AVG_ROW_HITS                          , uns     , uns    , 1                  , )
-DEF_PARAM(dumb_model_avg_row_hits_per_core  , DUMB_MODEL_AVG_ROW_HITS_PER_CORE                 , char*   , string , NULL               , )
-DEF_PARAM(dumb_model_mlp                    , DUMB_MODEL_MLP                                   , uns     , uns    , 1                  , )
-DEF_PARAM(dumb_model_mlp_per_core           , DUMB_MODEL_MLP_PER_CORE                          , char*   , string , NULL               , )
+DEF_PARAM(dumb_model_avg_req_distance, DUMB_MODEL_AVG_REQ_DISTANCE, uns, uns,
+          100, )
+DEF_PARAM(dumb_model_randomize_distance, DUMB_MODEL_RANDOMIZE_DISTANCE, Flag,
+          Flag, FALSE, )
+DEF_PARAM(dumb_model_avg_req_distance_per_core,
+          DUMB_MODEL_AVG_REQ_DISTANCE_PER_CORE, char*, string, NULL, )
+DEF_PARAM(dumb_model_avg_row_hits, DUMB_MODEL_AVG_ROW_HITS, uns, uns, 1, )
+DEF_PARAM(dumb_model_avg_row_hits_per_core, DUMB_MODEL_AVG_ROW_HITS_PER_CORE,
+          char*, string, NULL, )
+DEF_PARAM(dumb_model_mlp, DUMB_MODEL_MLP, uns, uns, 1, )
+DEF_PARAM(dumb_model_mlp_per_core, DUMB_MODEL_MLP_PER_CORE, char*, string,
+          NULL, )

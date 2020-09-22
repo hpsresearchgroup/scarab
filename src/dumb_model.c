@@ -78,8 +78,8 @@ void dumb_init(uns mode) {
   if(mode != WARMUP_MODE)
     return;
   req_num = 0;
-  ASSERT(0, is_power_of_2(MEMORY_INTERLEAVE_FACTOR));
-  page_num_mask = ~(uns64)(MEMORY_INTERLEAVE_FACTOR - 1);
+  ASSERT(0, is_power_of_2(VA_PAGE_SIZE_BYTES));
+  page_num_mask = ~(uns64)(VA_PAGE_SIZE_BYTES - 1);
   infos         = calloc(NUM_CORES, sizeof(Proc_Info));
   if(DUMB_MODEL_RANDOMIZE_DISTANCE) {
     int seed = getpid();
