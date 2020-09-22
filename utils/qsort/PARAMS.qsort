@@ -162,7 +162,7 @@
 --mem_priority_wb_nodirty    5
 
 --mem_req_buffer_entries        32
---memory_interleave_factor      4096
+--va_page_size_bytes      4096
 --bus_width_in_bytes            8
 
 --ramulator_standard		DDR4

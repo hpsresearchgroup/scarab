@@ -26,6 +26,7 @@
  * Description  : Print the XML file that is input into McPat
  ***************************************************************************************/
 
+#include <assert.h>
 #include <fstream>
 #include <iomanip>
 #include <ios>
@@ -954,7 +955,11 @@ void power_print_memory_parts(std::ofstream& out) {
   ADD_CACTI_PARAM(out, "technology (u)", DRAM_TECH_IN_UM, );
 
   // following three parameters are meaningful only for main memories
-  ADD_CACTI_PARAM(out, "page size (bits)", MEMORY_INTERLEAVE_FACTOR, );
+  assert(false);  // we need to fix the following line and actually get the DRAM
+                  // page size
+  // from Ramulator!
+  // ADD_CACTI_PARAM(out, "page size (bits)", *need to get the DRAM page size
+  // from Ramulator*, );
   ADD_CACTI_PARAM(out, "burst length", DRAM_BURST_LENGTH, );
   ADD_CACTI_PARAM(out, "internal prefetch width", 8, );
 
