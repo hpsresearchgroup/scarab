@@ -707,13 +707,25 @@ uns get_proc_id_from_cmp_addr(Addr addr) {
 /* check_and_remove_addr_sign_extended_bits */
 
 Addr check_and_remove_addr_sign_extended_bits(Addr virt_addr,
-                                              uns  num_non_sign_extended_bits) {
+                                              uns  num_non_sign_extended_bits,
+                                              Flag verify_bits_masked_out) {
   const uns  proc_id = get_proc_id_from_cmp_addr(virt_addr);
   const Addr mask    = CMP_ADDR_MASK | N_BIT_MASK(num_non_sign_extended_bits);
 
-  // the bits we're masked out should be all 0s or all 1s
+  // the bits we're masked out should be all 0s or all 1s. However, wrong path
+  // or prefetch addresses might be non-sensical, so we should only check valid
+  // right path addresses
   const Addr bits_masked_out = virt_addr & ~mask;
-  ASSERT(proc_id, 0 == bits_masked_out || mask == ~bits_masked_out);
+  Flag       all_0s_or_1s = (0 == bits_masked_out || mask == ~bits_masked_out);
+  if(verify_bits_masked_out) {
+    // we're calling this function expecting the addr to be valid, so we should
+    // actually check
+    ASSERT(proc_id, all_0s_or_1s);
+  } else {
+    // we're calling from addr_translate(), and it's possible for the addr to be
+    // bad
+    STAT_EVENT(proc_id, all_0s_or_1s ? GOOD_ADDRESS : KNOWN_BAD_ADDRESS);
+  }
 
   return (virt_addr & mask);
 }

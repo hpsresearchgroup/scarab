@@ -2436,3 +2436,13 @@ DEF_STAT(  DRAM_BOTTLENECK_FAW_100              , DIST  , NO_RATIO  )
 
 DEF_STAT(  DRAM_ROW_HIT_GEN_AFTER_ROW_OPEN_STALLING   , COUNT , NO_RATIO  )
 
+// on current systems, bits 48 above of the address are just 
+// sign extended, so they should be all 0s or 1s. If we detect 
+// an address where this is not true, we know for sure this
+// address is invalid (generated either by prefetch, or on
+// the wrong path), and in theory a real system would know to ignore
+// such requests. However, we don't currently implement this 
+// optimization, but we have this stat here to quantify how often it happens
+DEF_STAT(  KNOWN_BAD_ADDRESS		   , DIST  , NO_RATIO  )
+DEF_STAT(  GOOD_ADDRESS  		   , DIST  , NO_RATIO  )
+

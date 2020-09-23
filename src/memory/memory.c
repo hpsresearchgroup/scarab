@@ -3460,6 +3460,13 @@ static void mem_init_new_req(
       STAT_EVENT(proc_id, REQBUF_CREATE_ONPATH_DATA);
   }
 
+  // if this is a valid right path request, we check that the addr bits we're
+  // masking out are actually all 0s (or 1s)
+  if(!new_req->off_path && mem_req_type_is_demand(new_req->type)) {
+    check_and_remove_addr_sign_extended_bits(
+      addr, NUM_ADDR_NON_SIGN_EXTEND_BITS, TRUE);
+  }
+
   DEBUG(new_req->proc_id,
         "New mem request is initiated index:%ld type:%s addr:0x%s state:%s\n",
         (long int)(new_req - mem->req_buffer), Mem_Req_Type_str(new_req->type),
