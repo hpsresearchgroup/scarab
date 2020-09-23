@@ -37,6 +37,7 @@
 #include <time.h>
 #include "globals/global_defs.h"
 #include "globals/global_vars.h"
+#include "statistics.h"
 
 /**************************************************************************************/
 /* Compiled breakpoint.  Calls breakpoint() when condition is true. */
@@ -364,7 +365,8 @@ Flag  is_power_of_2(uns64);
 Addr  convert_to_cmp_addr(uns8 proc_id, Addr addr);
 uns   get_proc_id_from_cmp_addr(Addr addr);
 Addr  check_and_remove_addr_sign_extended_bits(Addr virt_addr,
-                                               uns  num_non_sign_extended_bits);
+                                               uns  num_non_sign_extended_bits,
+                                               Flag verify_bits_masked_out);
 int   parse_int_array(int dest[], const void* str, int max_num);
 int   parse_uns_array(uns dest[], const void* str, int max_num);
 int   parse_uns64_array(uns64 dest[], const void* str, int max_num);

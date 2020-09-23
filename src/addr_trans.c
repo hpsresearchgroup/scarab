@@ -101,7 +101,7 @@ Addr addr_translate(Addr virt_addr) {
   uns  proc_id          = get_proc_id_from_cmp_addr(virt_addr);
   Addr page_offset      = virt_addr & N_BIT_MASK(num_page_offset_bits);
   Addr masked_virt_addr = check_and_remove_addr_sign_extended_bits(
-    virt_addr, NUM_ADDR_NON_SIGN_EXTEND_BITS);
+    virt_addr, NUM_ADDR_NON_SIGN_EXTEND_BITS, FALSE);
   Addr orig_masked_virt_addr  = convert_to_cmp_addr(0, masked_virt_addr);
   Addr orig_masked_page_index = orig_masked_virt_addr >> num_page_offset_bits;
   Addr masked_page_index_with_scrambled_bits =
