@@ -41,6 +41,7 @@
 #include <cmath>
 #include <cassert>
 #include <tuple>
+#include <limits.h>
 
 using namespace std;
 
@@ -123,6 +124,8 @@ public:
       {"Random", Translation::Random},
     };
 
+    bool use_rest_of_addr_as_row_addr;
+
     vector<int> free_physical_pages;
     long free_physical_pages_remaining;
     map<pair<int, long>, long> page_translation;
@@ -172,6 +175,8 @@ public:
 
           free_physical_pages.resize(free_physical_pages_remaining, -1);
         }
+
+        use_rest_of_addr_as_row_addr = configs.use_rest_of_addr_as_row_addr();
 
         dram_capacity
             .name("dram_capacity")
@@ -340,14 +345,29 @@ public:
 
         switch(int(type)){
             case int(Type::ChRaBaRoCo):
+                // currently only support RoBaRaCoCh with Scarab, because we only scramble the bits just 
+                // above the VA page offset bits, and we want channel/rank/bank bits to come from the 
+                // scrambled bits. Also, if use_rest_of_addr_as_row_addr is on, then we want row addr
+                // to come from the most significant bits  
+                assert(false);  
                 for (int i = addr_bits.size() - 1; i >= 0; i--)
                     req.addr_vec[i] = slice_lower_bits(addr, addr_bits[i]);
                 break;
             case int(Type::RoBaRaCoCh):
                 req.addr_vec[0] = slice_lower_bits(addr, addr_bits[0]);
                 req.addr_vec[addr_bits.size() - 1] = slice_lower_bits(addr, addr_bits[addr_bits.size() - 1]);
-                for (int i = 1; i <= int(T::Level::Row); i++)
+                // fill out addr_vec for everything up until row
+                for (int i = 1; i < int(T::Level::Row); i++)
                     req.addr_vec[i] = slice_lower_bits(addr, addr_bits[i]);
+                // for the row addr, if use_rest_of_addr_as_row_addr is on, then we use all the remaining
+                // phys addr bits in the row address (to make sure two distinct phys addrs never alias to
+                // the same data in Ramulator)
+                req.addr_vec[int(T::Level::Row)] = slice_lower_bits(addr, 
+                    use_rest_of_addr_as_row_addr? 
+                    sizeof(addr)*CHAR_BIT - __builtin_clzl(addr): 
+                    addr_bits[int(T::Level::Row)]);
+                if (use_rest_of_addr_as_row_addr)
+                    assert(0==addr); // should have consumed all the phys addr bits
                 break;
             default:
                 assert(false);

@@ -70,6 +70,7 @@ private:
         // Other
         {"record_cmd_trace", "off"},
         {"print_cmd_trace", "off"},
+        {"use_rest_of_addr_as_row_addr", "on"}
     };
 
 	template<typename T>
@@ -190,6 +191,15 @@ public:
       // the default value is false
       if (options.find("print_cmd_trace") != options.end()) {
         if ((options.find("print_cmd_trace"))->second == "on") {
+          return true;
+        }
+        return false;
+      }
+      return false;
+    }
+    bool use_rest_of_addr_as_row_addr() const {
+      if (options.find("use_rest_of_addr_as_row_addr") != options.end()) {
+        if ((options.find("use_rest_of_addr_as_row_addr"))->second == "on") {
           return true;
         }
         return false;
