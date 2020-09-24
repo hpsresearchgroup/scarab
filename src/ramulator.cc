@@ -134,6 +134,8 @@ void init_configs() {
 
   configs->add("record_cmd_trace", RAMULATOR_REC_CMD_TRACE);
   configs->add("print_cmd_trace", RAMULATOR_PRINT_CMD_TRACE);
+  configs->add("use_rest_of_addr_as_row_addr",
+               RAMULATOR_USE_REST_OF_ADDR_AS_ROW_ADDR);
 
   configs->add("scheduling_policy", RAMULATOR_SCHEDULING_POLICY);
   configs->add("readq_entries", to_string(RAMULATOR_READQ_ENTRIES));

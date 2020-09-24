@@ -70,8 +70,12 @@ DEF_PARAM(ramulator_readq_entries        , RAMULATOR_READQ_ENTRIES              
 DEF_PARAM(ramulator_writeq_entries       , RAMULATOR_WRITEQ_ENTRIES                , uns     , uns    , 32                   , ) 
 
 // Misc.
-DEF_PARAM(ramulator_record_cmd_trace     , RAMULATOR_REC_CMD_TRACE                 , char*   , string , "false"              , )
-DEF_PARAM(ramulator_print_cmd_trace      , RAMULATOR_PRINT_CMD_TRACE               , char*   , string , "false"              , )
+DEF_PARAM(ramulator_record_cmd_trace     , RAMULATOR_REC_CMD_TRACE                 , char*   , string , "off"              , )
+DEF_PARAM(ramulator_print_cmd_trace      , RAMULATOR_PRINT_CMD_TRACE               , char*   , string , "off"              , )
+// make sure that we never artificially introduce aliasing between two phys addrs in Ramulator by making sure we subsume
+// every single phys addr bit in the DRAM address. All phys addrs bits not included as a channel/rank/bank group/bank/column bit
+// will be included as a row bit
+DEF_PARAM(ramulator_use_rest_of_addr_as_row_addr, RAMULATOR_USE_REST_OF_ADDR_AS_ROW_ADDR  , char*   , string , "on"      , )
 
 // Timing parameters (TODO: make these optional. If not specified, present // values defined by RAMULATOR_SPEED should be used instead.)
 DEF_PARAM(ramulator_tCK                  , RAMULATOR_TCK                           , uns     , uns    , 833333               , ) //in femtosecs
