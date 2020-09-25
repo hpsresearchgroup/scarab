@@ -306,6 +306,9 @@ int ramulator_get_chip_size() {
   return wrapper->get_chip_size();
 }
 
+int ramulator_get_chip_row_buffer_size() {
+  return wrapper->get_chip_row_buffer_size();
+}
 
 // Mem_Req* ramulator_search_queue(Addr addr, Mem_Req_Type type) {
 //

@@ -83,10 +83,14 @@ void ScarabWrapper::finish(void) {
   Stats::statlist.printall();
 }
 
-int ScarabWrapper::get_chip_width() {
+int ScarabWrapper::get_chip_width() const {
   return mem->get_chip_width();
 }
 
-int ScarabWrapper::get_chip_size() {
+int ScarabWrapper::get_chip_size() const {
   return mem->get_chip_size();
+}
+
+int ScarabWrapper::get_chip_row_buffer_size() const {
+  return mem->get_chip_row_buffer_size();
 }

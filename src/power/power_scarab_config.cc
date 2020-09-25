@@ -196,7 +196,7 @@ void power_print_system_params(std::ofstream& out) {
                 "address width determins the tag_width in Cache, LSQ and "
                 "buffers in cache controller default value is machine_bits, if "
                 "not set");
-  ADD_XML_PARAM(out, header, "virtual_memory_page_size", MEMORY_INTERLEAVE_FACTOR,
+  ADD_XML_PARAM(out, header, "virtual_memory_page_size", VA_PAGE_SIZE_BYTES,
                 "This page size(B) is complete different from the page size in "
                 "Main memo secction. this page size is the size of virtual "
                 "memory from OS/Archi perspective; the page size in Main memo "
@@ -955,7 +955,7 @@ void power_print_memory_parts(std::ofstream& out) {
   uint32_t BUS_WIDTH_IN_BITS = BUS_WIDTH_IN_BYTES * 8;
 
   uint64_t CHIP_SIZE_IN_BYTES = uint64_t(ramulator_get_chip_size()) * 1024 *
-                                1024 / 8;  // Convert MBytes to Bytes
+                                1024 / 8;  // Convert MBits to Bytes
   ASSERTM(
     0, CHIP_SIZE_IN_BYTES != 0 && CHIP_SIZE_IN_BYTES <= (1 << 30),
     "chip_size(%lu) is either zero or too large to represent in a 32-bit int\n",
@@ -972,10 +972,8 @@ void power_print_memory_parts(std::ofstream& out) {
   ADD_CACTI_PARAM(out, "technology (u)", DRAM_TECH_IN_UM, );
 
   // following three parameters are meaningful only for main memories
-  
-  // TODO: change following page size to the row buffer from the ramulator
-  // configuration
-  ADD_CACTI_PARAM(out, "page size (bits)", MEMORY_INTERLEAVE_FACTOR, );
+  uint64_t DRAM_CHIP_ROW_BUFFER_SIZE = ramulator_get_chip_row_buffer_size();
+  ADD_CACTI_PARAM(out, "page size (bits)", DRAM_CHIP_ROW_BUFFER_SIZE, );
 
   ADD_CACTI_PARAM(out, "burst length", DRAM_BURST_LENGTH, );
   ADD_CACTI_PARAM(out, "internal prefetch width", 8, );

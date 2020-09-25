@@ -46,8 +46,9 @@ public:
     bool send(Request req);
     void finish(void);
 
-    int get_chip_width();
-    int get_chip_size();
+    int get_chip_width() const;
+    int get_chip_size()  const;
+    int get_chip_row_buffer_size() const;
 };
 
 } /*namespace ramulator*/

@@ -46,6 +46,7 @@ EXTERNC void ramulator_tick();
 
 EXTERNC int ramulator_get_chip_width();
 EXTERNC int ramulator_get_chip_size();
+EXTERNC int ramulator_get_chip_row_buffer_size();
 
 #undef EXTERNC
 

@@ -88,8 +88,8 @@ class MemoryFactory {
 
     validate(channels, ranks, configs);
 
-    // const string& org_name = configs["org"];
-    // const string& speed_name = configs["speed"];
+    //const string& org_name = configs["org"];
+    //const string& speed_name = configs["speed"];
 
     // T *spec = new T(org_name, speed_name);
     T* spec = new T(configs);

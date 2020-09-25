@@ -181,8 +181,6 @@ void parse_power_model_results(void) {
 
   /* CACTI reports numbers for a single DRAM chip; adjust them for
      the number of chips we have */
-  // values[POWER_DOMAIN_MEMORY][POWER_RESULT_STATIC].intf_value *=
-  // RAMULATOR_NUM_CHIPS;
   values[POWER_DOMAIN_MEMORY][POWER_RESULT_STATIC].intf_value *=
     ((BUS_WIDTH_IN_BYTES * 8) / ramulator_get_chip_width());
 
