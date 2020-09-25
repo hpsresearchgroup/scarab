@@ -113,7 +113,7 @@ void LPDDR4::update_params(const Config& configs) {
     
     org_entry.size = (ulong(org_entry.count[int(Level::Bank)])*org_entry.count[int(Level::Row)]*
                         org_entry.count[int(Level::Column)]*
-                        org_entry.dq*prefetch_size)/(8*1024*1024); // calculating in MiBs
+                        org_entry.dq)/(1024*1024); // calculating in MegaBits
 
 }
 

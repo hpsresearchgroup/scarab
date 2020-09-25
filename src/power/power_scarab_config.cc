@@ -176,7 +176,7 @@ void power_print_system_params(std::ofstream& out) {
   ADD_XML_PARAM(out, header, "homogeneous_L3s", 1, );
   ADD_XML_PARAM(out, header, "homogeneous_ccs", 1, "cache coherece hardware");
   ADD_XML_PARAM(out, header, "homogeneous_NoCs", 1, );
-  ADD_XML_PARAM(out, header, "core_tech_node", 22, "nm");  // TODO
+  ADD_XML_PARAM(out, header, "core_tech_node", POWER_INTF_REF_CHIP_TECH_NM, "nm"); // 22nm default
   ADD_XML_PARAM(out, header, "target_core_clockrate", CHIP_FREQ_IN_MHZ, "MHz");
   ADD_XML_PARAM(out, header, "temperature", 380, "Kelvin");
   ADD_XML_PARAM(out, header, "number_cache_levels",

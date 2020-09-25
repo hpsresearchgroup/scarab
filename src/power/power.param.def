@@ -51,6 +51,7 @@
 DEF_PARAM(  power_intf_on                  , POWER_INTF_ON                   , Flag   , Flag    , FALSE                  ,       )
 DEF_PARAM(  power_intf_enable_scaling      , POWER_INTF_ENABLE_SCALING       , Flag   , Flag    , FALSE                  ,       )
 DEF_PARAM(  power_intf_exec                , POWER_INTF_EXEC                 , char*  , string  , "power/power_intf.py"  ,       )
+DEF_PARAM(  power_intf_ref_chip_tech_nm    , POWER_INTF_REF_CHIP_TECH_NM     , uns    , uns     , 22                     ,       )
 DEF_PARAM(  power_intf_ref_chip_freq       , POWER_INTF_REF_CHIP_FREQ        , float  , float   , (3.2e9)                ,       )
 DEF_PARAM(  power_intf_ref_memory_freq     , POWER_INTF_REF_MEMORY_FREQ      , float  , float   , (0.8e9)                ,       )
 DEF_PARAM(  power_other                    , POWER_OTHER                     , float  , float   , (0.0)                  ,       )
