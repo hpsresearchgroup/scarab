@@ -314,6 +314,7 @@ class StatFrame:
     """
     self.weight *= weight
     self.stat_df.mul(weight)
+    return self
 
   def normalize(self):
     """Divide the statframe by the total weight applied to the StateFrame.
@@ -321,6 +322,12 @@ class StatFrame:
     """
     self.stat_df.div(self.weight)
     self.weight = 1.0
+    return self
+
+  def __add__(self, rhs):
+    """Implements python add operator
+    """
+    return self.add(rhs)
 
   def add(self, rhs):
     """Accumulate with another statframe.
@@ -332,6 +339,7 @@ class StatFrame:
     """
     self.weight += rhs.weight
     self.stat_df.add(rhs.df)
+    return self
 
   def get(self, stat_name=None, core_id=None):
     """Returns a copy of the selected rows and columns of a DataFrame. If no rows

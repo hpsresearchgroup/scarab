@@ -181,9 +181,12 @@ class Executable:
     results_dir = self._results_dir(basename)
     return [ progress.Progress(results_dir) ]
 
-  def get_stats(self, basename):
+  def get_stats(self, basename, flat=False):
     results_dir = self._results_dir(basename)
-    return scarab_stats.ExecutableStat(results_dir=results_dir, weight=self.weight, label=self.name)
+    stat_frame = scarab_stats.StatFrame(results_dir)
+    if not flat:
+      stat_frame.apply_weight(self.weight)
+    return stat_frame
 
 class Checkpoint(Executable):
   def __init__(self, name, path, scarab_args="", pintool_args="", weight=1.0):
@@ -251,6 +254,7 @@ class Collection:
   def __init__(self, name, exec_list, weight=1.0):
     self.name = name
     self.exec_list = exec_list
+    self.weight=weight
     collection_manager.register(self)
 
   def _results_dir(self, basename):
@@ -277,11 +281,11 @@ class Collection:
       progress_list += executable.get_progress(results_dir)
     return progress_list
 
-  def get_stats(self, basename):
+  def get_stats(self, basename, flat=False):
     results_dir = self._results_dir(basename)
     stat_list = []
     for executable in self.exec_list:
-      stat_list.append(executable.get_stats(results_dir))
+      stat_list.append(executable.get_stats(results_dir, flat=flat))
     return stat_list
 
 class Benchmark(Collection):
@@ -292,10 +296,13 @@ class Benchmark(Collection):
   def typestr(self):
     return "Benchmark"
 
-  def get_stats(self, basename):
-    stat_list = super().get_stats(basename)
-    bench_stat = scarab_stats.BenchmarkStat(label=self.name, collection=stat_list)
-    return bench_stat
+  def get_stats(self, basename, flat=False):
+    stat_list = super().get_stats(basename, flat=flat)
+
+    if flat:
+      return stat_list
+    else:
+      return [ sum(stat_list).normalize().apply_weight(self.weight) ]
 
 class Suite(Collection):
   """
