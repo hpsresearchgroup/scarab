@@ -91,6 +91,10 @@ int ScarabWrapper::get_chip_size() const {
   return mem->get_chip_size();
 }
 
+int ScarabWrapper::get_num_chips() const {
+  return mem->get_num_chips();
+}
+
 int ScarabWrapper::get_chip_row_buffer_size() const {
   return mem->get_chip_row_buffer_size();
 }

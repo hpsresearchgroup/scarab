@@ -76,7 +76,7 @@ static const char* model_results_filename = "power_model_results";
 static Value   values[POWER_DOMAIN_NUM_ELEMS][POWER_RESULT_NUM_ELEMS];
 static Counter prev_stat_values[MAX_NUM_PROCS]
                                [POWER_STATS_END - POWER_STATS_BEGIN - 1];
-static double elapsed_time;  // time elapsed in this interval
+static double elapsed_time;  // time elapsed in this interval, seconds
 
 /**************************************************************************************/
 /* power_intf_init: */
@@ -166,6 +166,9 @@ void parse_power_model_results(void) {
     uns num_matches = sscanf(line, "%s\t%s\t%le", domain_str, result_str,
                              &value);
     ASSERT(0, num_matches == 3);
+    DEBUG(0, "Parsing domain: %s result: %s value: %le\n", 
+        domain_str, result_str, value);
+
     Power_Domain domain = Power_Domain_parse(domain_str);
     Power_Result result = Power_Result_parse(result_str);
     ASSERTM(0, !read[domain][result],
@@ -179,10 +182,15 @@ void parse_power_model_results(void) {
           model_results_filename);
   fclose(file);
 
-  /* CACTI reports numbers for a single DRAM chip; adjust them for
-     the number of chips we have */
-  values[POWER_DOMAIN_MEMORY][POWER_RESULT_STATIC].intf_value *=
-    ((BUS_WIDTH_IN_BYTES * 8) / ramulator_get_chip_width());
+  /* Adjusting DRAM power */
+  /* CACTI reports numbers for a single DRAM chip:
+   * 1. For static power, we need to adjust the value by multiplying to the
+   * number of chips we have.
+   * 2. For dynamic power, we use the total number of
+   * activate/precharge/read/write in the memory to calculate the overall
+   * dynamic power. */
+  values[POWER_DOMAIN_MEMORY][POWER_RESULT_STATIC].intf_value *= ramulator_get_num_chips();
+  DEBUG(0, "Number of DRAM chips: %d\n", ramulator_get_num_chips());
 
   /* Set other system power */
   values[POWER_DOMAIN_OTHER][POWER_RESULT_STATIC].intf_value  = POWER_OTHER;
@@ -190,6 +198,7 @@ void parse_power_model_results(void) {
   values[POWER_DOMAIN_OTHER][POWER_RESULT_DYNAMIC].intf_value = 0;
   values[POWER_DOMAIN_OTHER][POWER_RESULT_DYNAMIC].set        = TRUE;
 
+  /* Check if we need scaling */
   for(uns domain = 0; domain < POWER_DOMAIN_NUM_ELEMS; ++domain) {
     if(POWER_INTF_ENABLE_SCALING && domain != POWER_DOMAIN_OTHER) {
       scale_values(domain);
@@ -201,15 +210,18 @@ void parse_power_model_results(void) {
     }
   }
 
+  /* calculating total power */
   for(uns domain = 0; domain < POWER_DOMAIN_NUM_ELEMS; ++domain) {
     if(values[domain][POWER_RESULT_STATIC].set &&
        values[domain][POWER_RESULT_DYNAMIC].set) {
       values[domain][POWER_RESULT_TOTAL].intf_value =
         values[domain][POWER_RESULT_STATIC].intf_value +
         values[domain][POWER_RESULT_DYNAMIC].intf_value;
+
       values[domain][POWER_RESULT_TOTAL].scaled_value =
         values[domain][POWER_RESULT_STATIC].scaled_value +
         values[domain][POWER_RESULT_DYNAMIC].scaled_value;
+
       values[domain][POWER_RESULT_TOTAL].set = TRUE;
     }
   }
@@ -217,6 +229,8 @@ void parse_power_model_results(void) {
 
 void update_energy_stats(void) {
   INC_STAT_VALUE(0, TIME, elapsed_time);
+
+  /* Per-core energy */
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
     INC_STAT_VALUE(
       proc_id, ENERGY_CORE,
@@ -230,12 +244,15 @@ void update_energy_stats(void) {
       proc_id, ENERGY_CORE_DYNAMIC,
       elapsed_time *
         power_intf_result(POWER_DOMAIN_CORE_0 + proc_id, POWER_RESULT_DYNAMIC));
+
+    /* total system energy */
     INC_STAT_VALUE(
       0, ENERGY,
       elapsed_time *
         power_intf_result(POWER_DOMAIN_CORE_0 + proc_id, POWER_RESULT_TOTAL));
   }
 
+  /* Uncore energy */
   INC_STAT_VALUE(
     0, ENERGY_UNCORE,
     elapsed_time * power_intf_result(POWER_DOMAIN_UNCORE, POWER_RESULT_TOTAL));
@@ -245,7 +262,7 @@ void update_energy_stats(void) {
   INC_STAT_VALUE(0, ENERGY_UNCORE_DYNAMIC,
                  elapsed_time * power_intf_result(POWER_DOMAIN_UNCORE,
                                                   POWER_RESULT_DYNAMIC));
-
+  /* Memory Energy */
   INC_STAT_VALUE(
     0, ENERGY_MEMORY,
     elapsed_time * power_intf_result(POWER_DOMAIN_MEMORY, POWER_RESULT_TOTAL));
@@ -255,7 +272,7 @@ void update_energy_stats(void) {
   INC_STAT_VALUE(0, ENERGY_MEMORY_DYNAMIC,
                  elapsed_time * power_intf_result(POWER_DOMAIN_MEMORY,
                                                   POWER_RESULT_DYNAMIC));
-
+  /* Other */
   INC_STAT_VALUE(
     0, ENERGY_OTHER,
     elapsed_time * power_intf_result(POWER_DOMAIN_OTHER, POWER_RESULT_TOTAL));
@@ -265,12 +282,13 @@ void update_energy_stats(void) {
   INC_STAT_VALUE(
     0, ENERGY_OTHER_DYNAMIC,
     elapsed_time * power_intf_result(POWER_DOMAIN_OTHER, POWER_RESULT_DYNAMIC));
+
+  /* total system energy */
   INC_STAT_VALUE(
     0, ENERGY,
     elapsed_time * (power_intf_result(POWER_DOMAIN_UNCORE, POWER_RESULT_TOTAL) +
                     power_intf_result(POWER_DOMAIN_MEMORY, POWER_RESULT_TOTAL) +
                     power_intf_result(POWER_DOMAIN_OTHER, POWER_RESULT_TOTAL)));
-
 
   dump_power_energy_stats();
 }
@@ -284,8 +302,7 @@ void dump_power_energy_stats(void) {
 
 /**************************************************************************************/
 /* scale_value: Scale a power value received from the external tools to match
- * the     */
-/* frequency and voltage modeled by Scarab.
+ * the frequency and voltage modeled by Scarab.
  *
  * Note: to use this scaling function, enable the POWER_INTF_ENABLE_SCALING knob
  * and apply the patch files (found in bin/power/mcpat.patch,cacti.patch) to
@@ -296,8 +313,8 @@ void dump_power_energy_stats(void) {
  * */
 
 void scale_values(Power_Domain domain) {
-  /* We don't scale total power directly; it should be calculated
-     from scaled dynamic and scaled static power */
+  /* We don't scale total power directly; it should be calculated from scaled
+   * dynamic and scaled static power */
 
   values[domain][POWER_RESULT_MIN_VOLTAGE].scaled_value =
     values[domain][POWER_RESULT_MIN_VOLTAGE].intf_value;
@@ -310,7 +327,7 @@ void scale_values(Power_Domain domain) {
 
   Counter scarab_cycle_time = freq_get_cycle_time(freq_domain(domain));
   double  scarab_freq       = 1.0e15 / (double)scarab_cycle_time;
-  ;
+
   double min_voltage    = values[domain][POWER_RESULT_MIN_VOLTAGE].intf_value;
   double scarab_voltage = MAX2(scarab_freq / intf_freq * intf_voltage,
                                min_voltage);
@@ -324,6 +341,7 @@ void scale_values(Power_Domain domain) {
            values[domain][POWER_RESULT_DYNAMIC].intf_value, voltage_ratio,
            freq_ratio);
   }
+
   values[domain][POWER_RESULT_DYNAMIC].scaled_value =
     values[domain][POWER_RESULT_DYNAMIC].intf_value * voltage_ratio *
     voltage_ratio * freq_ratio;

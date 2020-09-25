@@ -49,8 +49,6 @@ extern "C" {
 #include "statistics.h"
 }
 
-#define DEBUG(proc_id, args...) _DEBUGU(proc_id, DEBUG_POWER_UTILS, ##args)
-
 #define XML_PARAM_NAME_WIDTH 50
 #define XML_PARAM_VALUE_WIDTH 25
 #define ADD_XML_COMPONENT(stream, header, component_id, component_name,  \

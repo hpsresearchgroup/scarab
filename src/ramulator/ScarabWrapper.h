@@ -48,6 +48,7 @@ public:
 
     int get_chip_width() const;
     int get_chip_size()  const;
+    int get_num_chips()  const;
     int get_chip_row_buffer_size() const;
 };
 

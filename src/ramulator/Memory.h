@@ -62,8 +62,9 @@ public:
     virtual void set_high_writeq_watermark(const float watermark) = 0;
     virtual void set_low_writeq_watermark(const float watermark) = 0;
 
-    virtual int get_chip_width()      const = 0;
-    virtual int get_chip_size()       const = 0;
+    virtual int get_chip_width() const = 0;
+    virtual int get_chip_size()  const = 0;
+    virtual int get_num_chips()  const = 0;
     virtual int get_chip_row_buffer_size() const = 0;
 
     // virtual int get_tCK() = 0;
@@ -298,6 +299,13 @@ public:
 
     int get_chip_size() const {
         return spec->org_entry.size;
+    }
+
+    int get_num_chips() const {
+      uint64_t dram_capacity_bytes = max_address;
+      uint64_t chip_capacity_bytes = (uint64_t(get_chip_size()) * 1024 * 1024) / 8; // MegaBits to Bytes
+      //cout << "dram_capacity_bytes: " << dram_capacity_bytes << ", chip_capacity_bytes: " << chip_capacity_bytes << endl;
+      return dram_capacity_bytes / chip_capacity_bytes;
     }
 
     int get_chip_row_buffer_size() const {

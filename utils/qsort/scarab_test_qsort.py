@@ -60,6 +60,8 @@ def run_scarab():
                      scarab_paths.bin_dir + '/scarab_launch.py',
                      '--program',
                      scarab_paths.sim_dir + '/utils/qsort/test_qsort',
+                     '--program',
+                     scarab_paths.sim_dir + '/utils/qsort/test_qsort',
                      '--param',
                      scarab_paths.sim_dir + '/utils/qsort/PARAMS.qsort',
                      '--pintool_args',

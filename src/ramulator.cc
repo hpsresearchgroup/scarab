@@ -306,6 +306,10 @@ int ramulator_get_chip_size() {
   return wrapper->get_chip_size();
 }
 
+int ramulator_get_num_chips() {
+  return wrapper->get_num_chips();
+}
+
 int ramulator_get_chip_row_buffer_size() {
   return wrapper->get_chip_row_buffer_size();
 }
