@@ -238,16 +238,18 @@ sub parse_cacti_dram_output($$)
         die "CACTI value for $key not found\n" unless defined $cacti_values{$key};
     }
 
-    $values{"VOLTAGE"} = $cacti_values{"Voltage (V)"} if ($get_voltage_and_freq); 
-    $values{"MIN_VOLTAGE"} = $values{"VOLTAGE"} if ($get_voltage_and_freq); # for now
-    $values{"FREQUENCY"} = $params{"POWER_INTF_REF_MEMORY_FREQ"} if ($get_voltage_and_freq);
+    $values{"VOLTAGE"}     = $cacti_values{"Voltage (V)"}          if ($get_voltage_and_freq); 
+    $values{"MIN_VOLTAGE"} = $values{"VOLTAGE"}                    if ($get_voltage_and_freq); # for now
+    $values{"FREQUENCY"}   = $params{"POWER_INTF_REF_MEMORY_FREQ"} if ($get_voltage_and_freq);
 
     $values{"DYNAMIC"} =
         $cacti_values{"Precharge Energy (nJ)"} * $stats{"POWER_DRAM_PRECHARGE"}[0] +
         $cacti_values{"Activate Energy (nJ)"}  * $stats{"POWER_DRAM_ACTIVATE"}[0]  +
         $cacti_values{"Read Energy (nJ)"}      * $stats{"POWER_DRAM_READ"}[0]      +
         $cacti_values{"Write Energy (nJ)"}     * $stats{"POWER_DRAM_WRITE"}[0];
-    $values{"DYNAMIC"} *= 10e-9; # convert to Joules
+
+    $values{"DYNAMIC"} *= 10e-9; # convert from nJoules to Joules
+
     my $time = $stats{"POWER_CYCLE"}[0]/$params{"POWER_INTF_REF_CHIP_FREQ"};
     $values{"DYNAMIC"} /= $time; # convert to power (Watts)
 
@@ -255,6 +257,7 @@ sub parse_cacti_dram_output($$)
         $cacti_values{"Leakage Power Open Page (mW)"} +
         $cacti_values{"Leakage Power I/O (mW)"} +
         $cacti_values{"Refresh power (mW)"};
+
     $values{"STATIC"} *= 10e-3; # convert to Watts
 
     return \%values;

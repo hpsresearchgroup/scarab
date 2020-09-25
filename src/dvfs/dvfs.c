@@ -331,6 +331,7 @@ void dvfs_cycle(void) {
         dvfs_reconfigure_perf_pred();
       }
     }
+
     stat_mon_reset(stat_mon);
     if(!DVFS_USE_BW_SHARING && !DVFS_USE_DRAM_SHARING && !DVFS_USE_STALL_TIME &&
        !DVFS_STATIC)

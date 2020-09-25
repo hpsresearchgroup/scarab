@@ -136,8 +136,9 @@ void run_power_model_exec(void) {
   power_print_cacti_cfg_infile();
 
   char cmd[MAX_STR_LENGTH];
-  uns  len = sprintf(cmd, "python %s/%s %s %d %d %s", BINDIR, POWER_INTF_EXEC, ".",
-                    POWER_INTF_ENABLE_SCALING, DEBUG_POWER_UTILS, FILE_TAG);
+  uns  len = sprintf(cmd, "python %s/%s %s %d %d %s", BINDIR, POWER_INTF_EXEC,
+                    ".", POWER_INTF_ENABLE_SCALING, DEBUG_POWER_UTILS,
+                    FILE_TAG);
   ASSERT(0, len < MAX_STR_LENGTH);
 
   int rc = system(cmd);
@@ -243,9 +244,9 @@ void update_energy_stats(void) {
   INC_STAT_VALUE(
     0, ENERGY_UNCORE_STATIC,
     elapsed_time * power_intf_result(POWER_DOMAIN_UNCORE, POWER_RESULT_STATIC));
-  INC_STAT_VALUE(
-    0, ENERGY_UNCORE_DYNAMIC,
-    elapsed_time * power_intf_result(POWER_DOMAIN_UNCORE, POWER_RESULT_DYNAMIC));
+  INC_STAT_VALUE(0, ENERGY_UNCORE_DYNAMIC,
+                 elapsed_time * power_intf_result(POWER_DOMAIN_UNCORE,
+                                                  POWER_RESULT_DYNAMIC));
 
   INC_STAT_VALUE(
     0, ENERGY_MEMORY,
@@ -253,9 +254,9 @@ void update_energy_stats(void) {
   INC_STAT_VALUE(
     0, ENERGY_MEMORY_STATIC,
     elapsed_time * power_intf_result(POWER_DOMAIN_MEMORY, POWER_RESULT_STATIC));
-  INC_STAT_VALUE(
-    0, ENERGY_MEMORY_DYNAMIC,
-    elapsed_time * power_intf_result(POWER_DOMAIN_MEMORY, POWER_RESULT_DYNAMIC));
+  INC_STAT_VALUE(0, ENERGY_MEMORY_DYNAMIC,
+                 elapsed_time * power_intf_result(POWER_DOMAIN_MEMORY,
+                                                  POWER_RESULT_DYNAMIC));
 
   INC_STAT_VALUE(
     0, ENERGY_OTHER,

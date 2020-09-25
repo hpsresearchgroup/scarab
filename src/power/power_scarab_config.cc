@@ -41,12 +41,15 @@ extern "C" {
 #include "bp/bp.param.h"
 #include "core.param.h"
 #include "general.param.h"
+#include "globals/assert.h"
 #include "memory/memory.param.h"
 #include "power/power.param.h"
 #include "ramulator.h"
 #include "ramulator.param.h"
 #include "statistics.h"
 }
+
+#define DEBUG(proc_id, args...) _DEBUGU(proc_id, DEBUG_POWER_UTILS, ##args)
 
 #define XML_PARAM_NAME_WIDTH 50
 #define XML_PARAM_VALUE_WIDTH 25
@@ -151,7 +154,7 @@ void power_print_system_params(std::ofstream& out) {
   ADD_XML_PARAM(out, header, "number_of_L1Directories", 0, );
   ADD_XML_PARAM(out, header, "number_of_L2Directories", 0, );
 
-  /*Scarab: Scarab either has a private last level cache (LLC, refered to as L1
+  /* Scarab: Scarab either has a private last level cache (LLC, refered to as L1
    * in the scarab src code) or a shared LLC. McPAT requires us to model this as
    * either several private "L2" caches or a single shared "L3" cache*/
   ADD_XML_PARAM(out, header, "number_of_L2s", num_l2_caches,
@@ -178,6 +181,7 @@ void power_print_system_params(std::ofstream& out) {
   ADD_XML_PARAM(out, header, "temperature", 380, "Kelvin");
   ADD_XML_PARAM(out, header, "number_cache_levels",
                 2, );  // TODO: does not support MLC
+
   ADD_XML_PARAM(
     out, header, "interconnect_projection_type", 0,
     "0: agressive wire technology; 1: conservative wire technology");
@@ -192,33 +196,40 @@ void power_print_system_params(std::ofstream& out) {
                 "address width determins the tag_width in Cache, LSQ and "
                 "buffers in cache controller default value is machine_bits, if "
                 "not set");
-  ADD_XML_PARAM(out, header, "virtual_memory_page_size", 4096,
+  ADD_XML_PARAM(out, header, "virtual_memory_page_size", MEMORY_INTERLEAVE_FACTOR,
                 "This page size(B) is complete different from the page size in "
                 "Main memo secction. this page size is the size of virtual "
                 "memory from OS/Archi perspective; the page size in Main memo "
                 "secction is the actuall physical line in a DRAM bank");
 
-  ADD_XML_CORE_STAT(
-    out, header, 0, "total_cycles",
-    POWER_CYCLE, );  // TODO: what is this, should this be for core 0
+  /* idle_cycles and busy_cycles are only parsed by McPat and are not used for
+   * any computation */
+  ADD_XML_CORE_STAT(out, header, 0, "total_cycles", POWER_CYCLE, );
   ADD_XML_STAT(out, header, "idle_cycles", 0,
-               "Scarab: McPAT ignores this");  // TODO: what is this
+               "Scarab: McPAT ignores this");
   ADD_XML_CORE_STAT(out, header, 0, "busy_cycles", POWER_CYCLE,
-                    "Scarab: McPAT ignores this");  // TODO: what is this
+                    "Scarab: McPAT ignores this");
 }
 
 void power_print_core_params(std::ofstream& out, uint32_t core_id) {
   uns PIPELINE_DEPTH = DECODE_CYCLES + MAP_CYCLES + 1 + 1 + 1 +
                        1;  // icache, node, exec, retire
+
   uns32 peak_ops_per_cycle = std::min(
     std::min(NUM_FUS, ISSUE_WIDTH),
     std::min(RS_FILL_WIDTH == 0 ? MAX_INT : RS_FILL_WIDTH,
              NODE_RET_WIDTH)); /*Scarab: theoretical peak ops per cycle*/
+  DEBUG(core_id, "peak_ops_per_cycle: %d\n", peak_ops_per_cycle);
+
   double ops_per_cycle = GET_TOTAL_STAT_EVENT(core_id, POWER_CYCLE) ?
                            ((double)GET_TOTAL_STAT_EVENT(core_id, POWER_OP)) /
                              GET_TOTAL_STAT_EVENT(core_id, POWER_CYCLE) :
                            0.0; /*Actual ops per cycle*/
+  DEBUG(core_id, "ops_per_cycle: %f\n", ops_per_cycle);
+
   double OPC_TO_PEAK_OPC_RATIO = ops_per_cycle / peak_ops_per_cycle;
+  DEBUG(core_id, "OPC_TO_PEAK_OPC_RATIO: %f\n", OPC_TO_PEAK_OPC_RATIO);
+  ASSERTM(core_id, OPC_TO_PEAK_OPC_RATIO <= 1, "OPC_TO_PEAK_OPC_RATIO should be less than one\n");
 
   std::string header = "\t";
 
@@ -255,9 +266,9 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
                 "decode_width determins the number of ports of the renaming "
                 "table (both RAM and CAM) scheme");
 
-  /*Instructions are "dispatched" from rename to reservation stations, and
-   * "Issued" from reservation stations to functional units*/
-  /*TODO: this seems to be inaccurate, issue_width should not be the same as
+  /* Instructions are "dispatched" from rename to reservation stations, and
+   * "Issued" from reservation stations to functional units */
+  /* Note: this seems to be inaccurate, issue_width should not be the same as
    * dispatch width. issue_width=NUM_FUS and dispatch_width=RS_FILL_WIDTH*/
   ADD_XML_PARAM(out, header, "issue_width", NUM_FUS,
                 "issue_width determins the number of ports of Issue window and "
@@ -266,6 +277,7 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
   ADD_XML_PARAM(
     out, header, "peak_issue_width",
     NUM_FUS, );  // TODO: what is the difference between peak and normal?
+
   ADD_XML_PARAM(out, header, "commit_width", NODE_RET_WIDTH,
                 "commit_width determins the number of ports of register files");
   ADD_XML_PARAM(out, header, "fp_issue_width", POWER_NUM_FPUS, );
@@ -273,7 +285,7 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
     out, header, "prediction_width", CFS_PER_CYCLE,
     "number of branch instructions can be predicted simultanouesly");
 
-  /*Current version of McPAT does not distinguish int and floating point
+  /* Current version of McPAT does not distinguish int and floating point
    * pipelines. Theses parameters are reserved for future use.*/
   ADD_XML_PARAM_str(
     out, header, "pipelines_per_core", std::string("1,1"),
@@ -381,9 +393,9 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
    * Core Stats
    *******************************************************************************************************************/
 
-  /*general stats, defines simulation periods; require total, idle, and busy
-    cycles for sanity check please note: if target architecture is X86, then all
-    the instrucions refer to (fused) micro-ops*/
+  /* general stats, defines simulation periods; require total, idle, and busy
+   * cycles for sanity check please note: if target architecture is X86, then
+   * all the instrucions refer to (fused) micro-ops*/
   ADD_XML_CORE_STAT(out, header, core_id, "total_instructions", POWER_OP, );
   ADD_XML_CORE_STAT(out, header, core_id, "int_instructions", POWER_INT_OP, );
   ADD_XML_CORE_STAT(out, header, core_id, "fp_instructions", POWER_FP_OP, );
@@ -404,8 +416,8 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
     out, header, "pipeline_duty_cycle", OPC_TO_PEAK_OPC_RATIO,
     "<=1, runtime_ipc/peak_ipc; averaged for all cores if homogenous");
 
-  /*the following cycle stats are used for heterogeneouse cores only, please
-   * ignore them if homogeneouse cores*/
+  /* the following cycle stats are used for heterogeneouse cores only, please
+   * ignore them if homogeneouse cores */
   ADD_XML_CORE_STAT(out, header, core_id, "total_cycles", POWER_CYCLE, );
   ADD_XML_STAT(out, header, "idle_cycles", 0, );
   ADD_XML_CORE_STAT(out, header, core_id, "busy_cycles", POWER_CYCLE, );
@@ -942,8 +954,13 @@ void power_print_memory_parts(std::ofstream& out) {
                                                    // transfers
   uint32_t BUS_WIDTH_IN_BITS = BUS_WIDTH_IN_BYTES * 8;
 
-  // ADD_CACTI_PARAM(out, "size (bytes)",              (DRAM_CHIP_SIZE), );
-  ADD_CACTI_PARAM(out, "size (bytes)", (ramulator_get_chip_size()), );
+  uint64_t CHIP_SIZE_IN_BYTES = uint64_t(ramulator_get_chip_size()) * 1024 *
+                                1024 / 8;  // Convert MBytes to Bytes
+  ASSERTM(
+    0, CHIP_SIZE_IN_BYTES != 0 && CHIP_SIZE_IN_BYTES <= (1 << 30),
+    "chip_size(%lu) is either zero or too large to represent in a 32-bit int\n",
+    CHIP_SIZE_IN_BYTES);
+  ADD_CACTI_PARAM(out, "size (bytes)", CHIP_SIZE_IN_BYTES, );
 
   ADD_CACTI_PARAM(out, "block size (bytes)", L1_LINE_SIZE, );
   ADD_CACTI_PARAM(out, "associativity", 1, );
@@ -955,11 +972,11 @@ void power_print_memory_parts(std::ofstream& out) {
   ADD_CACTI_PARAM(out, "technology (u)", DRAM_TECH_IN_UM, );
 
   // following three parameters are meaningful only for main memories
-  assert(false);  // we need to fix the following line and actually get the DRAM
-                  // page size
-  // from Ramulator!
-  // ADD_CACTI_PARAM(out, "page size (bits)", *need to get the DRAM page size
-  // from Ramulator*, );
+  
+  // TODO: change following page size to the row buffer from the ramulator
+  // configuration
+  ADD_CACTI_PARAM(out, "page size (bits)", MEMORY_INTERLEAVE_FACTOR, );
+
   ADD_CACTI_PARAM(out, "burst length", DRAM_BURST_LENGTH, );
   ADD_CACTI_PARAM(out, "internal prefetch width", 8, );
 
