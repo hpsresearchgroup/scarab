@@ -30,6 +30,9 @@ on the objects. Scarab Batch uses the globally tracked objects and the directive
 (e.g., run, progress, stat) to perform the appropriate task.
 """
 
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
 from scarab_batch_types import *
 from batch_manager import *
 from command import *
