@@ -39,12 +39,14 @@ Snapshot directory contents:
 """
 
 import os
+import sys
 import time
 from pathlib import Path
 import shutil
 from pprint import pprint
 import tempfile
 
+sys.path.append(os.path.dirname(__file__))
 import scarab_paths
 from command import *
 
