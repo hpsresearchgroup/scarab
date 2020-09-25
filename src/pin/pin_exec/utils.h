@@ -365,11 +365,17 @@ class Pintool_State {
   Pintool_State() { clear_changing_control_flow(); }
 
   // ***********************  Getters  **********************
-  bool skip_further_processing() { return should_change_control_flow(); }
+  bool skip_further_processing() {
+    return should_change_control_flow() || is_on_wrongpath_nop_mode();
+  }
 
   bool should_change_control_flow() { return should_change_control_flow_; }
 
   bool should_skip_next_instruction() { return should_skip_next_instruction_; }
+
+  bool should_insert_dummy_exception_br() {
+    return should_insert_dummy_exception_br_;
+  }
 
   uint64_t get_next_inst_uid() { return uid_ctr++; }
 
@@ -384,13 +390,21 @@ class Pintool_State {
   Wrongpath_Nop_Mode_Reason get_wrongpath_nop_mode_reason() {
     return wrongpath_nop_mode_reason_;
   }
+
   uint64_t get_next_rip() { return next_rip_; }
+
+  uint64_t get_rightpath_exception_rip() { return rightpath_exception_rip_; }
+  uint64_t get_rightpath_exception_next_rip() {
+    return rightpath_exception_next_rip_;
+  }
 
   // ***********************  Setters  **********************
   void clear_changing_control_flow() {
     should_change_control_flow_   = false;
     should_skip_next_instruction_ = false;
   }
+
+  void set_next_rip(uint64_t next_rip) { next_rip_ = next_rip; }
 
   void set_next_state_for_changing_control_flow(const CONTEXT* next_ctxt,
                                                 bool           redirect_rip,
@@ -408,18 +422,26 @@ class Pintool_State {
   void set_wrongpath_nop_mode(
     Wrongpath_Nop_Mode_Reason wrongpath_nop_mode_reason, uint64_t next_rip) {
     wrongpath_nop_mode_reason_ = wrongpath_nop_mode_reason;
-    if(!next_rip) {
-      next_rip_ = 1;
-    } else {
-      next_rip_ = ADDR_MASK(next_rip);
-    }
+    next_rip_                  = ADDR_MASK(next_rip);
+  }
+
+  void clear_rightpath_exception() {
+    should_insert_dummy_exception_br_ = false;
+  }
+  void set_rightpath_exception(uint64_t rip, uint64_t next_rip) {
+    should_insert_dummy_exception_br_ = true;
+    rightpath_exception_rip_          = rip;
+    rightpath_exception_next_rip_     = next_rip;
   }
 
  private:
-  bool    should_change_control_flow_;
-  bool    should_skip_next_instruction_;
+  bool    should_change_control_flow_       = false;
+  bool    should_skip_next_instruction_     = false;
+  bool    should_insert_dummy_exception_br_ = false;
   CONTEXT next_ctxt_;
 
+  uint64_t rightpath_exception_rip_;
+  uint64_t rightpath_exception_next_rip_;
   uint64_t uid_ctr = 0;
 
   bool                      on_wrongpath_              = false;

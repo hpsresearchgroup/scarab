@@ -118,6 +118,11 @@ void insert_check_for_magic_instructions(const INS& ins) {
   }
 }
 
+void insert_exception_handler_followup(const INS& ins) {
+  INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)exception_handler_followup,
+                 IARG_CONTEXT, IARG_END);
+}
+
 void insert_processing_for_syscalls(const INS& ins) {
   INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(process_syscall), IARG_INST_PTR,
                  IARG_SYSCALL_NUMBER, IARG_SYSARG_VALUE, 0, IARG_SYSARG_VALUE,
@@ -253,6 +258,7 @@ void instrumentation_func_per_instruction(INS ins, void* v) {
 
   insert_logging(ins);
   insert_check_for_magic_instructions(ins);
+  insert_exception_handler_followup(ins);
 
   // Inserting functions to create a compressed op
   pin_decoder_insert_analysis_functions(ins);

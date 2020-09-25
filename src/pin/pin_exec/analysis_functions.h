@@ -47,6 +47,8 @@ void redirect(CONTEXT* ctx);
 void logging(ADDRINT next_rip, ADDRINT curr_rip, bool check_next_addr,
              bool taken);
 
+void exception_handler_followup(CONTEXT* ctxt);
+
 void check_ret_control_ins(ADDRINT read_addr, UINT32 read_size, CONTEXT* ctxt);
 
 void check_nonret_control_ins(bool taken, ADDRINT target_addr);

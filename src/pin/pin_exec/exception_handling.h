@@ -26,14 +26,4 @@
 
 void register_signal_handlers();
 
-bool dummy_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, bool hasHandler,
-                   const EXCEPTION_INFO* pExceptInfo, void* v);
-
-bool signal_handler(THREADID tid, INT32 sig, CONTEXT* ctxt, bool hasHandler,
-                    const EXCEPTION_INFO* pExceptInfo, void* v);
-
-// Main loop for rightpath execptions: any context change is delayed until we
-// reach the execption handler
-bool excp_main_loop(int sig);
-
 #endif  // PIN_EXEC_EXCEPTION_HANDLING_H__

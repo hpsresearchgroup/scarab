@@ -30,8 +30,6 @@ void main_loop(CONTEXT* ctxt, Mem_Writes_Info mem_writes_info, bool is_syscall,
 
 void wrongpath_nop_mode_main_loop();
 
-void do_fe_retire(Scarab_To_Pin_Msg& cmd);
-
-void do_fe_fetch_op();
+void send_buffer_wait_until_scarab_retires_everything(CONTEXT* ctxt);
 
 #endif  // PIN_EXEC_MAIN_LOOP_H__

@@ -25,42 +25,6 @@
 
 #include "../pin_lib/decoder.h"
 
-namespace {
-
-/*
-void add_right_path_exec_br(CONTEXT* ctxt) {
-  // Create dummy jmp
-  ADDRINT eip;
-  PIN_GetContextRegval(ctxt, REG_INST_PTR, (UINT8*)&eip);
-  compressed_op cop = create_dummy_jump(saved_excp_next_eip, eip);
-  cop.inst_uid      = pintool_state.get_curr_inst_uid();
-  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
-dbg_print_end_uid, "Prev EIPs %lx, %lx\n", saved_excp_eip, saved_excp_next_eip);
-  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
-dbg_print_end_uid, "At EIP %" PRIx64 "\n", eip);
-
-  // Mailbox will be empty as we clear it before a rightpath excpetion
-  ASSERTM(0, !op_mailbox_full,
-          "Expected empty mailbox for rightpath exception op @ %" PRIu64 ".\n",
-          pintool_state.get_curr_inst_uid());
-
-  // Insert in mailbox
-  op_mailbox      = cop;
-  op_mailbox_full = true;
-
-  // Save checkpoint
-  checkpoints.append_to_cir_buf();
-  checkpoints.get_tail().init(pintool_state.get_curr_inst_uid(), false,
-on_wrongpath, on_wrongpath_nop_mode, next_eip, 0);
-  //pintool_state.get_curr_inst_uid()++;
-  save_context(ctxt);
-}
-*/
-
-
-}  // namespace
-
-
 #define ENABLE_HYPER_FF_HEARTBEAT
 void PIN_FAST_ANALYSIS_CALL docount(UINT32 c) {
   int64_t temp = hyper_fast_forward_count - c;
@@ -179,6 +143,8 @@ void logging(ADDRINT next_rip, ADDRINT curr_rip, bool check_next_addr,
     }
   }
 
+  pintool_state.set_next_rip(next_rip);
+
   if(!fast_forward_count) {
     if(heartbeat_enabled && !(pintool_state.get_curr_inst_uid() & 0x7FFFF)) {
       std::cout << "Heartbeat (uid=" << pintool_state.get_curr_inst_uid() << ")"
@@ -216,6 +182,35 @@ void logging(ADDRINT next_rip, ADDRINT curr_rip, bool check_next_addr,
   }
 }
 
+void exception_handler_followup(CONTEXT* ctxt) {
+  if(pintool_state.should_insert_dummy_exception_br()) {
+    ASSERTM(0, !op_mailbox_full,
+            "Expected empty mailbox for rightpath exception op @ %" PRIu64
+            ".\n",
+            pintool_state.get_curr_inst_uid());
+
+    const auto inst_uid = pintool_state.get_next_inst_uid();
+
+    uint64_t curr_rip = PIN_GetContextReg(ctxt, REG_INST_PTR);
+    op_mailbox        = create_dummy_jump(
+      pintool_state.get_rightpath_exception_next_rip(), curr_rip);
+    op_mailbox.inst_uid = inst_uid;
+    op_mailbox_full     = true;
+
+    DBG_PRINT(inst_uid, dbg_print_start_uid, dbg_print_end_uid,
+              "Inserting a dummy branch following an exception. Exception RIP: "
+              "%lx, Branch RIP: %lx, jumping to %lx\n",
+              pintool_state.get_rightpath_exception_rip(),
+              pintool_state.get_rightpath_exception_next_rip(), curr_rip);
+
+    checkpoints.append_to_cir_buf();
+    checkpoints.get_tail().update(ctxt, inst_uid, false, false, false, curr_rip,
+                                  Mem_Writes_Info{}, false);
+
+    pintool_state.clear_rightpath_exception();
+  }
+}
+
 void check_ret_control_ins(ADDRINT read_addr, UINT32 read_size, CONTEXT* ctxt) {
   if(!fast_forward_count) {
     read_addr = ADDR_MASK(read_addr);
@@ -226,12 +221,15 @@ void check_ret_control_ins(ADDRINT read_addr, UINT32 read_size, CONTEXT* ctxt) {
     uint64_t target_addr;
     PIN_SafeCopy(&target_addr, (void*)read_addr, read_size);
     target_addr = ADDR_MASK(target_addr);
+    pintool_state.set_next_rip(target_addr);
     DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
               dbg_print_end_uid, "Ret Control targetaddr=%" PRIx64 "\n",
               (uint64_t)target_addr);
 
+
     if(pintool_state.is_on_wrongpath() &&
        !instrumented_rip_tracker.contains(target_addr)) {
+      target_addr = target_addr ? target_addr : 1;
       DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
                 dbg_print_end_uid,
                 "Entering from ret WPNM targetaddr=%" PRIx64 "\n",
@@ -244,12 +242,14 @@ void check_ret_control_ins(ADDRINT read_addr, UINT32 read_size, CONTEXT* ctxt) {
 
 void check_nonret_control_ins(bool taken, ADDRINT target_addr) {
   if(!fast_forward_count) {
+    pintool_state.set_next_rip(target_addr);
     target_addr = ADDR_MASK(target_addr);
     DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
               dbg_print_end_uid, "Non Ret Control targetaddr=%" PRIx64 "\n",
               (uint64_t)target_addr);
     if(pintool_state.is_on_wrongpath() && taken &&
        !instrumented_rip_tracker.contains(target_addr)) {
+      target_addr = target_addr ? target_addr : 1;
       DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
                 dbg_print_end_uid,
                 "Entering from nonret WPNM targetaddr=%" PRIx64 "\n",
