@@ -59,7 +59,7 @@ void pin_trace_open(unsigned char proc_id, const char* name) {
 }
 
 void pin_trace_close(unsigned char proc_id) {
-  fclose(pin_file[proc_id]);
+  pclose(pin_file[proc_id]);
 }
 
 int pin_trace_read(unsigned char proc_id, ctype_pin_inst* pi) {

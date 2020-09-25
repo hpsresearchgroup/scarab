@@ -59,15 +59,17 @@ END_LEGAL */
 #include <stdio.h>
 #include <string>
 
-#include "globals/assert.h"
-#include "instlib.H"
 #include "pin.H"
 #include "pinplay.H"
+
+#undef UNUSED   // there is a name conflict between PIN and Scarab
+#undef WARNING  // there is a name conflict between PIN and Scarab
 
 #include "../pin_lib/decoder.h"
 
 #undef UNUSED   // there is a name conflict between PIN and Scarab
 #undef WARNING  // there is a name conflict between PIN and Scarab
+
 #include "../../ctype_pin_inst.h"
 #include "../../table_info.h"
 
@@ -86,7 +88,7 @@ KNOB<BOOL> KnobPinPlayReplayer(KNOB_MODE_WRITEONCE, "pintool", "replay", "0",
                                "Activate the pinplay replayer");
 
 // Knobs that control trace generation
-KNOB<string> Knob_output(KNOB_MODE_WRITEONCE, "pintool", "o", "trace.pzip",
+KNOB<string> Knob_output(KNOB_MODE_WRITEONCE, "pintool", "o", "trace.bz2",
                          "trace outputfilename");
 
 /*** globals ***/

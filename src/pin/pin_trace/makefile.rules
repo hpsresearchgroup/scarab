@@ -35,7 +35,7 @@ TOOL_ROOTS :=
 SA_TOOL_ROOTS :=
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS := read_trace
+APP_ROOTS :=
 
 # This defines any additional object files that need to be compiled.
 OBJECT_ROOTS :=
@@ -56,18 +56,19 @@ COMMON_LIB_PATH  := ../pin_lib
 COMMON_LIB_CFILES   := $(wildcard $(COMMON_LIB_PATH)/*.cc)
 COMMON_LIB_OBJFILES := $(patsubst $(COMMON_LIB_PATH)/%.cc,$(OBJDIR)%.o,$(COMMON_LIB_CFILES))
 
-SCARAB_PATH  := ../../
-SCARAB_FILES := isa.c
-SCARAB_CFILES   := $(wildcard $(SCARAB_PATH)/$(SCARAB_FILES))
-SCARAB_OBJFILES := $(patsubst $(SCARAB_PATH)/%.c,$(OBJDIR)%.o,$(COMMON_LIB_CFILES))
+SCARAB_OBJFILES := $(OBJDIR)isa.o
 
 PINPLAY_HOME=$(PIN_ROOT)/extras/pinplay/
 PINPLAY_INCLUDE_HOME=$(PINPLAY_HOME)/include
 PINPLAY_LIB_HOME=$(PINPLAY_HOME)/lib/$(TARGET)
 EXT_LIB_HOME=$(PINPLAY_HOME)/lib-ext/$(TARGET)
 
+SCARAB_DIR ?= ../../
 PINPLAY_LIBS=$(PINPLAY_LIB_HOME)/libpinplay.a $(EXT_LIB_HOME)/libbz2.a $(EXT_LIB_HOME)/libzlib.a $(CONTROLLERLIB)
-TOOL_CXXFLAGS += -I$(PINPLAY_INCLUDE_HOME) -std=c++14
+TOOL_CXXFLAGS += -I$(PINPLAY_INCLUDE_HOME) -I$(SCARAB_DIR) -std=c++11
+TOOL_LDFLAGS += -std=c++11
+READ_TRACE_CFLAGS =  -O3 -I$(SCARAB_DIR)
+READ_TRACE_CXXFLAGS =  -std=c++14 -O3 -I$(SCARAB_DIR)
 
 
 ##############################################################
@@ -79,25 +80,35 @@ TOOL_CXXFLAGS += -I$(PINPLAY_INCLUDE_HOME) -std=c++14
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
 
-.PHONY: commonlibs gen_trace
+.PHONY: commonlibs gen_trace read_trace
 
-gen_trace: obj-intel64/gen_trace.so obj-intel64/read_trace
+gen_trace: $(OBJDIR)gen_trace.so
 
 $(OBJDIR)%.o: $(COMMON_LIB_PATH)/%.cc
 	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -DPIN_COMPILE
+
+$(OBJDIR)%.o: %.cc
+	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -DPIN_COMPILE
+
+$(OBJDIR)isa.o: $(SCARAB_DIR)/isa/isa.c
+	$(CC) $(READ_TRACE_CFLAGS) $(COMP_OBJ)$@ $<
 
 commonlibs: $(COMMON_LIB_OBJFILES)
 
 # Build the tool as a dll (shared object).
 # overriding rule in makefile.default.rules
-$(OBJDIR)gen_trace$(PINTOOL_SUFFIX): $(OBJDIR)gen_trace$(OBJ_SUFFIX) commonlibs $(PINPLAY_LIB_HOME)/libpinplay.a $(EXT_LIB_HOME)/libbz2.a $(EXT_LIB_HOME)/libzlib.a $(CONTROLLERLIB)
-	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $< $(COMMON_LIB_OBJFILES) $(PINPLAY_LIBS) $(TOOL_LPATHS) $(TOOL_LIBS)
+$(OBJDIR)gen_trace$(PINTOOL_SUFFIX): $(OBJDIR)gen_trace$(OBJ_SUFFIX) $(SOURCE_OBJFILES) commonlibs $(PINPLAY_LIB_HOME)/libpinplay.a $(EXT_LIB_HOME)/libbz2.a $(EXT_LIB_HOME)/libzlib.a $(CONTROLLERLIB)
+	$(info invoking link)
+	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $< $(SOURCE_OBJFILES) $(COMMON_LIB_OBJFILES) $(TOOL_LPATHS) $(PINPLAY_LIBS) $(TOOL_LIBS)
 
 $(OBJDIR)gen_trace$(OBJ_SUFFIX):gen_trace.cc
+	$(info invoking compile)
 	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $< -MD -DPIN_COMPILE
 
-$(OBJDIR)read_trace: read_trace.cc
-	g++ read_trace.cc -std=c++14 -O3 -o $@
+read_trace: $(OBJDIR)read_trace
+
+$(OBJDIR)read_trace: read_trace.cc dir $(SCARAB_OBJFILES)
+	g++ read_trace.cc $(SCARAB_OBJFILES) $(READ_TRACE_CXXFLAGS) -o $@
 
 -include $(OBJDIR)gen_trace.d
 -include $(OBJDIR)read_trace.d
