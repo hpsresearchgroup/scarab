@@ -948,7 +948,7 @@ void power_print_io_params(std::ofstream& out) {
 }
 
 void power_print_memory_parts(std::ofstream& out) {
-  double   DRAM_TECH_IN_UM   = ((double)DRAM_TECH_IN_NM) / 1000;
+  double   DRAM_TECH_IN_UM   = ((double)DRAM_TECH_IN_NM) / 1000; // default is 32nm
   uint32_t DRAM_BURST_LENGTH = RAMULATOR_TBL * 2;  // RAMULATOR_TBL is in
                                                    // cycles, burst length is in
                                                    // transfers
@@ -974,7 +974,6 @@ void power_print_memory_parts(std::ofstream& out) {
   // following three parameters are meaningful only for main memories
   uint64_t DRAM_CHIP_ROW_BUFFER_SIZE = ramulator_get_chip_row_buffer_size();
   ADD_CACTI_PARAM(out, "page size (bits)", DRAM_CHIP_ROW_BUFFER_SIZE, );
-
   ADD_CACTI_PARAM(out, "burst length", DRAM_BURST_LENGTH, );
   ADD_CACTI_PARAM(out, "internal prefetch width", 8, );
 
