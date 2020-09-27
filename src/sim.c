@@ -736,9 +736,6 @@ void full_sim() {
     }
   }
 
-  if(FRONTEND == FE_TRACE)
-    trace_done();
-
   trigger_free(sim_limit);
   trigger_free(clear_stats);
 }

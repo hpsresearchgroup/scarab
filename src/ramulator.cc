@@ -134,6 +134,8 @@ void init_configs() {
 
   configs->add("record_cmd_trace", RAMULATOR_REC_CMD_TRACE);
   configs->add("print_cmd_trace", RAMULATOR_PRINT_CMD_TRACE);
+  configs->add("use_rest_of_addr_as_row_addr",
+               RAMULATOR_USE_REST_OF_ADDR_AS_ROW_ADDR);
 
   configs->add("scheduling_policy", RAMULATOR_SCHEDULING_POLICY);
   configs->add("readq_entries", to_string(RAMULATOR_READQ_ENTRIES));
@@ -183,7 +185,8 @@ int ramulator_send(Mem_Req* scarab_req) {
         scarab_req);  // save it as an inflight request so later it will be
                       // moved to the resp_queue at the same time with the older
                       // request
-    return true;      // a request to the same address is already issued
+    scarab_req->mem_queue_cycle = cycle_count;
+    return true;  // a request to the same address is already issued
   }
 
   bool is_sent = wrapper->send(req);
@@ -201,6 +204,8 @@ int ramulator_send(Mem_Req* scarab_req) {
     } else if(req.type == Request::Type::WRITE) {
       STAT_EVENT(scarab_req->proc_id, POWER_MEMORY_CTRL_WRITE);
     }
+
+    scarab_req->mem_queue_cycle = cycle_count;
   }
 
   if(is_sent) {
