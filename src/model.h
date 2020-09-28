@@ -30,6 +30,7 @@
 #define __MODEL_H__
 
 #include "globals/global_types.h"
+#include "packet_build.h"
 
 
 /**************************************************************************************/
