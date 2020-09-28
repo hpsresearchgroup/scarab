@@ -242,8 +242,21 @@ int main(int argc, char* argv[], char* envp[]) {
   ASSERTU(0, sizeof(int32) == 4);
   ASSERTU(0, sizeof(int64) == 8);
 
+  /* launch pin tools */
+
+
   /* read parameters from PARAMS.in and the command line */
   simulated_argv = get_params(argc, argv);
+  fprintf(stdout, "%s\n", PIN_EXE_COMMAND);
+  int pin_pid = fork();
+  if (pin_pid < 0){
+    FATAL_ERROR(0, "Unable to create child process for PIN.");
+  }
+  if (pin_pid == 0){
+    fprintf(stdout, "child process for PIN created, launching pin now with command%s\n", PIN_EXE_COMMAND);
+    //TODO: need to do some string manipulation
+    execv(PIN_EXE, );
+  }
 
   /* perform global initialization */
   init_global(simulated_argv, envp);
