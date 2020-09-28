@@ -287,10 +287,17 @@ char* unsstr64c(uns64 value) {
   char *      temp, *temp2, *temp3;
   uns         comma_count = 0;
 
+<<<<<<< Updated upstream
   counter                    = CIRC_INC2(counter, MAX_SIMULTANEOUS_STRINGS);
   buffer[MAX_STR_LENGTH - 1] = '\0';
   uns64_buffer[counter][MAX_STR_LENGTH - 1] = '\0';
   temp = print_ull_guts(&buffer[MAX_STR_LENGTH - 2], value, 1);
+=======
+  counter                = CIRC_INC2(counter, MAX_SIMULTANEOUS_STRINGS);
+  buffer[MAX_STR_LENGTH] = '\0';
+  uns64_buffer[counter][MAX_STR_LENGTH] = '\0';
+  temp = print_ull_guts(&buffer[MAX_STR_LENGTH - 1], value, 1);
+>>>>>>> Stashed changes
 
   for(temp2 = &buffer[MAX_STR_LENGTH - 2],
   temp3     = &uns64_buffer[counter][MAX_STR_LENGTH - 2];
@@ -823,7 +830,11 @@ int parse_double_array(double dest[], const void* str, int max_num) {
 /* parse_string_token: simply copy the string into the destination array */
 
 static void parse_string_token(void* dest, uns idx, const char* token) {
+<<<<<<< Updated upstream
   char(*array)[MAX_STR_LENGTH] = (char(*)[MAX_STR_LENGTH])dest;
+=======
+  char(*array)[MAX_STR_LENGTH + 1] = (char(*)[MAX_STR_LENGTH + 1]) dest;
+>>>>>>> Stashed changes
   strncpy(array[idx], token, MAX_STR_LENGTH);
 }
 
