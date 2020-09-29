@@ -60,6 +60,10 @@ def define_commandline_arguments():
       '-desc', '--create_descriptor_file',
       action='store_true',
       help='Create a checkpoint descriptor file for the created checkpoints')
+  phase_group.add_argument(
+      '-skip', '--skip_long_running',
+      action='store_true',
+      help='Skips long running commands. Useful if just need to regenerate metadata but not checkpoints themselves.')
 
   ##################### Environment Configuration #####################
   parser.add_argument(
@@ -300,6 +304,13 @@ def read_all_simpoints():
   simpoints = {}
   for benchmark in __programs__:
     workload_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
+    try:
+      os.remove("{}/{}".format(Path(workload_path).parent, benchmark_info_file))
+    except OSError:
+      pass
+
+  for benchmark in __programs__:
+    workload_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
     workload_name = benchmark.name
     simpoint_csv_path = '{}/simpoints_{}.Data/simpoints_{}.pinpoints.csv'.format(workload_path, workload_name, workload_name)
     if not os.path.isfile(simpoint_csv_path):
@@ -313,8 +324,8 @@ def read_all_simpoints():
           weights_map[checkpoint_num], icounts_map[checkpoint_num], length_map[checkpoint_num])
     benchmark.weight = total_instructions_in_workload
 
-    benchmark_info = {'benchmark.weight': benchmark.weight}
-    with open("{}/{}".format(Path(workload_path).parent, benchmark_info_file), 'w') as f:
+    benchmark_info = {benchmark.name: benchmark.weight}
+    with open("{}/{}".format(Path(workload_path).parent, benchmark_info_file), 'a+') as f:
       yaml.dump(benchmark_info, f)
 
   return simpoints
@@ -367,6 +378,7 @@ def get_create_checkpoint_command(workload_path, benchmark_name,
       stderr=checkpoint_path +'/creation_log.err')
 
 def setup_checkpoint_dirs_and_get_create_commands(simpoints):
+  progress_bar = scarab_utils.ProgressBar("Create checkpoint commands", len(simpoints))
   create_checkpoint_commands = []
   for key_tuple in simpoints:
     benchmark_name, checkpoint_num = key_tuple
@@ -374,16 +386,20 @@ def setup_checkpoint_dirs_and_get_create_commands(simpoints):
     workload_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
     create_checkpoint_commands.append(get_create_checkpoint_command(
           workload_path, benchmark_name, checkpoint_num, weight, icount, length))
+    progress_bar.add(1)
 
   return create_checkpoint_commands
 
-def create_checkpoints_phase():
+def create_checkpoints_phase(skip_long_running=False):
   print('================================================')
   print('Verify all simpoints are generated properly ...')
   simpoints = read_all_simpoints()
   print('Create checkpoints for all benchmarks ...')
   cmds = setup_checkpoint_dirs_and_get_create_commands(simpoints)
-  BatchManager([ Phase(cmds) ], processor_cores_per_node=__args__.num_threads).run()
+
+  if not skip_long_running:
+    print("Run create checkpoint commands...")
+    BatchManager([ Phase(cmds) ], processor_cores_per_node=__args__.num_threads).run()
 
 def get_all_checkpoint_paths(workload_path, workload_name):
   glob_search_path = '{}/{}_checkpoint*'.format(workload_path, workload_name)
@@ -442,7 +458,7 @@ def get_descriptor_definitions(benchmark, benchmark_name, checkpoint_paths):
   definitions += '{name} = Benchmark("{name}", [{checkpoint_list}], weight={weight})\n\n'.format(
     name=benchmark_name,
     checkpoint_list=', '.join(checkpoint_name_list),
-    weight=benchmark_info['benchmark.weight']
+    weight=benchmark_info[benchmark_name]
   )
 
   return definitions
@@ -486,7 +502,7 @@ def main():
     run_simpoints_phase()
 
   if __args__.create_checkpoints or run_all_phases:
-    create_checkpoints_phase()
+    create_checkpoints_phase(__args__.skip_long_running)
 
   if __args__.create_descriptor_file or run_all_phases:
     create_descriptor_file_phase()

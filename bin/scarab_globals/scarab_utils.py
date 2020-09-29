@@ -71,3 +71,32 @@ def get_temp_socket_path():
   temp_prefix = "Scarab_Temp_WorkDir_"
   socket_path = os.path.join(tempfile.mkdtemp(prefix=temp_prefix), 'socket')
   return socket_path
+
+class ProgressBar:
+  def __init__(self, banner, total_count):
+    self.bar_char = '='
+    self.edge_char = '|'
+    self.max_bar_length = 10
+    self.banner = banner
+    self.total_count = total_count
+    self.count = 0
+
+    self._print_current_progress()
+
+  def _print_current_progress(self):
+    bar_length = int(self.count * self.max_bar_length / self.total_count)
+    bar        =  ''.join(bar_length * [self.bar_char])
+    not_bar    =  ''.join((self.max_bar_length - bar_length) * [' '])
+    end        = "complete.\n" if self.total_count == self.count else ""
+    progress   = "\r{banner}: {edge}{bar}{not_bar}{edge} {end}".format(
+      banner=self.banner,
+      edge=self.edge_char,
+      bar=bar,
+      not_bar=not_bar,
+      end=end)
+    print(progress, flush=True, end='')
+
+  def add(self, x):
+    self.count += x
+    self._print_current_progress()
+    return self
