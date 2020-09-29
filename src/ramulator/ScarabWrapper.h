@@ -1,14 +1,14 @@
 /* Copyright 2020 HPS/SAFARI Research Groups
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -28,26 +28,26 @@
 
 using namespace std;
 
-namespace ramulator
-{
+namespace ramulator {
 
 class Request;
 class MemoryBase;
 
-class ScarabWrapper 
-{
-private:
-    MemoryBase *mem;
-public:
-    //double tCK;
-    ScarabWrapper(const Config& configs, const unsigned int cacheline, void (* stats_callback)(int));
-    ~ScarabWrapper();
-    void tick();
-    bool send(Request req);
-    void finish(void);
+class ScarabWrapper {
+ private:
+  MemoryBase* mem;
 
-    int get_chip_width();
-    int get_chip_size();
+ public:
+  // double tCK;
+  ScarabWrapper(const Config& configs, const unsigned int cacheline,
+                void (*stats_callback)(int));
+  ~ScarabWrapper();
+  void tick();
+  bool send(Request req);
+  void finish(void);
+
+  int get_chip_width();
+  int get_chip_size();
 };
 
 } /*namespace ramulator*/

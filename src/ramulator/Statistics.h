@@ -1,14 +1,14 @@
 /* Copyright 2020 HPS/SAFARI Research Groups
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -63,143 +63,163 @@
 
 namespace ramulator {
 
-template<class StatType>
-class StatBase { // wrapper for Stats::DataWrap
-  protected:
-    StatType stat;
-    std::string statName;
+template <class StatType>
+class StatBase {  // wrapper for Stats::DataWrap
+ protected:
+  StatType    stat;
+  std::string statName;
 
-    StatBase<StatType> & self() { return *this; }
-  public:
-    StatBase() {}
+  StatBase<StatType>& self() { return *this; }
+
+ public:
+  StatBase() {}
 
 #ifndef INTEGRATED_WITH_GEM5
-    const StatType* get_stat() const {
-      return &stat;
-    }
+  const StatType* get_stat() const { return &stat; }
 #endif
 
-    StatBase(std::string _name) {
-      name(_name);
-    }
+  StatBase(std::string _name) { name(_name); }
 
-    StatBase(std::string _name, std::string _desc) {
-      name(_name);
-      desc(_desc);
-    }
+  StatBase(std::string _name, std::string _desc) {
+    name(_name);
+    desc(_desc);
+  }
 
-    StatBase<StatType> & name(std::string _name) {
-      statName = _name;
-      stat.name("ramulator." + _name);
+  StatBase<StatType>& name(std::string _name) {
+    statName = _name;
+    stat.name("ramulator." + _name);
 
-      return self();
-    }
+    return self();
+  }
 
-    const std::string &name(void) const { return statName; }
+  const std::string& name(void) const { return statName; }
 
-    StatBase<StatType> & setSeparator(const std::string & _sep) {
-      stat.setSeparator(_sep);
-      return self();
-    }
+  StatBase<StatType>& setSeparator(const std::string& _sep) {
+    stat.setSeparator(_sep);
+    return self();
+  }
 
-    const std::string &setSeparator() const { return stat.setSeparator(); }
+  const std::string& setSeparator() const { return stat.setSeparator(); }
 
-    StatBase<StatType> & desc(std::string _desc) {
-      stat.desc(_desc);
-      return self();
-    }
+  StatBase<StatType>& desc(std::string _desc) {
+    stat.desc(_desc);
+    return self();
+  }
 
-    StatBase<StatType> & precision(int _precision) {
-      stat.precision(_precision);
-      return self();
-    }
+  StatBase<StatType>& precision(int _precision) {
+    stat.precision(_precision);
+    return self();
+  }
 
-    StatBase<StatType> & flags(Stats::Flags _flags) {
-      stat.flags(_flags);
-      return self();
-    }
+  StatBase<StatType>& flags(Stats::Flags _flags) {
+    stat.flags(_flags);
+    return self();
+  }
 
-    template <class Stat>
-    StatBase<StatType> & prereq(const Stat & _prereq) {
-      stat.prereq(_prereq);
-      return self();
-    }
+  template <class Stat>
+  StatBase<StatType>& prereq(const Stat& _prereq) {
+    stat.prereq(_prereq);
+    return self();
+  }
 
-    Stats::size_type size(void) const { return stat.size(); }
-    bool zero(void) const { return stat.zero(); }
-    void prepare(void) { stat.prepare(); }
-    void reset(void) { stat.reset(); }
+  Stats::size_type size(void) const { return stat.size(); }
+  bool             zero(void) const { return stat.zero(); }
+  void             prepare(void) { stat.prepare(); }
+  void             reset(void) { stat.reset(); }
 };
 
-template<class StatType>
-class StatBaseVec : public StatBase<StatType> { // wrapper for Stats::DataWrapVec
-  protected:
-    StatBaseVec<StatType> & self() { return *this; }
+template <class StatType>
+class StatBaseVec
+    : public StatBase<StatType> {  // wrapper for Stats::DataWrapVec
+ protected:
+  StatBaseVec<StatType>& self() { return *this; }
 
-  public:
-    StatBaseVec<StatType> & subname(Stats::off_type index, const std::string & name) {
-      StatBase<StatType>::stat.subname(index, name);
-      return self();
-    }
+ public:
+  StatBaseVec<StatType>& subname(Stats::off_type    index,
+                                 const std::string& name) {
+    StatBase<StatType>::stat.subname(index, name);
+    return self();
+  }
 
-    StatBaseVec<StatType> & subdesc(Stats::off_type index, const std::string & desc) {
-      StatBase<StatType>::stat.subdesc(index, desc);
-      return self();
-    }
+  StatBaseVec<StatType>& subdesc(Stats::off_type    index,
+                                 const std::string& desc) {
+    StatBase<StatType>::stat.subdesc(index, desc);
+    return self();
+  }
 };
 
-template<class StatType>
-class ScalarStatBase : public StatBase<StatType> { // wrapper for Stats::ScalarBase
-  public:
-    Stats::Counter value() const { return StatBase<StatType>::stat.value(); };
-    void operator++() { ++StatBase<StatType>::stat; }
-    void operator--() { --StatBase<StatType>::stat; }
+template <class StatType>
+class ScalarStatBase
+    : public StatBase<StatType> {  // wrapper for Stats::ScalarBase
+ public:
+  Stats::Counter value() const { return StatBase<StatType>::stat.value(); };
+  void           operator++() { ++StatBase<StatType>::stat; }
+  void           operator--() { --StatBase<StatType>::stat; }
 
-    void operator++(int) { StatBase<StatType>::stat++; }
-    void operator--(int) { StatBase<StatType>::stat--; }
+  void operator++(int) { StatBase<StatType>::stat++; }
+  void operator--(int) { StatBase<StatType>::stat--; }
 
-    template <typename U>
-    void operator=(const U &v) { StatBase<StatType>::stat = v; }
+  template <typename U>
+  void operator=(const U& v) {
+    StatBase<StatType>::stat = v;
+  }
 
-    template <typename U>
-    void operator+=(const U &v) { StatBase<StatType>::stat += v; }
+  template <typename U>
+  void operator+=(const U& v) {
+    StatBase<StatType>::stat += v;
+  }
 
-    template <typename U>
-    void operator-=(const U &v) { StatBase<StatType>::stat -= v; }
+  template <typename U>
+  void operator-=(const U& v) {
+    StatBase<StatType>::stat -= v;
+  }
 };
 
-template<class StatType, class Element>
-class VectorStatBase : public StatBaseVec<StatType> { // wrapper for Stats::VectorBase
-  protected:
-    VectorStatBase<StatType, Element> & self() { return *this; }
+template <class StatType, class Element>
+class VectorStatBase
+    : public StatBaseVec<StatType> {  // wrapper for Stats::VectorBase
+ protected:
+  VectorStatBase<StatType, Element>& self() { return *this; }
 
-  public:
-    void value(Stats::VCounter & vec) const { StatBase<StatType>::stat.value(vec); }
-    void result(Stats::VResult & vec) const { StatBase<StatType>::stat.result(vec); }
-    Stats::Result total(void) const { return StatBase<StatType>::stat.total(); }
+ public:
+  void value(Stats::VCounter& vec) const {
+    StatBase<StatType>::stat.value(vec);
+  }
+  void result(Stats::VResult& vec) const {
+    StatBase<StatType>::stat.result(vec);
+  }
+  Stats::Result total(void) const { return StatBase<StatType>::stat.total(); }
 
-    bool check(void) const { return StatBase<StatType>::stat.check(); }
+  bool check(void) const { return StatBase<StatType>::stat.check(); }
 
-    VectorStatBase<StatType, Element> & init(Stats::size_type size) {
-      StatBase<StatType>::stat.init(size);
-      return self();
-    }
+  VectorStatBase<StatType, Element>& init(Stats::size_type size) {
+    StatBase<StatType>::stat.init(size);
+    return self();
+  }
 
 #ifdef INTEGRATED_WITH_GEM5
-    Stats::ScalarProxy<StatType> operator[](Stats::off_type index) { return StatBase<StatType>::stat[index]; }
+  Stats::ScalarProxy<StatType> operator[](Stats::off_type index) {
+    return StatBase<StatType>::stat[index];
+  }
 #else
-    Element &operator[](Stats::off_type index) { return StatBase<StatType>::stat[index]; }
+  Element& operator[](Stats::off_type index) {
+    return StatBase<StatType>::stat[index];
+  }
 #endif
 };
 
 
-template<class StatType>
-class DistStatBase : public StatBase<StatType> { // wrapper for Stats::DistBase
-  public:
-    template<typename U>
-    void sample(const U &v, int n = 1) { StatBase<StatType>::stat.sample(v, n); }
+template <class StatType>
+class DistStatBase : public StatBase<StatType> {  // wrapper for Stats::DistBase
+ public:
+  template <typename U>
+  void sample(const U& v, int n = 1) {
+    StatBase<StatType>::stat.sample(v, n);
+  }
 
-    void add(DistStatBase & d) { StatBase<StatType>::stat.add(d.StatBase<StatType>::stat); }
+  void add(DistStatBase& d) {
+    StatBase<StatType>::stat.add(d.StatBase<StatType>::stat);
+  }
 };
 
 
@@ -208,49 +228,46 @@ class DistStatBase : public StatBase<StatType> { // wrapper for Stats::DistBase
 */
 
 class ScalarStat : public ScalarStatBase<Stats::Scalar> {
-  public:
-    using ScalarStatBase<Stats::Scalar>::operator=;
+ public:
+  using ScalarStatBase<Stats::Scalar>::operator=;
 };
 
 class AverageStat : public ScalarStatBase<Stats::Average> {
-  public:
-    using ScalarStatBase<Stats::Average>::operator=;
+ public:
+  using ScalarStatBase<Stats::Average>::operator=;
 };
 
-class VectorStat : public VectorStatBase<Stats::Vector, Stats::Scalar> {
-};
+class VectorStat : public VectorStatBase<Stats::Vector, Stats::Scalar> {};
 
-class AverageVectorStat : public VectorStatBase<Stats::AverageVector, Stats::Average> {
-};
+class AverageVectorStat
+    : public VectorStatBase<Stats::AverageVector, Stats::Average> {};
 
 class DistributionStat : public DistStatBase<Stats::Distribution> {
-  protected:
-    DistributionStat & self() { return *this; }
+ protected:
+  DistributionStat& self() { return *this; }
 
-  public:
-    DistributionStat & init(Stats::Counter min, Stats::Counter max, Stats::Counter bkt) {
-      StatBase<Stats::Distribution>::stat.init(min, max, bkt);
-      return self();
-    }
-
+ public:
+  DistributionStat& init(Stats::Counter min, Stats::Counter max,
+                         Stats::Counter bkt) {
+    StatBase<Stats::Distribution>::stat.init(min, max, bkt);
+    return self();
+  }
 };
 
 class HistogramStat : public DistStatBase<Stats::Histogram> {
-  protected:
-    HistogramStat & self() { return *this; }
+ protected:
+  HistogramStat& self() { return *this; }
 
-  public:
-    HistogramStat & init(Stats::size_type size) {
-      StatBase<Stats::Histogram>::stat.init(size);
-      return self();
-    }
+ public:
+  HistogramStat& init(Stats::size_type size) {
+    StatBase<Stats::Histogram>::stat.init(size);
+    return self();
+  }
 };
 
-class StandardDeviationStat : public DistStatBase<Stats::StandardDeviation> {
-};
+class StandardDeviationStat : public DistStatBase<Stats::StandardDeviation> {};
 
-class AverageDeviationStat : public DistStatBase<Stats::AverageDeviation> {
-};
+class AverageDeviationStat : public DistStatBase<Stats::AverageDeviation> {};
 
 /*
   Stats TODO
