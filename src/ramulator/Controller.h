@@ -106,10 +106,10 @@ class Controller {
   Queue readq;   // queue for read requests
   Queue writeq;  // queue for write requests
   Queue actq;    // read and write requests for which activate was issued are
-               // moved to actq, which has higher priority than readq and
-               // writeq. This is an optimization for avoiding useless
-               // activations (i.e., PRECHARGE after ACTIVATE w/o READ of WRITE
-               // command)
+                 // moved to actq, which has higher priority than readq and
+                 // writeq. This is an optimization for avoiding useless
+  // activations (i.e., PRECHARGE after ACTIVATE w/o READ of WRITE
+  // command)
   Queue otherq;  // queue for all "other" requests (e.g., refresh)
 
   deque<Request> pending;   // read requests that are about to receive data from
@@ -128,20 +128,23 @@ class Controller {
   bool print_cmd_trace = false;
 
   // callback function for passing stats to Scarab when an event occurs
-  void (*stats_callback)(int) = nullptr;
+  void (*stats_callback)(int, unsigned, int) = nullptr;
 
 
   /* Constructor */
   Controller(const Config& configs, DRAM<T>* channel,
-             void (*_stats_callback)(int)) :
+             void (*_stats_callback)(int, unsigned, int)) :
       channel(channel),
       scheduler(new Scheduler<T>(this, configs)),
-      rowpolicy(new RowPolicy<T>(this)), rowtable(new RowTable<T>(this)),
+      rowpolicy(new RowPolicy<T>(this)),
+      rowtable(
+        new RowTable<T>(this, configs.get_config("track_reuse_distance"))),
       refresh(new Refresh<T>(this)), cmd_trace_files(channel->children.size()) {
     stats_callback = _stats_callback;
 
-    record_cmd_trace = configs.record_cmd_trace();
-    print_cmd_trace  = configs.print_cmd_trace();
+    record_cmd_trace = configs.get_config("record_cmd_trace");
+    print_cmd_trace  = configs.get_config("print_cmd_trace");
+
     if(record_cmd_trace) {
       if(configs["cmd_trace_prefix"] != "") {
         cmd_trace_prefix = configs["cmd_trace_prefix"];
@@ -436,7 +439,7 @@ class Controller {
 
     // issue command on behalf of request
     auto cmd = get_first_cmd(req);
-    issue_cmd(cmd, get_addr_vec(cmd, req));
+    issue_cmd(cmd, get_addr_vec(cmd, req), req->coreid, req->is_demand);
 
     // check whether this is the last command (which finishes the request)
     // if (cmd != channel->spec->translate[int(req->type)]){
@@ -576,22 +579,23 @@ class Controller {
     }
   }
 
-  void issue_cmd(typename T::Command cmd, const vector<int>& addr_vec) {
+  void issue_cmd(typename T::Command cmd, const vector<int>& addr_vec,
+                 int coreid = -1, bool demand_req = true) {
     cmd_issue_autoprecharge(cmd, addr_vec);
     assert(is_ready(cmd, addr_vec));
     channel->update(cmd, addr_vec.data(), clk);
 
     if(channel->spec->is_opening(cmd))
-      stats_callback(int(StatCallbackType::DRAM_ACT));
+      stats_callback(int(StatCallbackType::DRAM_ACT), 0, 0);
 
     if(channel->spec->is_closing(cmd))
-      stats_callback(int(StatCallbackType::DRAM_PRE));
+      stats_callback(int(StatCallbackType::DRAM_PRE), 0, 0);
 
     if(channel->spec->is_reading(cmd))
-      stats_callback(int(StatCallbackType::DRAM_READ));
+      stats_callback(int(StatCallbackType::DRAM_READ), 0, 0);
 
     if(channel->spec->is_writing(cmd))
-      stats_callback(int(StatCallbackType::DRAM_WRITE));
+      stats_callback(int(StatCallbackType::DRAM_WRITE), 0, 0);
 
 
     if(cmd == T::Command::PRE) {
@@ -600,7 +604,21 @@ class Controller {
       }
     }
 
-    rowtable->update(cmd, addr_vec, clk);
+    ReuseDistance rd = rowtable->update(cmd, addr_vec, clk);
+    if(rd.valid) {
+      if(demand_req) {
+        stats_callback(int(StatCallbackType::DEMAND_COL_REUSE), coreid,
+                       rd.column_reuse_distance);
+        stats_callback(int(StatCallbackType::DEMAND_ROW_REUSE), coreid,
+                       rd.row_reuse_distance);
+      } else {
+        stats_callback(int(StatCallbackType::NONDEMAND_COL_REUSE), coreid,
+                       rd.column_reuse_distance);
+        stats_callback(int(StatCallbackType::NONDEMAND_ROW_REUSE), coreid,
+                       rd.row_reuse_distance);
+      }
+    }
+
     if(record_cmd_trace) {
       // select rank
       auto&   file     = cmd_trace_files[addr_vec[1]];

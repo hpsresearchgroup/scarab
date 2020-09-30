@@ -24,8 +24,10 @@
 
 #include <cassert>
 #include <functional>
+#include <iterator>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include "Controller.h"
 #include "DRAM.h"
@@ -267,6 +269,11 @@ class RowPolicy {
     }};
 };
 
+struct ReuseDistance {
+  bool valid;
+  int  column_reuse_distance;
+  int  row_reuse_distance;
+};
 
 template <typename T>
 class RowTable {
@@ -281,15 +288,20 @@ class RowTable {
 
   map<vector<int>, Entry> table;
 
-  RowTable(Controller<T>* ctrl) : ctrl(ctrl) {}
+  RowTable(Controller<T>* ctrl, bool track_reuse_distance) :
+      ctrl(ctrl), track_reuse_distance(track_reuse_distance),
+      row_to_timestamp_to_col(0, vector_hash),
+      row_to_col_to_timestamp(0, vector_hash) {}
 
-  void update(typename T::Command cmd, const vector<int>& addr_vec, long clk) {
+  ReuseDistance update(typename T::Command cmd, const vector<int>& addr_vec,
+                       long clk) {
     auto        begin = addr_vec.begin();
     auto        end   = begin + int(T::Level::Row);
     vector<int> rowgroup(begin, end);  // bank or subarray
     int         row = *end;
 
-    T* spec = ctrl->channel->spec;
+    T*            spec = ctrl->channel->spec;
+    ReuseDistance rd   = {false, -1, -1};
 
     if(spec->is_opening(cmd))
       table.insert({rowgroup, {row, 0, clk}});
@@ -301,6 +313,9 @@ class RowTable {
       assert(match->second.row == row);
       match->second.hits++;
       match->second.timestamp = clk;
+      if(track_reuse_distance) {
+        rd = update_reuse_distance(addr_vec, clk);
+      }
     } /* accessing */
 
     if(spec->is_closing(cmd)) {
@@ -322,6 +337,9 @@ class RowTable {
 
       assert(n_rm > 0);
     } /* closing */
+
+    assert((spec->is_accessing(cmd) && track_reuse_distance) == rd.valid);
+    return rd;
   }
 
   int get_hits(const vector<int>& addr_vec, const bool to_opened_row = false) {
@@ -352,6 +370,61 @@ class RowTable {
       return -1;
 
     return itr->second.row;
+  }
+
+ private:
+  std::function<size_t(const vector<int>& v)> vector_hash =
+    [this](const vector<int>& v) -> size_t {
+    int*   sz   = ctrl->channel->spec->org_entry.count;
+    size_t hash = 0;
+
+    unsigned int lev;
+    for(lev = 1; lev < v.size(); lev++) {
+      hash += v[lev - 1];
+      hash <<= ((sizeof(sz[lev]) * __CHAR_BIT__) - __builtin_clz(sz[lev] - 1));
+    }
+    hash += v[lev - 1];
+
+    return hash;
+  };
+
+  bool track_reuse_distance = false;
+  unordered_map<vector<int>, map<long, int>, decltype(vector_hash)>
+    row_to_timestamp_to_col;
+  unordered_map<vector<int>, unordered_map<int, long>, decltype(vector_hash)>
+    row_to_col_to_timestamp;
+
+  ReuseDistance update_reuse_distance(const vector<int>& addr_vec, long clk) {
+    auto        begin = addr_vec.begin();
+    auto        end   = begin + int(T::Level::Column);
+    vector<int> row(begin, end);
+    int         col = *end;
+
+    ReuseDistance rd = {true, -1, -1};
+
+    if(0 == row_to_timestamp_to_col.count(row)) {
+      row_to_timestamp_to_col[row] = map<long, int>();
+      row_to_col_to_timestamp[row] = unordered_map<int, long>();
+    }
+
+    size_t count = row_to_col_to_timestamp.at(row).count(col);
+    if(count) {
+      long last_clk = row_to_col_to_timestamp.at(row).at(col);
+      std::map<long int, int>::const_iterator itr =
+        row_to_timestamp_to_col.at(row).find(last_clk);
+      assert(itr != row_to_timestamp_to_col.at(row).cend());
+      int reuse_distance = std::distance(
+        itr, row_to_timestamp_to_col.at(row).cend());
+      assert(reuse_distance >= 1);
+      reuse_distance -= 1;
+      rd.column_reuse_distance = reuse_distance;
+      row_to_timestamp_to_col.at(row).erase(itr);
+    }
+
+    row_to_timestamp_to_col[row][clk] = col;
+    row_to_col_to_timestamp[row][col] = clk;
+
+    return rd;
   }
 };
 

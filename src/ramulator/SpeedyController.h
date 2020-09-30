@@ -87,8 +87,8 @@ class SpeedyController
 
   /* Constructor */
   SpeedyController(const Config& configs, DRAM<T>* channel) : channel(channel) {
-    record_cmd_trace = configs.record_cmd_trace();
-    print_cmd_trace  = configs.print_cmd_trace();
+    record_cmd_trace = configs.get_config("record_cmd_trace");
+    print_cmd_trace  = configs.get_config("print_cmd_trace");
     if(record_cmd_trace) {
       string prefix = cmd_trace_prefix + "chan-" + to_string(channel->id) +
                       "-rank-";

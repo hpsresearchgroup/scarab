@@ -63,7 +63,7 @@ void init_configs();
 bool try_completing_request(Mem_Req* req);
 void enqueue_response(Request& req);
 
-void stats_callback(int type);
+void stats_callback(int type, uns proc_id, int bucket_index);
 
 deque<Mem_Req*> resp_queue;  // completed read request that need to send back to
                              // Scarab
@@ -92,19 +92,49 @@ void ramulator_finish() {
   delete configs;
 }
 
-void stats_callback(int type) {
+void stats_callback(int type, uns proc_id, int bucket_index) {
+  int stat_index;
+
   switch(type) {
     case int(StatCallbackType::DRAM_ACT):
-      STAT_EVENT(0, POWER_DRAM_ACTIVATE);
+      STAT_EVENT(proc_id, POWER_DRAM_ACTIVATE);
       break;
     case int(StatCallbackType::DRAM_PRE):
-      STAT_EVENT(0, POWER_DRAM_PRECHARGE);
+      STAT_EVENT(proc_id, POWER_DRAM_PRECHARGE);
       break;
     case int(StatCallbackType::DRAM_READ):
-      STAT_EVENT(0, POWER_DRAM_READ);
+      STAT_EVENT(proc_id, POWER_DRAM_READ);
       break;
     case int(StatCallbackType::DRAM_WRITE):
-      STAT_EVENT(0, POWER_DRAM_WRITE);
+      STAT_EVENT(proc_id, POWER_DRAM_WRITE);
+      break;
+    case int(StatCallbackType::DEMAND_COL_REUSE):
+      assert(bucket_index >= -1 && bucket_index <= 127);
+      stat_index = (-1 == bucket_index) ? -1 : (bucket_index / 4);
+      assert(((ALL_CORES_DRAM_DEMAND_COL_REUSE_DIST_0_3 + stat_index) >=
+              ALL_CORES_DRAM_DEMAND_COL_REUSE_DIST_INF) &&
+             ((ALL_CORES_DRAM_DEMAND_COL_REUSE_DIST_0_3 + stat_index) <=
+              ALL_CORES_DRAM_DEMAND_COL_REUSE_DIST_124_127));
+      STAT_EVENT_ALL(ALL_CORES_DRAM_DEMAND_COL_REUSE_DIST_0_3 + stat_index);
+      assert(((PER_CORE_DRAM_DEMAND_COL_REUSE_DIST_0_3 + stat_index) >=
+              PER_CORE_DRAM_DEMAND_COL_REUSE_DIST_INF) &&
+             ((PER_CORE_DRAM_DEMAND_COL_REUSE_DIST_0_3 + stat_index) <=
+              PER_CORE_DRAM_DEMAND_COL_REUSE_DIST_124_127));
+      STAT_EVENT(proc_id, PER_CORE_DRAM_DEMAND_COL_REUSE_DIST_0_3 + stat_index);
+
+    case int(StatCallbackType::NONDEMAND_COL_REUSE):
+      assert(bucket_index >= -1 && bucket_index <= 127);
+      stat_index = (-1 == bucket_index) ? -1 : (bucket_index / 4);
+      assert(((ALL_CORES_DRAM_ALL_COL_REUSE_DIST_0_3 + stat_index) >=
+              ALL_CORES_DRAM_ALL_COL_REUSE_DIST_INF) &&
+             ((ALL_CORES_DRAM_ALL_COL_REUSE_DIST_0_3 + stat_index) <=
+              ALL_CORES_DRAM_ALL_COL_REUSE_DIST_124_127));
+      STAT_EVENT_ALL(ALL_CORES_DRAM_ALL_COL_REUSE_DIST_0_3 + stat_index);
+      assert(((PER_CORE_DRAM_ALL_COL_REUSE_DIST_0_3 + stat_index) >=
+              PER_CORE_DRAM_ALL_COL_REUSE_DIST_INF) &&
+             ((PER_CORE_DRAM_ALL_COL_REUSE_DIST_0_3 + stat_index) <=
+              PER_CORE_DRAM_ALL_COL_REUSE_DIST_124_127));
+      STAT_EVENT(proc_id, PER_CORE_DRAM_ALL_COL_REUSE_DIST_0_3 + stat_index);
       break;
   }
 }
@@ -136,6 +166,7 @@ void init_configs() {
   configs->add("print_cmd_trace", RAMULATOR_PRINT_CMD_TRACE);
   configs->add("use_rest_of_addr_as_row_addr",
                RAMULATOR_USE_REST_OF_ADDR_AS_ROW_ADDR);
+  configs->add("track_reuse_distance", RAMULATOR_TRACK_REUSE_DISTANCE);
 
   configs->add("scheduling_policy", RAMULATOR_SCHEDULING_POLICY);
   configs->add("readq_entries", to_string(RAMULATOR_READQ_ENTRIES));
@@ -283,8 +314,9 @@ void to_ramulator_req(const Mem_Req* scarab_req, Request* ramulator_req) {
             "Ramulator: Currently unsupported Scarab request type: %d\n",
             scarab_req->type);
 
-  ramulator_req->addr   = scarab_req->phys_addr;
-  ramulator_req->coreid = scarab_req->proc_id;
+  ramulator_req->addr      = scarab_req->phys_addr;
+  ramulator_req->coreid    = scarab_req->proc_id;
+  ramulator_req->is_demand = mem_req_type_is_demand(scarab_req->type);
 
   ramulator_req->callback = enqueue_response;
 }

@@ -173,7 +173,8 @@ class Memory : public MemoryBase {
       free_physical_pages.resize(free_physical_pages_remaining, -1);
     }
 
-    use_rest_of_addr_as_row_addr = configs.use_rest_of_addr_as_row_addr();
+    use_rest_of_addr_as_row_addr = configs.get_config(
+      "use_rest_of_addr_as_row_addr");
 
     dram_capacity.name("dram_capacity")
       .desc("Number of bytes in simulated DRAM")

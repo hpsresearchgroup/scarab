@@ -77,6 +77,8 @@ DEF_PARAM(ramulator_print_cmd_trace      , RAMULATOR_PRINT_CMD_TRACE            
 // will be included as a row bit
 DEF_PARAM(ramulator_use_rest_of_addr_as_row_addr, RAMULATOR_USE_REST_OF_ADDR_AS_ROW_ADDR  , char*   , string , "on"      , )
 
+DEF_PARAM(ramulator_track_reuse_distance, RAMULATOR_TRACK_REUSE_DISTANCE  , char*   , string , "off"      , )
+
 // Timing parameters (TODO: make these optional. If not specified, present // values defined by RAMULATOR_SPEED should be used instead.)
 DEF_PARAM(ramulator_tCK                  , RAMULATOR_TCK                           , uns     , uns    , 833333               , ) //in femtosecs
 DEF_PARAM(ramulator_tCL                  , RAMULATOR_TCL                           , uns     , uns    , 16                   , )

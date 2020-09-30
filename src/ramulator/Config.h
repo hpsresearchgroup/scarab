@@ -36,6 +36,10 @@ enum class StatCallbackType : int {
   DRAM_PRE,
   DRAM_READ,
   DRAM_WRITE,
+  DEMAND_COL_REUSE,
+  NONDEMAND_COL_REUSE,
+  DEMAND_ROW_REUSE,
+  NONDEMAND_ROW_REUSE,
   MAX
 };
 
@@ -67,7 +71,8 @@ class Config {
     // Other
     {"record_cmd_trace", "off"},
     {"print_cmd_trace", "off"},
-    {"use_rest_of_addr_as_row_addr", "on"}};
+    {"use_rest_of_addr_as_row_addr", "on"},
+    {"track_reuse_distance", "off"}};
 
   template <typename T>
   T get(const std::string& param_name,
@@ -176,29 +181,10 @@ class Config {
     return true;
   }
   bool calc_weighted_speedup() const { return (expected_limit_insts != 0); }
-  bool record_cmd_trace() const {
+  bool get_config(std::string config_name) const {
     // the default value is false
-    if(options.find("record_cmd_trace") != options.end()) {
-      if((options.find("record_cmd_trace"))->second == "on") {
-        return true;
-      }
-      return false;
-    }
-    return false;
-  }
-  bool print_cmd_trace() const {
-    // the default value is false
-    if(options.find("print_cmd_trace") != options.end()) {
-      if((options.find("print_cmd_trace"))->second == "on") {
-        return true;
-      }
-      return false;
-    }
-    return false;
-  }
-  bool use_rest_of_addr_as_row_addr() const {
-    if(options.find("use_rest_of_addr_as_row_addr") != options.end()) {
-      if((options.find("use_rest_of_addr_as_row_addr"))->second == "on") {
+    if(options.find(config_name) != options.end()) {
+      if((options.find(config_name))->second == "on") {
         return true;
       }
       return false;

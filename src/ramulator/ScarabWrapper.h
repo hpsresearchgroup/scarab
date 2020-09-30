@@ -40,7 +40,7 @@ class ScarabWrapper {
  public:
   // double tCK;
   ScarabWrapper(const Config& configs, const unsigned int cacheline,
-                void (*stats_callback)(int));
+                void (*stats_callback)(int, unsigned, int));
   ~ScarabWrapper();
   void tick();
   bool send(Request req);
