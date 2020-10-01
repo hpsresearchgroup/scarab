@@ -291,10 +291,12 @@ class RowTable {
   RowTable(Controller<T>* ctrl, bool track_reuse_distance) :
       ctrl(ctrl), track_reuse_distance(track_reuse_distance),
       row_to_timestamp_to_col(0, vector_hash),
-      row_to_col_to_timestamp(0, vector_hash) {}
+      row_to_col_to_timestamp(0, vector_hash),
+      bank_to_timestamp_to_row(0, vector_hash),
+      bank_to_row_to_timestamp(0, vector_hash) {}
 
   ReuseDistance update(typename T::Command cmd, const vector<int>& addr_vec,
-                       long clk) {
+                       long clk, bool demand_req, bool is_first_command) {
     auto        begin = addr_vec.begin();
     auto        end   = begin + int(T::Level::Row);
     vector<int> rowgroup(begin, end);  // bank or subarray
@@ -313,7 +315,7 @@ class RowTable {
       assert(match->second.row == row);
       match->second.hits++;
       match->second.timestamp = clk;
-      if(track_reuse_distance) {
+      if(track_reuse_distance /*&& demand_req && !is_first_command*/) {
         rd = update_reuse_distance(addr_vec, clk);
       }
     } /* accessing */
@@ -338,7 +340,8 @@ class RowTable {
       assert(n_rm > 0);
     } /* closing */
 
-    assert((spec->is_accessing(cmd) && track_reuse_distance) == rd.valid);
+    assert((spec->is_accessing(cmd) && track_reuse_distance /*&& demand_req &&
+            !is_first_command*/) == rd.valid);
     return rd;
   }
 
@@ -393,36 +396,62 @@ class RowTable {
     row_to_timestamp_to_col;
   unordered_map<vector<int>, unordered_map<int, long>, decltype(vector_hash)>
     row_to_col_to_timestamp;
+  unordered_map<vector<int>, map<long, int>, decltype(vector_hash)>
+    bank_to_timestamp_to_row;
+  unordered_map<vector<int>, unordered_map<int, long>, decltype(vector_hash)>
+    bank_to_row_to_timestamp;
 
   ReuseDistance update_reuse_distance(const vector<int>& addr_vec, long clk) {
-    auto        begin = addr_vec.begin();
-    auto        end   = begin + int(T::Level::Column);
-    vector<int> row(begin, end);
-    int         col = *end;
+    auto        begin   = addr_vec.begin();
+    auto        row_itr = begin + int(T::Level::Row);
+    vector<int> bank_vec(begin, row_itr);
+    int         row     = *row_itr;
+    auto        col_itr = begin + int(T::Level::Column);
+    vector<int> row_vec(begin, col_itr);
+    int         col = *col_itr;
 
     ReuseDistance rd = {true, -1, -1};
 
-    if(0 == row_to_timestamp_to_col.count(row)) {
-      row_to_timestamp_to_col[row] = map<long, int>();
-      row_to_col_to_timestamp[row] = unordered_map<int, long>();
+    if(0 == row_to_timestamp_to_col.count(row_vec)) {
+      row_to_timestamp_to_col[row_vec] = map<long, int>();
+      row_to_col_to_timestamp[row_vec] = unordered_map<int, long>();
+    }
+    if(0 == bank_to_timestamp_to_row.count(bank_vec)) {
+      bank_to_timestamp_to_row[bank_vec] = map<long, int>();
+      bank_to_row_to_timestamp[bank_vec] = unordered_map<int, long>();
     }
 
-    size_t count = row_to_col_to_timestamp.at(row).count(col);
+    size_t count = row_to_col_to_timestamp.at(row_vec).count(col);
     if(count) {
-      long last_clk = row_to_col_to_timestamp.at(row).at(col);
+      long last_clk = row_to_col_to_timestamp.at(row_vec).at(col);
       std::map<long int, int>::const_iterator itr =
-        row_to_timestamp_to_col.at(row).find(last_clk);
-      assert(itr != row_to_timestamp_to_col.at(row).cend());
+        row_to_timestamp_to_col.at(row_vec).find(last_clk);
+      assert(itr != row_to_timestamp_to_col.at(row_vec).cend());
       int reuse_distance = std::distance(
-        itr, row_to_timestamp_to_col.at(row).cend());
+        itr, row_to_timestamp_to_col.at(row_vec).cend());
       assert(reuse_distance >= 1);
       reuse_distance -= 1;
       rd.column_reuse_distance = reuse_distance;
-      row_to_timestamp_to_col.at(row).erase(itr);
+      row_to_timestamp_to_col.at(row_vec).erase(itr);
     }
+    row_to_timestamp_to_col[row_vec][clk] = col;
+    row_to_col_to_timestamp[row_vec][col] = clk;
 
-    row_to_timestamp_to_col[row][clk] = col;
-    row_to_col_to_timestamp[row][col] = clk;
+    count = bank_to_row_to_timestamp.at(bank_vec).count(row);
+    if(count) {
+      long last_clk = bank_to_row_to_timestamp.at(bank_vec).at(row);
+      std::map<long int, int>::const_iterator itr =
+        bank_to_timestamp_to_row.at(bank_vec).find(last_clk);
+      assert(itr != bank_to_timestamp_to_row.at(bank_vec).cend());
+      int reuse_distance = std::distance(
+        itr, bank_to_timestamp_to_row.at(bank_vec).cend());
+      assert(reuse_distance >= 1);
+      reuse_distance -= 1;
+      rd.row_reuse_distance = reuse_distance;
+      bank_to_timestamp_to_row.at(bank_vec).erase(itr);
+    }
+    bank_to_timestamp_to_row[bank_vec][clk] = row;
+    bank_to_row_to_timestamp[bank_vec][row] = clk;
 
     return rd;
   }

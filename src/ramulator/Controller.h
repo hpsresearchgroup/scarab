@@ -439,7 +439,8 @@ class Controller {
 
     // issue command on behalf of request
     auto cmd = get_first_cmd(req);
-    issue_cmd(cmd, get_addr_vec(cmd, req), req->coreid, req->is_demand);
+    issue_cmd(cmd, get_addr_vec(cmd, req), req->coreid, req->is_demand,
+              req->is_first_command);
 
     // check whether this is the last command (which finishes the request)
     // if (cmd != channel->spec->translate[int(req->type)]){
@@ -580,7 +581,8 @@ class Controller {
   }
 
   void issue_cmd(typename T::Command cmd, const vector<int>& addr_vec,
-                 int coreid = -1, bool demand_req = true) {
+                 int coreid = -1, bool demand_req = false,
+                 bool first_command = false) {
     cmd_issue_autoprecharge(cmd, addr_vec);
     assert(is_ready(cmd, addr_vec));
     channel->update(cmd, addr_vec.data(), clk);
@@ -604,7 +606,8 @@ class Controller {
       }
     }
 
-    ReuseDistance rd = rowtable->update(cmd, addr_vec, clk);
+    ReuseDistance rd = rowtable->update(cmd, addr_vec, clk, demand_req,
+                                        first_command);
     if(rd.valid) {
       if(demand_req) {
         stats_callback(int(StatCallbackType::DEMAND_COL_REUSE), coreid,
