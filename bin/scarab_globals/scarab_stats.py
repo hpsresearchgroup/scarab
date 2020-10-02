@@ -282,6 +282,9 @@ class StatFrame:
     # Dictionary format: {'col1': {'row1': 1, 'row2': 2}, 'col2': {'row1': 0.5, 'row2': 0.75}}
     stat_values = self.stat_df.to_dict()
 
+    if len(stat_values) == 0:
+      return #StatFrame is empty, nothing to compute
+
     new_stat_row = {}
     new_stat_metadata_row = {}
 
@@ -294,6 +297,7 @@ class StatFrame:
       new_stat_metadata_row[core_id] = "Equation"
 
     # Update stat in Pandas DF
+    print(stat_name, new_stat_row)
     self.stat_df.loc[stat_name] = new_stat_row
     self.stat_metadata_df.loc[stat_name] = new_stat_metadata_row
 
