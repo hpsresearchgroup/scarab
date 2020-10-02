@@ -140,8 +140,8 @@ class ScarabRun:
     for p in progress:
       print(p)
 
-  def get_stats(self):
-    suite_stat = self.job.get_stats(self.results_dir)
+  def get_stats(self, flat=False):
+    suite_stat = self.job.get_stats(self.results_dir, flat=flat)
     return suite_stat
 
   def print_commands(self):
@@ -183,7 +183,7 @@ class Executable:
 
   def get_stats(self, basename, flat=False):
     results_dir = self._results_dir(basename)
-    stat_frame = scarab_stats.StatFrame(results_dir)
+    stat_frame = scarab_stats.StatFrame(self.name, results_dir)
     if not flat:
       stat_frame.apply_weight(self.weight)
     return stat_frame
@@ -283,10 +283,10 @@ class Collection:
 
   def get_stats(self, basename, flat=False):
     results_dir = self._results_dir(basename)
-    stat_list = []
+    stat_collection = scarab_stats.StatCollection(self.name)
     for executable in self.exec_list:
-      stat_list.append(executable.get_stats(results_dir, flat=flat))
-    return stat_list
+      stat_collection.append(executable.get_stats(results_dir, flat=flat))
+    return stat_collection
 
 class Benchmark(Collection):
   """
@@ -297,12 +297,12 @@ class Benchmark(Collection):
     return "Benchmark"
 
   def get_stats(self, basename, flat=False):
-    stat_list = super().get_stats(basename, flat=flat)
+    stat_collection = super().get_stats(basename, flat=flat)
 
     if flat:
-      return stat_list
+      return stat_collection
     else:
-      return [ sum(stat_list).normalize().apply_weight(self.weight) ]
+      return stat_collection.accumulate().normalize().apply_weight(self.weight)
 
 class Suite(Collection):
   """
@@ -312,10 +312,9 @@ class Suite(Collection):
   def typestr(self):
     return "Suite"
 
-  def get_stats(self, basename):
-    bench_list = super().get_stats(basename)
-    suite_stat = scarab_stats.SuiteStat(label=self.name, collection=bench_list)
-    return suite_stat
+  def get_stats(self, basename, flat=False):
+    bench_collection = super().get_stats(basename, flat=False)
+    return bench_collection.normalize()
 
 ###########################################################################
 # Helper Functions

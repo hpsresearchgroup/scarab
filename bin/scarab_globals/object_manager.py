@@ -36,6 +36,7 @@ sys.path.append(os.path.dirname(__file__))
 from scarab_batch_types import *
 from batch_manager import *
 from command import *
+import scarab_stats
 
 class ObjectManager:
     def __init__(self):
@@ -72,11 +73,11 @@ class ScarabRunManager(ObjectManager):
       for job in self.pool:
         job.print_progress()
 
-    def get_stats(self):
-      job_stat = scarab_stats.StatFrame()
+    def get_stats(self, flat=False):
+      results = scarab_stats.StatRun("Scarab Stats")
       for job in self.pool:
-        job_stat.push(job.job_name, job.get_stats())
-      return job_stat
+        results.append(job.job_name, job.get_stats(flat=flat))
+      return results
 
     def print_commands(self):
       for job in self.pool:

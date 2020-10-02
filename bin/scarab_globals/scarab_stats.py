@@ -57,215 +57,66 @@ pd.set_option('display.max_colwidth', None)
 # Stat Hierarchy
 #####################################################################
 
-#class StatFrame:
-#  """
-#  A collection of SuiteStats, BenchmarkStats, and/or ExecutableStats.
-#
-#  Each item represents a different jobs. Sub-items with the same label
-#  are treated as the same Suite/Benchmark/Executable and the resulting
-#  stats are intersected before being presented in a unified grid.
-#
-#  suite1      Bench1  Bench2  Bench3 ....
-#  job1_name
-#  job2_name
-#
-#  suite2      Bench1  Bench2  Bench3 ....
-#  job1_name
-#  job2_name
-#  """
-#  def __init__(self):
-#    self.collection = {}
-#    self.df = {}
-#
-#  def push(self, job_name, suite_stat):
-#    """
-#    Args:
-#      job_name: Name of the job (row) which all stats are associated with
-#      suite_stat: The SuiteStat/BenchmarkStat/ExecutableStat associated with that job
-#    """
-#    if not suite_stat.label in self.collection:
-#      self.collection[suite_stat.label] = []
-#    self.collection[suite_stat.label].append({"job_name":job_name, "suite_stat":suite_stat})
-#
-#  def get(self, stat_name=None, core_id=None):
-#    self.df = {}
-#
-#    for suite_label in self.collection:
-#      flat_collection = {}
-#
-#      for suite_stat_obj in self.collection[suite_label]:
-#        job_name = suite_stat_obj["job_name"]
-#        suite_stat = suite_stat_obj["suite_stat"]
-#        if not suite_stat.no_stat_files:
-#          flat_collection[job_name] = suite_stat.get(core_id=core_id, stat_name=stat_name)
-#          flat_collection[job_name][StatConfig.job_name_header] = job_name
-#          flat_collection[job_name].reset_index(level=flat_collection[job_name].index.names, inplace=True)
-#
-#      self.df[suite_label] = pd.concat(flat_collection, sort=True, ignore_index=True)
-#      self.df[suite_label].set_index([StatConfig.job_name_header, StatConfig.benchmark_header, StatConfig.stat_name_header], drop=True, inplace=True)
-#
-#    return self.df
-#
-#  def get_frame(self, stat_name, core_id=[0], suites=None, job_list=slice(None), bench_list=slice(None)):
-#    self.get(stat_name=stat_name, core_id=core_id)
-#
-#    if not suites:
-#      suites = list(self.df.keys())
-#
-#    df_list = []
-#    for suite in suites:
-#      df = self.df[suite].loc[(job_list, bench_list)]
-#
-#      if len(stat_name) == 1:
-#        df.reset_index(level=[StatConfig.stat_name_header], drop=True, inplace=True)
-#
-#      df = df.unstack(level=StatConfig.benchmark_header)
-#      df_list.append(df)
-#    return df_list
-#
-#  def rollup(self):
-#    for suite_label in self.collection:
-#      for i in range(len(self.collection[suite_label])):
-#        self.collection[suite_label][i]["suite_stat"].rollup()
-#
-#  def intersect(self):
-#    for suite_label in self.collection:
-#      for i in range(len(self.collection[suite_label])):
-#        for j in range(i+1, len(self.collection[suite_label])):
-#          self.collection[suite_label][i]["suite_stat"].intersect( self.collection[suite_label][j]["suite_stat"] )
-#
-#class StatCollection:
-#  """
-#  """
-#  def __init__(self, label=None, collection=[]):
-#    self.label = label
-#    self.flat = True
-#    self.no_stat_files = True
-#    self.collection = {}
-#
-#    for c in collection:
-#      self.collection[c.label] = c
-#      if not c.no_stat_files:
-#        self.no_stat_files = False
-#
-#  def push(self, c):
-#    self.collection[c.label] = c
-#    if not c.no_stat_files:
-#      self.no_stat_files = False
-#
-#  def get(self, stat_name=None, core_id=None, benchmark_prefix=""):
-#    flat_collection = {}
-#
-#    if self.no_stat_files:
-#      return pd.DataFrame()
-#
-#    for label in self.collection:
-#      if not self.collection[label].no_stat_files:
-#        flat_collection[label] = self.collection[label].get(core_id=core_id, stat_name=stat_name)
-#        flat_collection[label].reset_index(level=flat_collection[label].index.names, inplace=True)
-#
-#    self.df = pd.concat(flat_collection, sort=True, ignore_index=True)
-#    self.df[StatConfig.benchmark_header] = benchmark_prefix + self.df[StatConfig.benchmark_header]
-#    self.df.set_index([StatConfig.benchmark_header, StatConfig.stat_name_header], drop=True, inplace=True)
-#    return self.df
-#
-#  def rollup(self):
-#    for label in self.collection:
-#      self.collection[label].rollup()
-#
-#  def intersect(self, rhs):
-#    assert type(self) == type(rhs), "Cannot intersect objects of different type"
-#
-#    if self.no_stat_files or rhs.no_stat_files:
-#      self.no_stat_files = True
-#      rhs.no_stat_files = True
-#
-#    for rhs_label in rhs.collection:
-#        if rhs_label in self.collection:
-#          rhs.collection[rhs_label].intersect(self.collection[rhs_label])
-#
-#class SuiteStat(StatCollection):
-#  """
-#  A collection of BenchmarkStats and/or ExecutableStats.
-#
-#  Each item in collection is a unique run or runs of scarab.
-#
-#                Bench1  Bench2  Bench3 ...
-#  suite_name
-#  """
-#  pass
-#
-#class BenchmarkStat(StatCollection):
-#  """
-#  A group of stats that should be combined using a weighted average.
-#  """
-#  def get(self, stat_name=None, core_id=None):
-#    if self.flat:
-#      return super().get(stat_name=stat_name, core_id=core_id, benchmark_prefix="{}::".format(self.label))
-#    else:
-#      df = self.df_wrapper.get(stat_name=stat_name, core_id=core_id)
-#      df.reset_index(level=df.index.names, inplace=True)
-#      df[StatConfig.benchmark_header] = self.label
-#      df.set_index([StatConfig.benchmark_header, StatConfig.stat_name_header], drop=True, inplace=True)
-#      if StatConfig.stat_file_header in df:
-#        df[StatConfig.stat_file_header] = "---"
-#      return df
-#
-#  def rollup(self):
-#    self.flat = False
-#    first = True
-#
-#    self.df_wrapper = DataFrameWrapper(0.0, self.label)
-#
-#    for label in self.collection:
-#      c = self.collection[label]
-#
-#      if c.df_wrapper.no_stat_files:
-#        continue
-#
-#      c.df_wrapper.apply_weight()
-#      if first:
-#        self.df_wrapper = c.df_wrapper
-#        first = False
-#      else:
-#        self.df_wrapper.accumulate(c.df_wrapper)
-#
-#    if not first:
-#      self.df_wrapper.normalize()
-#
-#    self.df_wrapper.label = self.label
-#
-#
-#class ExecutableStat:
-#  """
-#  Parse all the stats files in the results directory.
-#
-#  The ExecutableStat object lines up with the Checkpoint or Program object.
-#  """
-#  def __init__(self, results_dir, weight=1.0, label=None):
-#    self.label = label
-#    self.weight = weight
-#    self.results_dir = os.path.abspath(results_dir)
-#
-#    stat_file_parser = StatFileParser(self.results_dir, self.weight, self.label)
-#    self.df_wrapper = stat_file_parser.build_df()
-#    self.no_stat_files = self.df_wrapper.no_stat_files
-#
-#  def get(self, stat_name=None, core_id=None):
-#    return self.df_wrapper.get(stat_name=stat_name, core_id=core_id)
-#
-#  def rollup(self):
-#    return
-#
-#  def intersect(self, rhs):
-#    if self.no_stat_files or rhs.no_stat_files:
-#      self.no_stat_files = True
-#      rhs.no_stat_files = True
+class StatCollection:
+  """A collection (1 or more) of StatFrames.
+  
+  Provides:
+    1. An interface for averaging together StatFrames.
+  """
+  def __init__(self, name, frame_list=[]):
+    self.name = name
+    self.frame_list = frame_list[:]
 
+  def __str__(self):
+    return ", ".join([str(f) for f in self.frame_list])
 
-#####################################################################
-# Helper Objects
-#####################################################################
+  def append(self, frame):
+    self.frame_list.append(frame)
+
+  def accumulate(self):
+    stat_frame = None
+
+    for f in self.frame_list:
+      if not stat_frame:
+        stat_frame = f
+      else:
+        stat_frame += f
+
+    #self.frame_list = [stat_frame] if not stat_frame is None else []
+    stat_frame.name = self.name
+    return stat_frame
+
+  def normalize(self):
+    if len(self.frame_list) > 0:
+      self.frame_list = [ x.normalize() for x in self.frame_list ]
+    return self
+
+  def apply_weight(self, weight):
+    if len(self.frame_list) > 0:
+      self.frame_list = [ x.apply_weight(weight) for x in self.frame_list ]
+    return self
+
+  def get(self, stat_name=None, core_id=None):
+    combined_df = pd.DataFrame()
+    for frame in self.frame_list:
+      df = frame.get(stat_name=stat_name, core_id=core_id)
+      for column in df:
+        combined_df.loc[:, frame.name] = df[column].copy()
+    return combined_df
+
+class StatRun(StatCollection):
+  def append(self, frame_name, frame):
+    frame.name = frame_name
+    self.frame_list.append(frame)
+
+  def get(self, stat_name=None, core_id=None):
+    combined_df = pd.DataFrame()
+    for frame in self.frame_list:
+      df = frame.get(stat_name=stat_name, core_id=core_id)
+      for index, row in df.iterrows():
+        combined_df.loc[:, frame.name] = row.copy()
+
+    return combined_df.T
 
 class StatFrame:
   """A low level container, which holds all stats from a single run of Scarab.
@@ -276,18 +127,22 @@ class StatFrame:
        3. Intersect results from other scarab batch runs (Remove results that do not exist in both runs)
        4. Apply weights to stats, accumulate with other StatFrames
   """
-  def __init__(self, results_dir, weight=1.0):
+  def __init__(self, name, results_dir, weight=1.0):
     """Initialize the StatFrame by parsing the stats file and building the Pandas DF
 
     Args:
         results_dir (string): The path to the Scarab results directory
     """
+    self.name = name
     self.results_dir = os.path.abspath(results_dir)
     self.weight = weight
 
     self.stat_metadata_df = None
     self.stat_df = None
     self._build_df()
+
+  def __str__(self):
+    return self.results_dir
 
   def _build_df(self):
     """Parse stat file. Generate two pandas dataframes:
@@ -304,7 +159,7 @@ class StatFrame:
     self.stat_df.set_index(StatConfig.stat_name_header, drop=True, inplace=True)
     self.stat_metadata_df.set_index(StatConfig.stat_name_header, drop=True, inplace=True)
 
-  def apply_weight(self, weight):
+  def apply_weight(self, weight=1.0):
     """Multiply all stat values by weight
 
     The total weight applied to the StatFrame is tracked so StatFrame can later be normalized.
@@ -313,7 +168,7 @@ class StatFrame:
         weight (float): The value of the weight to apply
     """
     self.weight *= weight
-    self.stat_df.mul(weight)
+    self.stat_df.mul(self.weight)
     return self
 
   def normalize(self):
@@ -338,7 +193,7 @@ class StatFrame:
         rhs (StatFrame): The StatFrame on the RHS on the + sign
     """
     self.weight += rhs.weight
-    self.stat_df.add(rhs.df)
+    self.stat_df.add(rhs.stat_df)
     return self
 
   def get(self, stat_name=None, core_id=None):
@@ -361,10 +216,10 @@ class StatFrame:
     try:
       df_copy = self.stat_df.loc[parsed_stat_name, parsed_core_id].copy()
     except Exception as e:
-      print("Error: Could not index dataframe {results_dir} with stat_name={stat_name} and core={core_id}".format(
+      warn("Could not index dataframe {results_dir} with stat_name={stat_name} and core={core_id}".format(
         results_dir=self.results_dir, stat_name=parsed_stat_name, core_id=core_id))
-      print("Exception: " + str(e))
-      sys.exit(1)
+      #print("Exception: " + str(e))
+      df_copy = pd.DataFrame()
 
     return df_copy
 
