@@ -100,8 +100,13 @@ class StatCollection:
     combined_df = pd.DataFrame()
     for frame in self.frame_list:
       df = frame.get(stat_name=stat_name, core_id=core_id)
+
+      if df.empty:
+        combined_df.loc[:, frame.name] = np.nan
+
       for column in df:
         combined_df.loc[:, frame.name] = df[column].copy()
+
     return combined_df
 
 class StatRun(StatCollection):
@@ -113,6 +118,10 @@ class StatRun(StatCollection):
     combined_df = pd.DataFrame()
     for frame in self.frame_list:
       df = frame.get(stat_name=stat_name, core_id=core_id)
+
+      if df.empty:
+        combined_df.loc[:, frame.name] = np.nan
+
       for index, row in df.iterrows():
         combined_df.loc[:, frame.name] = row.copy()
 
@@ -297,7 +306,6 @@ class StatFrame:
       new_stat_metadata_row[core_id] = "Equation"
 
     # Update stat in Pandas DF
-    print(stat_name, new_stat_row)
     self.stat_df.loc[stat_name] = new_stat_row
     self.stat_metadata_df.loc[stat_name] = new_stat_metadata_row
 
