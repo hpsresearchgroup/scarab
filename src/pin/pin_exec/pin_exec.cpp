@@ -63,7 +63,7 @@ KNOB<UINT32> KnobCoreId(KNOB_MODE_WRITEONCE, "pintool", "core_id", "0",
                         "The ID of the Scarab core to connect to");
 
 KNOB<UINT32> KnobMaxBufferSize(
-  KNOB_MODE_WRITEONCE, "pintool", "max_buffer_size", "16",
+  KNOB_MODE_WRITEONCE, "pintool", "max_buffer_size", "8",
   "pintool buffers up to (max_buffer_size-2) instructions for sending");
 
 KNOB<UINT64> KnobHyperFastForwardCount(
