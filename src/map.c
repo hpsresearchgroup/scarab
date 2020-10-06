@@ -375,6 +375,15 @@ static inline void mem_map_entry_traversal_init(Mem_Map_Traversal* traversal,
   traversal->entry_addr             = traversal->first_entry_addr;
   traversal->first_entry_first_byte = MEM_MAP_BYTE_IN_ENTRY(va);
   traversal->last_entry_last_byte   = MEM_MAP_BYTE_IN_ENTRY(last_va);
+
+  if(0 == size) {
+    // special case - if the size is 0, we shouldn't do a traversal at all, so
+    // force the traversal to be "done"
+    traversal->entry_addr = ADDR_PLUS_OFFSET(traversal->last_entry_addr,
+                                             MEM_MAP_ENTRY_SIZE);
+    ASSERT(get_proc_id_from_cmp_addr(va),
+           mem_map_entry_traversal_done(traversal));
+  }
 }
 
 static inline Flag mem_map_entry_traversal_done(Mem_Map_Traversal* traversal) {
