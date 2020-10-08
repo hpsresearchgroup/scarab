@@ -68,10 +68,10 @@ typedef struct ctype_pin_inst_struct {
 
   uint64_t instruction_addr;  // 8 bytes
   uint8_t  size;              // 5 bits
-  // uint8_t opcode;           // 6 bits
-  uint8_t op_type;  // 6 bits
-  uint8_t cf_type;  // 4 bits
-  uint8_t is_fp;    // 1 bit
+  uint8_t  op_type;           // 6 bits
+  uint8_t  cf_type;           // 4 bits
+  uint8_t  is_fp;             // 1 bit
+  uint16_t true_op_type;      // 1600 entires, 11-bits (round up to 16 bits)
 
   uint8_t num_src_regs;
   uint8_t num_dst_regs;

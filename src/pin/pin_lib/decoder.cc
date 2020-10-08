@@ -228,7 +228,8 @@ void fill_in_basic_info(ctype_pin_inst* info, const INS& ins) {
   // Note: should be overwritten for a taken control flow instruction
   info->instruction_next_addr = INS_NextAddress(ins);
 
-  info->op_type = iclass_to_scarab_map[INS_Opcode(ins)].opcode;
+  info->true_op_type = INS_Opcode(ins);
+  info->op_type      = iclass_to_scarab_map[INS_Opcode(ins)].opcode;
   assert(INS_Mnemonic(ins).size() < sizeof(info->pin_iclass));
   strcpy(info->pin_iclass, INS_Mnemonic(ins).c_str());
 
