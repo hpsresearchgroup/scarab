@@ -802,6 +802,7 @@ void convert_pinuop_to_t_uop(uns8 proc_id, ctype_pin_inst* pi,
       convert_t_uop_to_info(proc_id, trace_uop[ii], info);
       trace_uop[ii]->info = info;
 
+      info->table_info->true_op_type           = pi->true_op_type;
       trace_uop[ii]->info->table_info->is_simd = pi->is_simd;
       trace_uop[ii]->info->uop_seq_num         = ii;
       strcpy(trace_uop[ii]->info->table_info->name, pi->pin_iclass);
