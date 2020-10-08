@@ -153,7 +153,8 @@ struct Table_Info_struct {
   Mem_Type mem_type;      // type of memory instruction
   Cf_Type  cf_type;       // type of control flow instruction
   Bar_Type bar_type;      // type of barrier caused by instruction
-  uns16    true_op_type;  /// type of opcode from PIN. Should not be used for Scarab timing.
+  uns16    true_op_type;  /// type of opcode from PIN. Should not be used for
+                          /// Scarab timing.
 
   uns num_dest_regs;  // number of destination registers written
   uns num_src_regs;   // number of source registers read
