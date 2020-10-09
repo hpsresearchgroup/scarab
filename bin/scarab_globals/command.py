@@ -89,6 +89,7 @@ class Command:
     self.__open_stderr()
 
     if self.run_dir:
+      print("here2")
       os.chdir(self.run_dir)
 
   def process_command_list(self):

@@ -73,7 +73,7 @@ def run_all():
 def show_progress():
   scarab_run_manager.print_progress()
 
-def get_stats(stat_name, cores, results_dirs):
+def get_stats(stat_name, cores, results_dirs, base=None):
   if not cores:
     cores = [0]
 
@@ -82,7 +82,9 @@ def get_stats(stat_name, cores, results_dirs):
   else:
     job_stat = scarab_stats.StatRun("Scarab Stats")
     for results_dir in results_dirs:
-      results_dir = results_dir.rstrip('/')
+      results_dir = os.path.abspath(results_dir.rstrip('/'))
+      if base:
+        base = os.path.abspath(base.rstrip('/'))
       basename = os.path.basename(results_dir)
       parent_dir = os.path.dirname(results_dir)
       stats = globals()[basename].get_stats(parent_dir)
@@ -90,8 +92,8 @@ def get_stats(stat_name, cores, results_dirs):
 
   df = job_stat.get(stat_name, cores)
 
-  if args.base:
-    df.loc[:] = df.loc[:].div(df.loc[args.base])
+  if base:
+    df.loc[:] = df.loc[:].div(df.loc[base])
 
   print(df)
 
@@ -103,7 +105,7 @@ def __main():
   if (args.progress):
     show_progress()
   if (args.stat):
-    get_stats(args.stat, args.core, args.results_dir)
+    get_stats(args.stat, args.core, args.results_dir, base=args.base)
 
 if __name__ == "__main__":
   __main()
