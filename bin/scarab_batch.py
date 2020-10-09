@@ -38,9 +38,11 @@ parser.add_argument('jobfile', help="Jobfile to operator on.")
 parser.add_argument('--run', action='store_true', help="Run all jobs in jobfile.")
 parser.add_argument('--progress', action='store_true', help="Print progress of all jobs in jobfile.")
 parser.add_argument('--stat', action='append', default=None, help="Print stat from results of all jobs in jobfile.")
-parser.add_argument('--base', default=None, help="Normalize all runs to this run.")
-parser.add_argument('--results_dir', nargs='*', default=None, help="Results directory(s) to parse stats from. Only valid with --stat option.")
 parser.add_argument('--core', action='append', default=None, help="Core(s) to get stats for. Only valid with --stat option.")
+parser.add_argument('--results_dir', nargs='*', default=None, help="Results directory(s) to parse stats from. Only valid with --stat option.")
+parser.add_argument('--base', default=None, help="Normalize all runs to this run.")
+parser.add_argument('--amean', action='store_true', help="Run all jobs in jobfile.")
+parser.add_argument('--gmean', action='store_true', help="Run all jobs in jobfile.")
 args = parser.parse_args()
 
 if not args.run and not args.progress and not args.stat:
@@ -92,10 +94,17 @@ def get_stats(stat_name, cores, results_dirs, base=None):
 
   df = job_stat.get(stat_name, cores)
 
-  if base:
-    df.loc[:] = df.loc[:].div(df.loc[base])
+  if args.amean:
+    df.amean()
 
-  print(df)
+  if base:
+    #df.loc[:] = df.loc[:].div(df.loc[base])
+    df.base(base)
+
+  if args.gmean:
+    df.gmean()
+
+  df.print()
 
 def __main():
   import_jobfile(args.jobfile)
