@@ -80,14 +80,19 @@ def get_stats(stat_name, cores, results_dirs):
   if not results_dirs:
     job_stat = scarab_run_manager.get_stats()
   else:
-    job_stat = scarab_stats.StatFrame()
+    job_stat = scarab_stats.StatRun("Scarab Stats")
     for results_dir in results_dirs:
+      results_dir = results_dir.rstrip('/')
       basename = os.path.basename(results_dir)
       parent_dir = os.path.dirname(results_dir)
       stats = globals()[basename].get_stats(parent_dir)
-      job_stat.push(parent_dir, stats)
+      job_stat.append(results_dir, stats)
 
   df = job_stat.get(stat_name, cores)
+
+  if args.base:
+    df.loc[:] = df.loc[:].div(df.loc[args.base])
+
   print(df)
 
 def __main():
