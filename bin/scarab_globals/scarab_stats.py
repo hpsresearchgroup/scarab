@@ -53,6 +53,8 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
 pd.set_option('display.max_colwidth', None)
 
+print_warnings = True
+
 #####################################################################
 # Stat Hierarchy
 #####################################################################
@@ -82,7 +84,6 @@ class StatCollection:
       else:
         stat_frame += f
 
-    #self.frame_list = [stat_frame] if not stat_frame is None else []
     stat_frame.name = self.name
     return stat_frame
 
@@ -177,14 +178,14 @@ class StatFrame:
         weight (float): The value of the weight to apply
     """
     self.weight *= weight
-    self.stat_df.mul(self.weight)
+    self.stat_df = self.stat_df.mul(self.weight)
     return self
 
   def normalize(self):
     """Divide the statframe by the total weight applied to the StateFrame.
     This function sets weight back to 1.0 (i.e., the normalized value)
     """
-    self.stat_df.div(self.weight)
+    self.stat_df = self.stat_df.div(self.weight)
     self.weight = 1.0
     return self
 
@@ -202,7 +203,7 @@ class StatFrame:
         rhs (StatFrame): The StatFrame on the RHS on the + sign
     """
     self.weight += rhs.weight
-    self.stat_df.add(rhs.stat_df)
+    self.stat_df = self.stat_df.add(rhs.stat_df)
     return self
 
   def get(self, stat_name=None, core_id=None):
@@ -225,8 +226,9 @@ class StatFrame:
     try:
       df_copy = self.stat_df.loc[parsed_stat_name, parsed_core_id].copy()
     except Exception as e:
-      warn("Could not index dataframe {results_dir} with stat_name={stat_name} and core={core_id}".format(
-        results_dir=self.results_dir, stat_name=parsed_stat_name, core_id=core_id))
+      if print_warnings:
+        warn("Could not index dataframe {results_dir} with stat_name={stat_name} and core={core_id}".format(
+          results_dir=self.results_dir, stat_name=parsed_stat_name, core_id=core_id))
       #print("Exception: " + str(e))
       df_copy = pd.DataFrame()
 
@@ -347,7 +349,8 @@ class StatFileParser:
 
     # Check to see if any stats were generated
     if len(stats_file_list) == 0:
-      warn("could not find stats files for {} : Skipping...".format(self.results_dir))
+      if print_warnings:
+        warn("No stat files for {} : Skipping...".format(self.results_dir))
     else:
       self.no_stat_files = False
 
@@ -376,7 +379,8 @@ class StatFileParser:
             stat, value = self._parse_stat(line)
             self._add_stat(core_id, stat, value, statsfile)
     except Exception as e:
-      warn("Exception found in {}:".format(statsfile) + str(e))
+      if print_warnings:
+        warn("Unable to read stats file {} : ".format(statsfile) + str(e))
 
   def _parse_stat(self, stat_str, reset_stats_column=True):
     """Convert stat string to stat name and float
