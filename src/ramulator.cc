@@ -143,49 +143,48 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
       if(-1 == bucket_index) {
         stat_index = -1;
       } else {
-        if(bucket_index < 128) {
-          stat_index = bucket_index / 16;
+        if(bucket_index < 256) {
+          stat_index = bucket_index;
         } else {
-          stat_index = MIN2(39, 8 + ((bucket_index - 128) / 128));
+          stat_index = MIN2(270, 256 + ((bucket_index - 256) / 128));
         }
       }
 
-      assert(((ALL_CORES_DRAM_DEMAND_ROW_REUSE_DIST_0_15 + stat_index) >=
+      assert(((ALL_CORES_DRAM_DEMAND_ROW_REUSE_DIST_0 + stat_index) >=
               ALL_CORES_DRAM_DEMAND_ROW_REUSE_DIST_INF) &&
-             ((ALL_CORES_DRAM_DEMAND_ROW_REUSE_DIST_0_15 + stat_index) <=
-              ALL_CORES_DRAM_DEMAND_ROW_REUSE_DIST_4096_MORE));
-      STAT_EVENT_ALL(ALL_CORES_DRAM_DEMAND_ROW_REUSE_DIST_0_15 + stat_index);
+             ((ALL_CORES_DRAM_DEMAND_ROW_REUSE_DIST_0 + stat_index) <=
+              ALL_CORES_DRAM_DEMAND_ROW_REUSE_DIST_2048_MORE));
+      STAT_EVENT_ALL(ALL_CORES_DRAM_DEMAND_ROW_REUSE_DIST_0 + stat_index);
 
-      assert(((PER_CORE_DRAM_DEMAND_ROW_REUSE_DIST_0_15 + stat_index) >=
+      assert(((PER_CORE_DRAM_DEMAND_ROW_REUSE_DIST_0 + stat_index) >=
               PER_CORE_DRAM_DEMAND_ROW_REUSE_DIST_INF) &&
-             ((PER_CORE_DRAM_DEMAND_ROW_REUSE_DIST_0_15 + stat_index) <=
-              PER_CORE_DRAM_DEMAND_ROW_REUSE_DIST_4096_MORE));
-      STAT_EVENT(proc_id,
-                 PER_CORE_DRAM_DEMAND_ROW_REUSE_DIST_0_15 + stat_index);
+             ((PER_CORE_DRAM_DEMAND_ROW_REUSE_DIST_0 + stat_index) <=
+              PER_CORE_DRAM_DEMAND_ROW_REUSE_DIST_2048_MORE));
+      STAT_EVENT(proc_id, PER_CORE_DRAM_DEMAND_ROW_REUSE_DIST_0 + stat_index);
 
     case int(StatCallbackType::NONDEMAND_ROW_REUSE):
       assert(bucket_index >= -1 && bucket_index <= ((int)RAMULATOR_ROWS - 1));
       if(-1 == bucket_index) {
         stat_index = -1;
       } else {
-        if(bucket_index < 128) {
-          stat_index = bucket_index / 16;
+        if(bucket_index < 256) {
+          stat_index = bucket_index;
         } else {
-          stat_index = MIN2(39, 8 + ((bucket_index - 128) / 128));
+          stat_index = MIN2(270, 256 + ((bucket_index - 256) / 128));
         }
       }
 
-      assert(((ALL_CORES_DRAM_ALL_ROW_REUSE_DIST_0_15 + stat_index) >=
+      assert(((ALL_CORES_DRAM_ALL_ROW_REUSE_DIST_0 + stat_index) >=
               ALL_CORES_DRAM_ALL_ROW_REUSE_DIST_INF) &&
-             ((ALL_CORES_DRAM_ALL_ROW_REUSE_DIST_0_15 + stat_index) <=
-              ALL_CORES_DRAM_ALL_ROW_REUSE_DIST_4096_MORE));
-      STAT_EVENT_ALL(ALL_CORES_DRAM_ALL_ROW_REUSE_DIST_0_15 + stat_index);
+             ((ALL_CORES_DRAM_ALL_ROW_REUSE_DIST_0 + stat_index) <=
+              ALL_CORES_DRAM_ALL_ROW_REUSE_DIST_2048_MORE));
+      STAT_EVENT_ALL(ALL_CORES_DRAM_ALL_ROW_REUSE_DIST_0 + stat_index);
 
-      assert(((PER_CORE_DRAM_ALL_ROW_REUSE_DIST_0_15 + stat_index) >=
+      assert(((PER_CORE_DRAM_ALL_ROW_REUSE_DIST_0 + stat_index) >=
               PER_CORE_DRAM_ALL_ROW_REUSE_DIST_INF) &&
-             ((PER_CORE_DRAM_ALL_ROW_REUSE_DIST_0_15 + stat_index) <=
-              PER_CORE_DRAM_ALL_ROW_REUSE_DIST_4096_MORE));
-      STAT_EVENT(proc_id, PER_CORE_DRAM_ALL_ROW_REUSE_DIST_0_15 + stat_index);
+             ((PER_CORE_DRAM_ALL_ROW_REUSE_DIST_0 + stat_index) <=
+              PER_CORE_DRAM_ALL_ROW_REUSE_DIST_2048_MORE));
+      STAT_EVENT(proc_id, PER_CORE_DRAM_ALL_ROW_REUSE_DIST_0 + stat_index);
       break;
   }
 }
