@@ -265,16 +265,19 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
                 "table (both RAM and CAM) scheme");
 
   /* Instructions are "dispatched" from rename to reservation stations, and
-   * "Issued" from reservation stations to functional units */
+   * "Issued" from reservation stations to functional units*/
   /* Note: this seems to be inaccurate, issue_width should not be the same as
    * dispatch width. issue_width=NUM_FUS and dispatch_width=RS_FILL_WIDTH*/
+  /* Note: McPat uses issue_width to compute the pipeline (FP and INT) register
+   * storage, while it uses peak_issue_width to compute number of register file
+   * and instruction window ports.*/
   ADD_XML_PARAM(out, header, "issue_width", NUM_FUS,
                 "issue_width determins the number of ports of Issue window and "
                 "other logic as in the complexity effective proccessors paper; "
                 "issue_width==dispatch_width");
-  ADD_XML_PARAM(
-    out, header, "peak_issue_width",
-    NUM_FUS, );  // TODO: what is the difference between peak and normal?
+  ADD_XML_PARAM(out, header, "peak_issue_width", NUM_FUS, 
+      "peak_issue_width is used to determine the number of "
+      "read/write ports of the instruction window and the register file");
 
   ADD_XML_PARAM(out, header, "commit_width", NODE_RET_WIDTH,
                 "commit_width determins the number of ports of register files");
@@ -285,39 +288,52 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
 
   /* Current version of McPAT does not distinguish int and floating point
    * pipelines. Theses parameters are reserved for future use.*/
+  /* Note: what does it mean to share the pipeline? McPat does not seem to have
+   * a special case for floating_pipelines=0. It is unclear how setting this to
+   * zero would cause any kind of sharing (whatever sharing means). */
   ADD_XML_PARAM_str(
     out, header, "pipelines_per_core", std::string("1,1"),
     "integer_pipeline and floating_pipelines, if the floating_pipelines is 0, "
-    "then the pipeline is shared");  // TODO: what does it mean to share the
-                                     // pipeline?
+    "then the pipeline is shared");  
   ADD_XML_PARAM_str(
     out, header, "pipeline_depth",
     std::to_string(PIPELINE_DEPTH) + "," + std::to_string(PIPELINE_DEPTH),
     "pipeline depth of int and fp, if pipeline is shared, the "
     "second number is the average cycles of fp ops issue and "
     "exe unit"); /*Scarab: FP pipeline depth is not used*/
+
   ADD_XML_PARAM(out, header, "ALU_per_core", POWER_NUM_ALUS,
                 "contains an adder, a shifter, and a logical unit");
   ADD_XML_PARAM(out, header, "MUL_per_core", POWER_NUM_MULS_AND_DIVS,
                 "For MUL and Div");
   ADD_XML_PARAM(out, header, "FPU_per_core", POWER_NUM_FPUS, );
+
+  /* Note: what is instruction_buffer_size? based on the comment and how McPat
+   * uses this parameter, instruction_buffer_size is the size of an instruction
+   * buffer between fetch and decode stage (per hardware thread). McPat
+   * multiplies this value with the issue_width, which makes size of this
+   * buffer to be in packets rather than instructions. 
+   * With this setting, McPat will place a "32 * (instruction_length *
+   * issue_width)" buffer between the instruction fetch and decode stages.*/
   ADD_XML_PARAM(out, header, "instruction_buffer_size", 32,
-                "buffer between IF and ID stage");  // TODO: what is this?
+                "buffer between IF and ID stage");
+
+  /* Note: this value is set to 16 by default, including all McPat pre-defined
+   * descriptor files. However, McPat does not use it.*/
   ADD_XML_PARAM(out, header, "decoded_stream_buffer_size", 16,
-                "buffer between ID and sche/exe stage");  // TODO: why is this
-                                                          // not equal to above
+                "buffer between ID and sche/exe stage");  
+                                                          
   ADD_XML_PARAM(out, header, "instruction_window_scheme", 0,
                 "0 PHYREG based, 1 RSBASED. McPAT support 2 types of OoO "
                 "cores, RS based and physical reg based.");
-  ADD_XML_PARAM(
-    out, header, "instruction_window_size",
-    std::min(POWER_TOTAL_INT_RS_SIZE, NODE_TABLE_SIZE),
-    "Instruction window is limited by the size of the RS and ROB");  // TODO:make
-                                                                     // sure int
-                                                                     // rs and
-                                                                     // fp rs
-                                                                     // are
-                                                                     // overlapping
+
+  // TODO: make sure int rs and fp rs are overlapping
+  // FIXME: based on my current understanding, McPat considers both anyway. So,
+  // if we use a unified RS for both int and fp, then with current setting,
+  // McPat is going to consider the power twice
+  ADD_XML_PARAM(out, header, "instruction_window_size",
+                std::min(POWER_TOTAL_INT_RS_SIZE, NODE_TABLE_SIZE),
+                "Instruction window is limited by the size of the RS and ROB");  
   ADD_XML_PARAM(out, header, "fp_instruction_window_size",
                 std::min(POWER_TOTAL_FP_RS_SIZE, NODE_TABLE_SIZE),
                 "Instruction window is limited by the size of the RS and ROB");
@@ -326,13 +342,13 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
   ADD_XML_PARAM(out, header, "ROB_size", NODE_TABLE_SIZE,
                 "each in-flight instruction has an entry in ROB");
 
-  /*Registers*/
+  /* Registers */
   ADD_XML_PARAM(out, header, "archi_Regs_IRF_size", 16,
                 "Number of integer architectural registers");
   ADD_XML_PARAM(out, header, "archi_Regs_FRF_size", 32,
                 "Number of floating point architectural registers");
 
-  /*if OoO processor, phy_reg number is needed for renaming logic, renaming
+  /* if OoO processor, phy_reg number is needed for renaming logic, renaming
    * logic is for both integer and floating point insts.*/
   ADD_XML_PARAM(
     out, header, "phy_Regs_IRF_size", NODE_TABLE_SIZE,
@@ -351,29 +367,25 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
                 "CAM need RAM-based checkpoint table, checkpoint_depth=# of "
                 "in_flight instructions; Detailed RAT Implementation see McPat "
                 "TR");
+  /* register windows */
   ADD_XML_PARAM(out, header, "register_windows_size", 0,
                 "how many windows in the windowed register file, sun "
                 "processors; no register windowing is used when this number is "
                 "0");
-  ADD_XML_PARAM_str(
-    out, header, "LSU_order", "out-of-order",
+
+  /* LSU */
+  /* Note: LSU_order param is not used in McPat */
+  ADD_XML_PARAM_str(out, header, "LSU_order", "out-of-order",
     "In OoO cores, loads and stores can be issued whether inorder(Pentium Pro) "
     "or (OoO)out-of-order(Alpha), They will always try to exeute out-of-order "
-    "though.");  // TODO: is this inorder or out-of-order?
-  ADD_XML_PARAM(out, header, "store_buffer_size",
-                NODE_TABLE_SIZE / 3, ); /*Scarab: Scarab does
-                                           not model a store
-                                           buffer, this is an
-                                           estimation*/
-  ADD_XML_PARAM(
-    out, header, "load_buffer_size", NODE_TABLE_SIZE / 3,
-    "By default, in-order cores do not have load buffers"); /*Scarab: Scarab
-                                                               does not model a
-                                                               load buffer, this
-                                                               is an
-                                                               estimation*/
-  ADD_XML_PARAM(
-    out, header, "memory_ports", DCACHE_READ_PORTS,
+    "though.");
+  /* Note: Scarab does not model a store buffer, this is an estimation*/
+  ADD_XML_PARAM(out, header, "store_buffer_size", NODE_TABLE_SIZE / 3, ); 
+  /* Note: Scarab does not model a load buffer, this is an estimation*/
+  ADD_XML_PARAM(out, header, "load_buffer_size", NODE_TABLE_SIZE / 3,
+    "By default, in-order cores do not have load buffers"); 
+
+  ADD_XML_PARAM(out, header, "memory_ports", DCACHE_READ_PORTS,
     "number of ports refer to sustainable concurrent memory "
     "accesses. max_allowed_in_flight_memo_instructions determins "
     "the # of ports of load and store buffer as well as the ports "
@@ -507,8 +519,8 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
   ADD_XML_STAT(out, header, "MUL_cdb_duty_cycle", 0.3, );
   ADD_XML_STAT(out, header, "FPU_cdb_duty_cycle", 0.3, );
 
-  ADD_XML_PARAM(out, header, "number_of_BPT",
-                2, );  // TODO: not sure what this is or if McPAT even uses it.
+  /* Note: McPat does not use number_of_BPT param. */
+  ADD_XML_PARAM(out, header, "number_of_BPT", 2, ); 
 
   /***********************************************************************/
   header = "\t\t";
@@ -521,31 +533,36 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
   ADD_XML_PARAM_str(out, header, "local_predictor_size",
                     "10,3", );  // TODO: these bp params need to look like the
                                 // new TAGE predictor that scarab has
-  ADD_XML_PARAM(out, header, "local_predictor_entries", 1024, );
-  ADD_XML_PARAM(out, header, "global_predictor_entries", 4096, );
-  ADD_XML_PARAM(out, header, "global_predictor_bits", 2, );
+  ADD_XML_PARAM(out, header, "local_predictor_entries",   1024, );
+  ADD_XML_PARAM(out, header, "global_predictor_entries",  4096, );
+  ADD_XML_PARAM(out, header, "global_predictor_bits",     2,    );
   ADD_XML_PARAM(out, header, "chooser_predictor_entries", 4096, );
-  ADD_XML_PARAM(out, header, "chooser_predictor_bits", 2, );
+  ADD_XML_PARAM(out, header, "chooser_predictor_bits",    2,    );
 
-  /*These parameters can be combined like below in next version Scarab:TODO: do
-    we need to update the params to look like this? <param name="load_predictor"
-    value="10,3,1024"/> <param name="global_predictor" value="4096,2"/> <param
-    name="predictor_chooser" value="4096,2"/>*/
+  /* Note from McPat: These parameters can be combined like below in next
+   * version. 
+   * <param name="load_predictor" value="10,3,1024"/> 
+   * <param name="global_predictor" value="4096,2"/> 
+   * <param name="predictor_chooser" value="4096,2"/>
+   *
+   * Scarab TODO: do we need to update the params to look like this?*/ 
   END_OF_COMPONENT(out, header);
 
   /***********************************************************************/
 
   ADD_XML_COMPONENT(
     out, header, "system.core" + std::to_string(core_id) + ".itlb", "itlb", );
-  ADD_XML_PARAM(
-    out, header, "number_entries", 128,
+  ADD_XML_PARAM(out, header, "number_entries", 128,
     "Scarab: models perfect tlb, this number is hard coded in the power file");
-  ADD_XML_CORE_STAT(out, header, core_id, "total_accesses",
-                    POWER_ITLB_ACCESS, );
+
+  ADD_XML_CORE_STAT(out, header, core_id, "total_accesses", POWER_ITLB_ACCESS, );
   ADD_XML_STAT(out, header, "total_misses", 0, "Scarab: perfect TLB");
+  /* Note: conflicts parameter is not used in McPat anywhere, although some of
+   * the predefined descriptor files have non-zero values. */
   ADD_XML_STAT(out, header, "conflicts", 0, );
   /* there is no write requests to itlb although writes happen to itlb after
-   * miss, which is actually a replacement*/
+   * miss, which is actually a replacement */
+
   END_OF_COMPONENT(out, header);
 
   /***********************************************************************/
@@ -553,22 +570,23 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
   ADD_XML_COMPONENT(out, header,
                     "system.core" + std::to_string(core_id) + ".icache",
                     "icache", );
-  /*TODO: Scarab: FIXME: icache cycles (scarab assumes 1, that may be too fast
-   * for McPAT, bug #25)*/
-  ADD_XML_PARAM_str(
-    out, header, "icache_config",
-    std::to_string(ICACHE_SIZE) + "," +        /*Capacity*/
+
+  /* FIXME: icache cycles (scarab assumes 1, that may be too fast for McPAT,
+   * bug #25). */
+  ADD_XML_PARAM_str(out, header, "icache_config",
+      std::to_string(ICACHE_SIZE) + "," +      /*Capacity*/
       std::to_string(ICACHE_LINE_SIZE) + "," + /*Block_width*/
       std::to_string(ICACHE_ASSOC) + "," +     /*associativity*/
       std::to_string(ICACHE_BANKS) +           /*bank*/
-      ",1,3,32,1", /*throughput w.r.t. core clock, latency w.r.t. core clock,
-                      output_width, cache policy (0 no write or write-though
-                      with non-write allocate; 1 write-back with
-                      write-allocate)*/
+      ",1,3,32,1", /* throughput w.r.t. core clock, latency w.r.t. core clock,
+                    * output_width, cache policy (0 no write or write-though
+                    * with non-write allocate; 1 write-back with
+                    * write-allocate) */
     "the parameters are capacity,block_width, associativity, bank, throughput "
     "w.r.t. core clock, latency w.r.t. core clock,output_width, cache policy "
     "(0 no write or write-though with non-write allocate;1 write-back with "
     "write-allocate)");
+
   ADD_XML_PARAM_str(out, header, "buffer_sizes", "16,16,16,0",
                     "cache controller buffer sizes: "
                     "miss_buffer_size(MSHR),fill_buffer_size,prefetch_buffer_"
@@ -576,9 +594,10 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
   ADD_XML_CORE_STAT(out, header, core_id, "read_accesses",
                     POWER_ICACHE_ACCESS, );
   ADD_XML_CORE_STAT(out, header, core_id, "read_misses", POWER_ICACHE_MISS, );
-  ADD_XML_STAT(out, header, "conflicts", 0, ); /*TODO: Scarab: conflicts stat
-                                                  not used in McPAT (for any
-                                                  structure)*/
+  /* Note: conflicts parameter is not used in McPat anywhere, although some of
+   * the predefined descriptor files have non-zero values. */
+  ADD_XML_STAT(out, header, "conflicts", 0, ); 
+
   END_OF_COMPONENT(out, header);
 
   /***********************************************************************/
@@ -586,10 +605,12 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
   ADD_XML_COMPONENT(
     out, header, "system.core" + std::to_string(core_id) + ".dtlb", "dtlb", );
   ADD_XML_PARAM(out, header, "number_entries", 128, "dual threads");
-  ADD_XML_CORE_STAT(out, header, core_id, "total_accesses",
-                    POWER_DTLB_ACCESS, );
+  ADD_XML_CORE_STAT(out, header, core_id, "total_accesses", POWER_DTLB_ACCESS, );
   ADD_XML_STAT(out, header, "total_misses", 0, "Scarab: perfect DTLB");
+  /* Note: conflicts parameter is not used in McPat anywhere, although some of
+   * the predefined descriptor files have non-zero values. */
   ADD_XML_STAT(out, header, "conflicts", 0, );
+
   END_OF_COMPONENT(out, header);
 
   /***********************************************************************/
@@ -598,20 +619,22 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
                     "system.core" + std::to_string(core_id) + ".dcache",
                     "dcache", );
   /*all the buffer related are optional*/
-  ADD_XML_PARAM_str(
-    out, header, "dcache_config",
-    std::to_string(DCACHE_SIZE) + "," +        /*Capactiy*/
+  ADD_XML_PARAM_str(out, header, "dcache_config",
+      std::to_string(DCACHE_SIZE) + "," +      /*Capactiy*/
       std::to_string(DCACHE_LINE_SIZE) + "," + /*Block_width*/
       std::to_string(DCACHE_ASSOC) + "," +     /*associativity*/
       std::to_string(DCACHE_BANKS) + "," +     /*bank*/
       "1," +                                   /*throughput w.r.t. core clock*/
       std::to_string(DCACHE_CYCLES) + "," +    /*latency w.r.t. core clock*/
-      "64,1", /*output_width, cache policy (0 no write or write-though with
-                 non-write allocate; 1 write-back with write-allocate)*/
+      "64,1",                                  /*output_width, cache policy 
+                                                *(0 no write or write-though with
+                                                *non-write allocate; 1 write-back 
+                                                *with write-allocate)*/
     "the parameters are capacity,block_width, associativity, bank, throughput "
     "w.r.t. core clock, latency w.r.t. core clock,output_width, cache policy "
     "(0 no write or write-though with non-write allocate;1 write-back with "
     "write-allocate)");
+
   ADD_XML_PARAM_str(out, header, "buffer_sizes", "16, 16, 16, 16",
                     "cache controller buffer sizes: "
                     "miss_buffer_size(MSHR),fill_buffer_size,prefetch_buffer_"
@@ -624,31 +647,33 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
                     POWER_DCACHE_READ_MISS, );
   ADD_XML_CORE_STAT(out, header, core_id, "write_misses",
                     POWER_DCACHE_WRITE_MISS, );
-  ADD_XML_STAT(out, header, "conflicts", 0, ); /*TODO: Scarab: conflicts stat
-                                                  not used in McPAT (for any
-                                                  structure)*/
+  /* Note: conflicts parameter is not used in McPat anywhere, although some of
+   * the predefined descriptor files have non-zero values. */
+  ADD_XML_STAT(out, header, "conflicts", 0, );
+
   END_OF_COMPONENT(out, header);
 
   /***********************************************************************/
 
-  ADD_XML_PARAM(out, header, "number_of_BTB",
-                1, ); /*TODO: not sure if McPAT uses this*/
+  /* Note: McPat does not use number_of_BTB param. */
+  ADD_XML_PARAM(out, header, "number_of_BTB", 1, );
   ADD_XML_COMPONENT(out, header,
                     "system.core" + std::to_string(core_id) + ".BTB", "BTB", );
-  /*all the buffer related are optional*/
-  ADD_XML_PARAM_str(
-    out, header, "BTB_config",
-    std::to_string(BTB_ENTRIES) + "," + /*capacity*/
-      std::to_string(8) + "," +
-      /*block_width*/ /*TODO: scarab hardcodes this to 1 target (8B), do
-                         we want to fix this for power?"*/
-      std::to_string(BTB_ASSOC) + "," + /*associativity*/
+
+  /* all the buffer related are optional */
+  /* TODO: scarab hardcodes block_width to 1 target (8B), do we want to fix
+   * this for power?"*/
+  ADD_XML_PARAM_str(out, header, "BTB_config",
+      std::to_string(BTB_ENTRIES) + "," + /*capacity*/
+      std::to_string(8) + "," +           /*block_width*/ 
+      std::to_string(BTB_ASSOC) + "," +   /*associativity*/
       "1,1,1", /*bank, throughput w.r.t.core clock, latency w.r.t. core clock*/
     "the parameters are capacity,block_width,associativity,bank, throughput "
     "w.r.t. core clock, latency w.r.t. core clock");
   ADD_XML_CORE_STAT(out, header, core_id, "read_accesses", POWER_BTB_READ,
                     "See IFU code for guideline");
   ADD_XML_CORE_STAT(out, header, core_id, "write_accesses", POWER_BTB_WRITE, );
+
   END_OF_COMPONENT(out, header);
 
   /***********************************************************************/
@@ -686,6 +711,8 @@ void power_print_cache_directory_params(std::ofstream& out,
     ADD_XML_STAT(out, header, "write_accesses", 0, );
     ADD_XML_STAT(out, header, "read_misses", 0, );
     ADD_XML_STAT(out, header, "write_misses", 0, );
+  /* Note: conflicts parameter is not used in McPat anywhere, although some of
+   * the predefined descriptor files have non-zero values. */
     ADD_XML_STAT(out, header, "conflicts", 0, );
     END_OF_COMPONENT(out, header);
   }
@@ -714,6 +741,8 @@ void power_print_cache_directory_params(std::ofstream& out,
     ADD_XML_STAT(out, header, "write_accesses", 0, );
     ADD_XML_STAT(out, header, "read_misses", 0, );
     ADD_XML_STAT(out, header, "write_misses", 0, );
+  /* Note: conflicts parameter is not used in McPat anywhere, although some of
+   * the predefined descriptor files have non-zero values. */
     ADD_XML_STAT(out, header, "conflicts", 0, );
     END_OF_COMPONENT(out, header);
   }
@@ -756,6 +785,8 @@ void power_print_l2_params(std::ofstream& out, uint32_t l2_id) {
                     POWER_LLC_WRITE_ACCESS, );
   ADD_XML_CORE_STAT(out, header, l2_id, "read_misses", POWER_LLC_READ_MISS, );
   ADD_XML_CORE_STAT(out, header, l2_id, "write_misses", POWER_LLC_WRITE_MISS, );
+  /* Note: conflicts parameter is not used in McPat anywhere, although some of
+   * the predefined descriptor files have non-zero values. */
   ADD_XML_STAT(out, header, "conflicts", 0, );
   ADD_XML_STAT(out, header, "duty_cycle", 1, );
   END_OF_COMPONENT(out, header);
@@ -793,6 +824,8 @@ void power_print_l3_params(std::ofstream& out) {
   ADD_XML_ACCUM_STAT(out, header, "write_accesses", POWER_LLC_WRITE_ACCESS, );
   ADD_XML_ACCUM_STAT(out, header, "read_misses", POWER_LLC_READ_MISS, );
   ADD_XML_ACCUM_STAT(out, header, "write_misses", POWER_LLC_WRITE_MISS, );
+  /* Note: conflicts parameter is not used in McPat anywhere, although some of
+   * the predefined descriptor files have non-zero values. */
   ADD_XML_STAT(out, header, "conflicts", 0, );
   ADD_XML_STAT(out, header, "duty_cycle", 1, );
   END_OF_COMPONENT(out, header);
