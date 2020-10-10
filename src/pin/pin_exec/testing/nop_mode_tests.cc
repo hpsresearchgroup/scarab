@@ -53,11 +53,13 @@ class Nop_Mode_Nonret_Direct_Binary_Info : public Binary_Info {
       Binary_Info(NOP_MODE_NONRET_DIRECT_BINARY),
       test_instruction_addr(find_addr("test")),
       jne_instruction_addr(find_addr("jne")),
-      far_target_addr(find_addr("jmp", 2)) {}
+      far_target_addr(find_addr("jmp", 2)),
+      nop_instruction_addr(find_addr("nop")) {}
 
   const uint64_t test_instruction_addr;
   const uint64_t jne_instruction_addr;
   const uint64_t far_target_addr;
+  const uint64_t nop_instruction_addr;
 };
 
 class Nop_Mode_Nonret_Indirect_Binary_Info : public Binary_Info {
@@ -130,6 +132,50 @@ TEST(Wrongpath_Nop_Mode, DirectJumpingToUntracedAddressTriggersNopMode) {
   ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions_in_wrongpath_nop_mode(
     binary_info.far_target_addr, 10,
     WPNM_REASON_NONRET_CF_TO_NOT_INSTRUMENTED));
+
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.recover(redirect_uid));
+
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_until_completion());
+  ASSERT_TRUE(fake_scarab.has_reached_end());
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.retire_all());
+}
+
+TEST(Wrongpath_Nop_Mode, RedirectingToUntracedAddressTriggersNopMode1) {
+  Nop_Mode_Nonret_Direct_Binary_Info binary_info;
+
+  Fake_Scarab fake_scarab(NOP_MODE_NONRET_DIRECT_BINARY);
+
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_until_first_control_flow());
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_until_first_control_flow());
+
+  const auto redirect_uid    = fake_scarab.get_latest_inst_uid();
+  const auto far_target_addr = binary_info.far_target_addr;
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.redirect(far_target_addr));
+
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions_in_wrongpath_nop_mode(
+    far_target_addr, 10, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED));
+
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.recover(redirect_uid));
+
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_until_completion());
+  ASSERT_TRUE(fake_scarab.has_reached_end());
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.retire_all());
+}
+
+TEST(Wrongpath_Nop_Mode, RedirectingToUntracedAddressTriggersNopMode2) {
+  Nop_Mode_Nonret_Direct_Binary_Info binary_info;
+
+  Fake_Scarab fake_scarab(NOP_MODE_NONRET_DIRECT_BINARY);
+
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_until_first_control_flow());
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_until_first_control_flow());
+
+  const auto redirect_uid         = fake_scarab.get_latest_inst_uid();
+  const auto nop_instruction_addr = binary_info.nop_instruction_addr;
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.redirect(nop_instruction_addr));
+
+  ASSERT_NO_FATAL_FAILURE(fake_scarab.fetch_instructions_in_wrongpath_nop_mode(
+    nop_instruction_addr, 10, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED));
 
   ASSERT_NO_FATAL_FAILURE(fake_scarab.recover(redirect_uid));
 
