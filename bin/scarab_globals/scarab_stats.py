@@ -119,7 +119,7 @@ class StatCollection:
   def get(self, stat_name=None, core_id=None):
     combined_df = pd.DataFrame()
     for frame in self.frame_list:
-      df = frame.get(stat_name=stat_name, core_id=core_id)
+      df = frame.get(stat_name=stat_name, core_id=core_id).df
 
       if df.empty:
         combined_df.loc[:, frame.name] = np.nan
@@ -237,7 +237,7 @@ class StatFrame:
         DataFrame: A Pandas DF containing the requested slice
     """
     if self.stat_df is None:
-      return pd.DataFrame()
+      return StatDF(pd.DataFrame())
 
     parsed_core_id = self._parse_core_params(core_id)
     parsed_stat_name = self._parse_stat_params(stat_name)
@@ -251,7 +251,7 @@ class StatFrame:
       #print("Exception: " + str(e))
       df_copy = pd.DataFrame()
 
-    return df_copy
+    return StatDF(df_copy)
 
   def _parse_stat_params(self, stat_params):
     """Parses all stat names in list. If an equation is found, then the equation is processed and a new stat is added to the DF.
@@ -460,7 +460,7 @@ class StatFileParser:
 def __main():
   args = parser.parse_args()
   stat = StatFrame(args.results_dir)
-  print(stat.get(core_id=args.core_id, stat_name=args.stat))
+  print(stat.get(core_id=args.core_id, stat_name=args.stat).df)
 
 if __name__ == "__main__":
   __main()

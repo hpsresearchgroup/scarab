@@ -313,7 +313,7 @@ class Suite(Collection):
     return "Suite"
 
   def get_stats(self, basename, flat=False):
-    bench_collection = super().get_stats(basename, flat=False)
+    bench_collection = super().get_stats(basename, flat=flat)
     return bench_collection.normalize()
 
 ###########################################################################
