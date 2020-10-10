@@ -85,7 +85,7 @@ def get_stats(stat_name, cores, results_dirs, base=None):
     cores = [0]
 
   if not results_dirs:
-    job_stat = scarab_run_manager.get_stats(flat=args.flat)
+    job_stat = scarab_run_manager.get_stats(flat=False)
   else:
     job_stat = scarab_stats.StatRun("Scarab Stats")
     for results_dir in results_dirs:

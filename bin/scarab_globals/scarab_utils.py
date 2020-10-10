@@ -31,6 +31,10 @@ def warn (warning_msg):
   print("Warning: " + warning_msg)
   sys.stdout.flush()
 
+def error(error_msg):
+  print("Error: " + error_msg)
+  sys.exit(1)
+
 def get_disable_aslr_prefix():
   uname_cmd = command.Command("uname -m", stdout_fp=subprocess.PIPE, stderr_fp=subprocess.PIPE)
   uname_cmd.run_in_background()
