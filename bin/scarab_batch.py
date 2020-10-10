@@ -38,9 +38,12 @@ parser.add_argument('jobfile', help="Jobfile to operator on.")
 parser.add_argument('--run', action='store_true', help="Run all jobs in jobfile.")
 parser.add_argument('--progress', action='store_true', help="Print progress of all jobs in jobfile.")
 parser.add_argument('--stat', action='append', default=None, help="Print stat from results of all jobs in jobfile.")
-parser.add_argument('--base', default=None, help="Normalize all runs to this run.")
-parser.add_argument('--results_dir', nargs='*', default=None, help="Results directory(s) to parse stats from. Only valid with --stat option.")
 parser.add_argument('--core', action='append', default=None, help="Core(s) to get stats for. Only valid with --stat option.")
+parser.add_argument('--results_dir', nargs='*', default=None, help="Results directory(s) to parse stats from. Only valid with --stat option.")
+parser.add_argument('--base', default=None, help="Normalize all runs to this run.")
+parser.add_argument('--amean', action='store_true', help="Print the arithmetic mean.")
+parser.add_argument('--gmean', action='store_true', help="Print the geometric mean.")
+#parser.add_argument('--flat', action='store_true', help="Print all checkpoints equally.")
 args = parser.parse_args()
 
 if not args.run and not args.progress and not args.stat:
@@ -51,6 +54,10 @@ if args.core and not args.stat:
   print("Usage: --core is only valid with --stat option.")
 if args.base and not args.stat:
   print("Usage: --base is only valid with --stat option.")
+if args.amean and not args.stat:
+  print("Usage: --amean is only valid with --stat option.")
+if args.gmean and not args.stat:
+  print("Usage: --gmean is only valid with --stat option.")
 
 ###############################################
 
@@ -73,22 +80,36 @@ def run_all():
 def show_progress():
   scarab_run_manager.print_progress()
 
-def get_stats(stat_name, cores, results_dirs):
+def get_stats(stat_name, cores, results_dirs, base=None):
   if not cores:
     cores = [0]
 
   if not results_dirs:
-    job_stat = scarab_run_manager.get_stats()
+    job_stat = scarab_run_manager.get_stats(flat=args.flat)
   else:
-    job_stat = scarab_stats.StatFrame()
+    job_stat = scarab_stats.StatRun("Scarab Stats")
     for results_dir in results_dirs:
+      results_dir = os.path.abspath(results_dir.rstrip('/'))
+      if base:
+        base = os.path.abspath(base.rstrip('/'))
       basename = os.path.basename(results_dir)
       parent_dir = os.path.dirname(results_dir)
-      stats = globals()[basename].get_stats(parent_dir)
-      job_stat.push(parent_dir, stats)
+      stats = globals()[basename].get_stats(parent_dir, flat=False)
+      job_stat.append(results_dir, stats)
 
   df = job_stat.get(stat_name, cores)
-  print(df)
+
+  if args.amean:
+    df.amean()
+
+  if base:
+    #df.loc[:] = df.loc[:].div(df.loc[base])
+    df.base(base)
+
+  if args.gmean:
+    df.gmean()
+
+  df.print()
 
 def __main():
   import_jobfile(args.jobfile)
@@ -98,7 +119,7 @@ def __main():
   if (args.progress):
     show_progress()
   if (args.stat):
-    get_stats(args.stat, args.core, args.results_dir)
+    get_stats(args.stat, args.core, args.results_dir, base=args.base)
 
 if __name__ == "__main__":
   __main()

@@ -56,7 +56,7 @@ class SnapshotDefaults:
     frontend_binary = "frontend-binary"
     snapshot_log = "job.log"
     git_status = "git.status"
-    git_show = "git.show"
+    git_diff = "git.diff"
     scarab_params_file = "scarab.params"
     repo_root = scarab_paths.sim_dir
 
@@ -90,9 +90,9 @@ class SnapshotDefaults:
                  stdout=os.path.join(basename, cls.git_status)
                ).run()
 
-        Command("git show --pretty",
+        Command("git diff --pretty",
                  run_dir=cls.repo_root,
-                 stdout=os.path.join(basename, cls.git_show)
+                 stdout=os.path.join(basename, cls.git_diff)
                ).run()
 
 def create_snapshot(scarab_params, results_dir):

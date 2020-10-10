@@ -119,7 +119,6 @@ class ScarabRun:
     self.results_parent_dir = os.path.abspath(results_dir)
     self.results_dir = self.results_parent_dir + "/" + self.job_name
     scarab_run_manager.register(self)
-    scarab_snapshot.create_snapshot(self.params, self.results_dir)
 
   def make(self):
     os.makedirs(self.results_parent_dir, exist_ok=True)
@@ -132,6 +131,7 @@ class ScarabRun:
 
   def process_command_list(self):
     self.make()
+    scarab_snapshot.create_snapshot(self.params, self.results_dir)
     return self.get_commands()
 
   def print_progress(self):
@@ -313,7 +313,7 @@ class Suite(Collection):
     return "Suite"
 
   def get_stats(self, basename, flat=False):
-    bench_collection = super().get_stats(basename, flat=False)
+    bench_collection = super().get_stats(basename, flat=flat)
     return bench_collection.normalize()
 
 ###########################################################################

@@ -25,6 +25,7 @@ import re
 import argparse
 import pandas as pd
 import numpy as np
+from scipy import stats
 
 sys.path.append(os.path.dirname(__file__))
 from scarab_utils import *
@@ -58,6 +59,24 @@ print_warnings = True
 #####################################################################
 # Stat Hierarchy
 #####################################################################
+
+class StatDF:
+  def __init__(self, df):
+    self.df = df
+
+  def print(self):
+    print(self.df)
+
+  def base(self, base):
+    self.df.loc[:] = self.df.loc[:].div(self.df.loc[base])
+    return self
+
+  def amean(self):
+    self.df['amean'] = self.df.mean(numeric_only=True, axis=1)
+    return self
+
+  def gmean(self):
+    self.df['gmean'] = stats.gmean(self.df.iloc[:], axis=1)
 
 class StatCollection:
   """A collection (1 or more) of StatFrames.
@@ -100,7 +119,7 @@ class StatCollection:
   def get(self, stat_name=None, core_id=None):
     combined_df = pd.DataFrame()
     for frame in self.frame_list:
-      df = frame.get(stat_name=stat_name, core_id=core_id)
+      df = frame.get(stat_name=stat_name, core_id=core_id).df
 
       if df.empty:
         combined_df.loc[:, frame.name] = np.nan
@@ -108,7 +127,7 @@ class StatCollection:
       for column in df:
         combined_df.loc[:, frame.name] = df[column].copy()
 
-    return combined_df
+    return StatDF(combined_df.copy())
 
 class StatRun(StatCollection):
   def append(self, frame_name, frame):
@@ -118,7 +137,7 @@ class StatRun(StatCollection):
   def get(self, stat_name=None, core_id=None):
     combined_df = pd.DataFrame()
     for frame in self.frame_list:
-      df = frame.get(stat_name=stat_name, core_id=core_id)
+      df = frame.get(stat_name=stat_name, core_id=core_id).df
 
       if df.empty:
         combined_df.loc[:, frame.name] = np.nan
@@ -126,7 +145,7 @@ class StatRun(StatCollection):
       for index, row in df.iterrows():
         combined_df.loc[:, frame.name] = row.copy()
 
-    return combined_df.T
+    return StatDF(combined_df.T.copy())
 
 class StatFrame:
   """A low level container, which holds all stats from a single run of Scarab.
@@ -218,7 +237,7 @@ class StatFrame:
         DataFrame: A Pandas DF containing the requested slice
     """
     if self.stat_df is None:
-      return pd.DataFrame()
+      return StatDF(pd.DataFrame())
 
     parsed_core_id = self._parse_core_params(core_id)
     parsed_stat_name = self._parse_stat_params(stat_name)
@@ -232,7 +251,7 @@ class StatFrame:
       #print("Exception: " + str(e))
       df_copy = pd.DataFrame()
 
-    return df_copy
+    return StatDF(df_copy)
 
   def _parse_stat_params(self, stat_params):
     """Parses all stat names in list. If an equation is found, then the equation is processed and a new stat is added to the DF.
@@ -441,7 +460,7 @@ class StatFileParser:
 def __main():
   args = parser.parse_args()
   stat = StatFrame(args.results_dir)
-  print(stat.get(core_id=args.core_id, stat_name=args.stat))
+  print(stat.get(core_id=args.core_id, stat_name=args.stat).df)
 
 if __name__ == "__main__":
   __main()

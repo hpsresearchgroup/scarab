@@ -302,6 +302,7 @@ cd $PBS_O_WORKDIR
 
   def run_cmd(self, cmd, dep_ids=[]):
     if cmd.run_dir:
+      print("here1")
       os.chdir(cmd.run_dir)
 
     cmd.write_to_jobfile(prefix=self._create_pbs_header(cmd), 
