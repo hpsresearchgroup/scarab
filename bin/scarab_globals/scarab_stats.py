@@ -68,6 +68,8 @@ class StatDF:
     print(self.df)
 
   def base(self, base):
+    if not base in self.df.index:
+      error("Count not find base index {}".format(base))
     self.df.loc[:] = self.df.loc[:].div(self.df.loc[base])
     return self
 
@@ -121,9 +123,6 @@ class StatCollection:
     for frame in self.frame_list:
       df = frame.get(stat_name=stat_name, core_id=core_id).df
 
-      if df.empty:
-        combined_df.loc[:, frame.name] = np.nan
-
       for column in df:
         combined_df.loc[:, frame.name] = df[column].copy()
 
@@ -139,13 +138,25 @@ class StatRun(StatCollection):
     for frame in self.frame_list:
       df = frame.get(stat_name=stat_name, core_id=core_id).df
 
-      if df.empty:
-        combined_df.loc[:, frame.name] = np.nan
-
       for index, row in df.iterrows():
-        combined_df.loc[:, frame.name] = row.copy()
+        frame_name = StatRun._generate_stat_name(
+          frame.name,
+          index,
+          stat_name
+          )
+        combined_df.loc[:, frame_name] = row.copy()
 
     return StatDF(combined_df.T.copy())
+  
+  @staticmethod
+  def _generate_stat_name(frame_name, stat, stat_list):
+    if not stat_list is None:
+      if len(stat_list) > 1:
+        frame_name = "{frame_name}:{stat_name}".format(
+          frame_name=frame_name,
+          stat_name=stat
+        )
+    return frame_name
 
 class StatFrame:
   """A low level container, which holds all stats from a single run of Scarab.
@@ -236,11 +247,11 @@ class StatFrame:
     Returns:
         DataFrame: A Pandas DF containing the requested slice
     """
-    if self.stat_df is None:
-      return StatDF(pd.DataFrame())
-
     parsed_core_id = self._parse_core_params(core_id)
     parsed_stat_name = self._parse_stat_params(stat_name)
+
+    if self.stat_df is None:
+      return StatDF(self._generate_empty_df(parsed_stat_name, parsed_core_id))
 
     try:
       df_copy = self.stat_df.loc[parsed_stat_name, parsed_core_id].copy()
@@ -249,9 +260,12 @@ class StatFrame:
         warn("Could not index dataframe {results_dir} with stat_name={stat_name} and core={core_id}".format(
           results_dir=self.results_dir, stat_name=parsed_stat_name, core_id=core_id))
       #print("Exception: " + str(e))
-      df_copy = pd.DataFrame()
+      df_copy = self._generate_empty_df(parsed_stat_name, parsed_core_id).copy()
 
     return StatDF(df_copy)
+
+  def _generate_empty_df(self, stat_name, core_id):
+    return pd.DataFrame(data=np.nan, index=stat_name, columns=core_id)
 
   def _parse_stat_params(self, stat_params):
     """Parses all stat names in list. If an equation is found, then the equation is processed and a new stat is added to the DF.
