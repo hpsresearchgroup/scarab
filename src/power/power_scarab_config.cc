@@ -871,26 +871,28 @@ void power_print_noc_params(std::ofstream& out) {
 }
 
 void power_print_mc_params(std::ofstream& out) {
-  double MEMORY_FREQ_IN_MHZ             = POWER_INTF_REF_MEMORY_FREQ / 1000000;
-  double MEMORY_PEAK_RATE_IN_MB_PER_SEC = (BUS_WIDTH_IN_BYTES * 2.0) /
-                                          (1 * time_unit) / (1 << 20);
+  //TODO:  double check following two lines
+  double MEMORY_FREQ_IN_MHZ             = (1e15 / RAMULATOR_TCK) / 1e6;
+  double MEMORY_PEAK_RATE_IN_MB_PER_SEC = 
+    (BUS_WIDTH_IN_BYTES / (1 << 20)) * 2 * POWER_INTF_REF_MEMORY_FREQ * 1e6;
+
   uint32_t MEM_REQ_WINDOW_SIZE = 8 ? 8 : MEM_REQ_BUFFER_ENTRIES;
 
   std::string header = "\t";
 
   ADD_XML_COMPONENT(out, header, std::string("system.mc"), std::string("mc"), );
-  /*Memeory controllers are for DDR(2,3...) DIMMs*/
-  /*current version of McPAT uses published values for base parameters of memory
-   * controller improvments on MC will be added in later versions.*/
+  /* McPat note: Memory controllers are for DDR(2,3...) DIMMs*/
+  /* McPat note: current version of McPAT uses published values for base
+   * parameters of memory controller. Improvments on MC will be added in later
+   * versions.*/
   ADD_XML_PARAM(out, header, "type", 0, "1: low power; 0 high performance");
-  ADD_XML_PARAM(out, header, "mc_clock", MEMORY_FREQ_IN_MHZ, "MHz");
+  ADD_XML_PARAM(out, header, "mc_clock", MEMORY_FREQ_IN_MHZ, 
+      "McPat: DIMM IO bus clock rate MHz");
   ADD_XML_PARAM(out, header, "peak_transfer_rate",
                 MEMORY_PEAK_RATE_IN_MB_PER_SEC, "MB/S");
 
-
   ADD_XML_PARAM(out, header, "block_size", 64, "B");
-  ADD_XML_PARAM(out, header, "number_mcs",
-                8, );  // TODO: is this what we think it is?
+  ADD_XML_PARAM(out, header, "number_mcs", 8, );  // TODO: is this what we think it is?
 
   /*current McPAT only supports homogeneous memory controllers*/
   ADD_XML_PARAM(out, header, "memory_channels_per_mc", 1, );
