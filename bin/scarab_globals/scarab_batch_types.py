@@ -118,6 +118,7 @@ class ScarabRun:
     self.params = params
     self.results_parent_dir = os.path.abspath(results_dir)
     self.results_dir = self.results_parent_dir + "/" + self.job_name
+    scarab_snapshot.create_snapshot(self.params, self.results_dir)
     scarab_run_manager.register(self)
 
   def make(self):
@@ -131,7 +132,6 @@ class ScarabRun:
 
   def process_command_list(self):
     self.make()
-    scarab_snapshot.create_snapshot(self.params, self.results_dir)
     return self.get_commands()
 
   def print_progress(self):
