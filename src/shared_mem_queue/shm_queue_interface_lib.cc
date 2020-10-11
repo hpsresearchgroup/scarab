@@ -2,14 +2,6 @@
 #include "shared_mem_queue/shm_queue_interface_lib.h"
 #include "shared_mem_queue/shmmap.h"
 
-#define COP_QUEUE_SIZE 256
-#define CMD_QUEUE_SIZE 256
-
-
-//Global Queue Types
-typedef SPSCQueue<compressed_op, COP_QUEUE_SIZE> cop_queue;
-typedef SPSCQueue<Scarab_To_Pin_Msg, CMD_QUEUE_SIZE> cmd_queue;
-
 
 void pin_shm_interface::init(int cop_queue_shm_key, int cmd_queue_shm_key, int core_id) {
 
@@ -24,11 +16,11 @@ void pin_shm_interface::disconnect() {
     shm_del(cmd_queue_shm_id);
 }
 
-void pin_shm_interface::send_cop(compressed_op cop) {
-    compressed_op * shm_ptr;
+void pin_shm_interface::send_op_buffer(ScarabOpBuffer_type op_buffer) {
+    Message<ScarabOpBuffer_type> * shm_ptr;
     
     while((shm_ptr = cop_queue_ptr->alloc()) == nullptr);
-    *shm_ptr = cop;   
+    *shm_ptr = op_buffer;   
     cop_queue_ptr->push();
 }
 
@@ -73,14 +65,21 @@ void scarab_shm_interface::disconnect() {
     }
 }
 
-compressed_op scarab_shm_interface::receive_cop(int core_id) {
-    compressed_op * shm_ptr;
-    compressed_op cop;
+ScarabOpBuffer_type scarab_shm_interface::receive_op_buffer(int core_id) {
+    
+    Message<ScarabOpBuffer_type> * shm_ptr;
+    ScarabOpBuffer_type op_buffer;
     
     while((shm_ptr = cop_queue_ptr[core_id]->front()) == nullptr);
-    cop = *shm_ptr;
+    printf("Rec1\n");
+    Message<ScarabOpBuffer_type> temp;
+    printf("Rec1.5\n");
+    temp = *shm_ptr;
+    printf("Rec2\n");
+    op_buffer = temp;
+    printf("Rec3\n");
     cop_queue_ptr[core_id]->pop();    
-    return cop;
+    return op_buffer;
 }
 
 void scarab_shm_interface::send_cmd(Scarab_To_Pin_Msg cmd, int core_id) {
@@ -92,7 +91,7 @@ void scarab_shm_interface::send_cmd(Scarab_To_Pin_Msg cmd, int core_id) {
 }
 
 void scarab_shm_interface::clear_cop_queue(int core_id) {
-    compressed_op * shm_ptr;
+    Message<ScarabOpBuffer_type> * shm_ptr;
     while(true)
     {
         if((shm_ptr = cop_queue_ptr[core_id]->front()) == nullptr) break;

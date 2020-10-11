@@ -17,11 +17,17 @@ int main() {
 
         for(int i=0; i<2; i++)
         {
-          compressed_op buf;
-          buf = pin->receive_cop(0);
+          ScarabOpBuffer_type buf;
+          printf("Before Op Buf received: ");
+          fflush(stdout);
+          buf = pin->receive_op_buffer(0);
           printf("Op Buf received: ");
-          printf("%lx, ", buf.instruction_addr);
-          printf("\n");
+          fflush(stdout);
+          for(int i=0; i<buf.size(); i++)
+          {
+            printf("%lx, ", buf[i].instruction_addr);
+            printf("\n");
+          }
         }
 
         count--;

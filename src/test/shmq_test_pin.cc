@@ -12,14 +12,22 @@ int main() {
     int count = 0;
     while(1) {
         Scarab_To_Pin_Msg cmd;
+        ScarabOpBuffer_type op_buf;
         cmd = scarab->receive_cmd();
         printf("Received cmd inst uid = %lu\n", cmd.inst_uid);
         
         compressed_op cop;
         cop.instruction_addr = 0x3000 + 2*count;
-        scarab->send_cop(cop);
+        op_buf.push_back(cop);
         cop.instruction_addr = 0x3000 + 2*count+1;
-        scarab->send_cop(cop);
+        op_buf.push_back(cop);
+
+        Message<ScarabOpBuffer_type> op_buf2;
+        printf("%d\n", op_buf2.size());
+        op_buf2 = op_buf;
+        printf("%d\n", op_buf2.size());
+
+        scarab->send_op_buffer(op_buf2);
 
         count++;
         if(count>9) break;

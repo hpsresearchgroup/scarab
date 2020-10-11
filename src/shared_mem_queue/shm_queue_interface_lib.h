@@ -6,12 +6,13 @@
 #include "shared_mem_queue/SPSCQueueOPT.h"
 
 #include "pin/pin_lib/pin_scarab_common_lib.h"
+#include "pin/pin_lib/message_queue_interface_lib.h"
 
 #define COP_QUEUE_SIZE 256
 #define CMD_QUEUE_SIZE 256
 
 //Global Queue Types
-typedef SPSCQueue<compressed_op, COP_QUEUE_SIZE> cop_queue;
+typedef SPSCQueue<Message<ScarabOpBuffer_type>, COP_QUEUE_SIZE> cop_queue;
 typedef SPSCQueue<Scarab_To_Pin_Msg, CMD_QUEUE_SIZE> cmd_queue;
 
 class pin_shm_interface {
@@ -24,7 +25,7 @@ private:
 public:
     void init(int cop_queue_shm_key, int cmd_queue_shm_key, int core_id);
     void disconnect();
-    void send_cop(compressed_op cop);
+    void send_op_buffer(ScarabOpBuffer_type op_buffer);
     Scarab_To_Pin_Msg receive_cmd();
     void clear_cmd_queue();
 };
@@ -40,7 +41,7 @@ private:
 public:
     void init(int cop_queue_shm_key, int cmd_queue_shm_key, int num_cores);
     void disconnect();
-    compressed_op receive_cop(int core_id);
+    ScarabOpBuffer_type receive_op_buffer(int core_id);
     void send_cmd(Scarab_To_Pin_Msg msg, int core_id);    
     void clear_cop_queue(int core_id);
 };

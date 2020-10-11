@@ -34,8 +34,8 @@ gtest:
 
 shm_test:
 	mkdir obj
-	g++ -std=c++11 -O3 -I$(SCARAB_PATH)  -o obj/shmq_test_pin shmq_test_pin.cc $(SCARAB_PATH)/shared_mem_queue/shm_queue_interface_lib.cc -lrt
-	g++ -std=c++11 -O3 -I$(SCARAB_PATH) -o obj/shmq_test_scarab shmq_test_scarab.cc $(SCARAB_PATH)/shared_mem_queue/shm_queue_interface_lib.cc -lrt	
+	g++ -std=c++11 -O3 -I$(SCARAB_PATH)  -o obj/shmq_test_pin shmq_test_pin.cc $(SCARAB_PATH)/shared_mem_queue/shm_queue_interface_lib.cc $(SCARAB_PATH)/pin/pin_lib/message_queue_interface_lib.cc -lrt
+	g++ -std=c++11 -O3 -I$(SCARAB_PATH) -o obj/shmq_test_scarab shmq_test_scarab.cc $(SCARAB_PATH)/shared_mem_queue/shm_queue_interface_lib.cc $(SCARAB_PATH)/pin/pin_lib/message_queue_interface_lib.cc -lrt	
 
 $(TARGET_PATH)/%.o:%.cc
 	g++ -std=c++14 -c $^ -o $@ -DNO_STAT -DGTEST_COMPILE -DNUM_CLIENTS=$(NUM_CLIENTS)
