@@ -7,18 +7,18 @@ int main() {
     scarab_shm_interface * pin;
     pin = new scarab_shm_interface;
 
-    pin->init(1234, 5678);
+    pin->init(1234, 5678, 1);
 
     int count = 10;
     while(1) {
         Scarab_To_Pin_Msg msg;
         msg.inst_uid = 10-count;
-        pin->send_cmd(msg);
+        pin->send_cmd(msg, 0);
 
         for(int i=0; i<2; i++)
         {
           compressed_op buf;
-          buf = pin->receive_cop();
+          buf = pin->receive_cop(0);
           printf("Op Buf received: ");
           printf("%lx, ", buf.instruction_addr);
           printf("\n");

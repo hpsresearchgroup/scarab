@@ -7,7 +7,7 @@ int main() {
     pin_shm_interface * scarab;
     scarab = new pin_shm_interface;
 
-    scarab->init(1234, 5678);
+    scarab->init(1234, 5678, 0);
 
     int count = 0;
     while(1) {
