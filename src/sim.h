@@ -55,6 +55,7 @@ void monitor_sim(void);
 void sampling_sim(void);
 void full_sim(void);
 void handle_SIGINT(int);
+void handle_SIGCHLD(int);
 void close_output_streams(void);
 
 

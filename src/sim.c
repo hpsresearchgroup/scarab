@@ -145,6 +145,23 @@ void handle_SIGINT(int signum) {
   }
 }
 
+/**************************************************************************************/
+/* handle_SIGCHLD: this handler is for exiting smoothly when a SIGCHLD is caught,
+ * i.e. when PIN exits
+ */
+
+void handle_SIGCHLD(int signum) {
+  uns8 proc_id;
+
+  ASSERTU(0, signum == SIGCHLD);
+
+  fprintf(mystdout, "** Handler:  Caught SIGCHLD.  Exiting...\n");
+
+  for(proc_id = 0; proc_id < NUM_CORES; proc_id++) {
+    retired_exit[proc_id] = TRUE;
+  }
+}
+
 
 /**************************************************************************************/
 /* check_heartbeat: Determine if the heartbeat needs to happen and do it if

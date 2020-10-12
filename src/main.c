@@ -204,6 +204,8 @@ Scarab's source code is organized as follows:
 
 #include <signal.h>
 #include <unistd.h>
+#include <sys/prctl.h>
+#include <sys/types.h>
 #include "globals/assert.h"
 #include "globals/global_defs.h"
 #include "globals/global_types.h"
@@ -219,7 +221,6 @@ Scarab's source code is organized as follows:
 #include "general.param.h"
 
 /**************************************************************************************/
-
 int main(int argc, char* argv[], char* envp[]) {
   char** simulated_argv;
   time_t cur_time;
@@ -241,21 +242,31 @@ int main(int argc, char* argv[], char* envp[]) {
   ASSERTU(0, sizeof(int16) == 2);
   ASSERTU(0, sizeof(int32) == 4);
   ASSERTU(0, sizeof(int64) == 8);
+  /* read parameters from PARAMS.in and the command line */
+  simulated_argv = get_params(argc, argv);
+
+  /* set up signal handler for SIGCHLD*/
+  signal(SIGCHLD, handle_SIGCHLD);
 
   /* launch pin tools */
 
 
-  /* read parameters from PARAMS.in and the command line */
-  simulated_argv = get_params(argc, argv);
   fprintf(stdout, "%s\n", PIN_EXE_COMMAND);
+  int scarab_pid = getpid();
   int pin_pid = fork();
   if (pin_pid < 0){
     FATAL_ERROR(0, "Unable to create child process for PIN.");
   }
-  if (pin_pid == 0){
-    fprintf(stdout, "child process for PIN created, launching pin now with command%s\n", PIN_EXE_COMMAND);
+  if (pin_pid == 0 /* TODO: only launch PIN if we are not using checkpoint*/){
+    fprintf(stdout, "child process for PIN created, launching pin now with command %s\n", PIN_EXE_COMMAND);
+    int r = prctl(PR_SET_PDEATHSIG, SIGTERM);
+    if (r == -1) { fprintf(stdout, "Unable to register PIN to be killed when scarab dies\n"); exit(1); }
+    if (getppid() != ppid_before_fork){
+      fprintf(stdout, "Scarab was killed already, Killing PIN\n");
+      exit(1);
+    }
     //TODO: need to do some string manipulation
-    execv(PIN_EXE, );
+    //execv(PIN_EXE, );
   }
 
   /* perform global initialization */
