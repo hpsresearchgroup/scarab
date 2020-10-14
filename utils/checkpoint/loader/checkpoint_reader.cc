@@ -645,6 +645,8 @@ void allocate_new_regions(pid_t child_pid) {
         resize_heap(child_pid, child_region,
                     memory_regions[heap_region_id].region_info);
         memory_regions[heap_region_id].already_mapped = true;
+      } else if(!strncmp(child_region.file_name.c_str(), "[vvar]", 6)) {
+        //simply ingoring vvar
       } else if(!strncmp(child_region.file_name.c_str(), "[stack", 6)) {
         resize_stack(child_pid, child_region,
                      memory_regions[stack_region_id].region_info);
