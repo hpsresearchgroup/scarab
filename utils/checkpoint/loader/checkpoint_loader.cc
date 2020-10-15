@@ -399,7 +399,7 @@ void load_fp_state(pid_t pid) {
 int attach_pin_to_child(pid_t child_pid) {
   std::string       pin_path = std::string(getenv("PIN_ROOT")) + "/pin";
   std::stringstream pin_command_ss;
-  pin_command_ss << pin_path << " -mt 0" << "-injection child"
+  pin_command_ss << pin_path << " -mt 0" << " -injection child"
                  << " -pid " << std::dec << child_pid << " -t " << pintool_path
                  << " -rip 0x" << std::hex << get_checkpoint_start_rip()
                  << " -socket_path " << socket_path << " -core_id " << std::dec
