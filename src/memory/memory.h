@@ -242,7 +242,8 @@ Flag l1_fill_line(Mem_Req* req);
 
 void mark_ops_as_l1_miss_satisfied(Mem_Req* req);
 int  mem_get_req_count(uns proc_id);
-Flag mem_can_allocate_req_buffer(uns proc_id, Mem_Req_Type type);
+Flag mem_can_allocate_req_buffer(uns proc_id, Mem_Req_Type type,
+                                 Flag for_l1_writeback);
 
 void open_mem_stat_interval_file(void);
 void close_mem_stat_interval_file(void);

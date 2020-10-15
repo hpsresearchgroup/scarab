@@ -484,7 +484,7 @@ void check_if_mem_blocked() {
   /* if we are stalled due to lack of MSHRs to the L1, check to see if there is
    * space now. */
   if(node->mem_blocked &&
-     mem_can_allocate_req_buffer(node->proc_id, MRT_DFETCH)) {
+     mem_can_allocate_req_buffer(node->proc_id, MRT_DFETCH, FALSE)) {
     node->mem_blocked = FALSE;
     STAT_EVENT(node->proc_id,
                MEM_BLOCK_LENGTH_0 + MIN2(node->mem_block_length, 5000) / 100);
