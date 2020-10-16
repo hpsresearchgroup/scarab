@@ -876,8 +876,6 @@ void power_print_mc_params(std::ofstream& out) {
   double MEMORY_PEAK_RATE_IN_MB_PER_SEC = 
     (BUS_WIDTH_IN_BYTES / (1 << 20)) * 2 * POWER_INTF_REF_MEMORY_FREQ * 1e6;
 
-  uint32_t MEM_REQ_WINDOW_SIZE = 8 ? 8 : MEM_REQ_BUFFER_ENTRIES;
-
   std::string header = "\t";
 
   ADD_XML_COMPONENT(out, header, std::string("system.mc"), std::string("mc"), );
@@ -891,33 +889,41 @@ void power_print_mc_params(std::ofstream& out) {
   ADD_XML_PARAM(out, header, "peak_transfer_rate",
                 MEMORY_PEAK_RATE_IN_MB_PER_SEC, "MB/S");
 
-  ADD_XML_PARAM(out, header, "block_size", 64, "B");
-  ADD_XML_PARAM(out, header, "number_mcs", 8, );  // TODO: is this what we think it is?
+  ADD_XML_PARAM(out, header, "block_size", 64, "Bytes");
+  ADD_XML_PARAM(out, header, "number_mcs", 8,         );  // TODO: is this what we think it is?
 
-  /*current McPAT only supports homogeneous memory controllers*/
+  /* current McPAT only supports homogeneous memory controllers */
   ADD_XML_PARAM(out, header, "memory_channels_per_mc", 1, );
   ADD_XML_PARAM(out, header, "number_ranks", 1, );
   ADD_XML_PARAM(out, header, "withPHY", 0, );  // TODO: what is this?
 
-  /*# of ranks of each channel*/
+  //TODO: make sure two following parameters are right.
+  //Following parameter is the size of MC request queue.  which is set in
+  //ramulator for read and write queues with RAMULATOR_READQ_ENTRIES and
+  //RAMULATOR_WRITEQ_ENTRIES. Should we make this the sum of two instead? 
+  uint32_t MEM_REQ_WINDOW_SIZE = 8 ? 8 : MEM_REQ_BUFFER_ENTRIES;
   ADD_XML_PARAM(out, header, "req_window_size_per_channel",
-                MEM_REQ_WINDOW_SIZE, );  // TODO: make sure this is right.
+                MEM_REQ_WINDOW_SIZE, );
   ADD_XML_PARAM(out, header, "IO_buffer_size_per_channel",
-                MEM_REQ_WINDOW_SIZE, );  // TODO: make sure this is right
-  ADD_XML_PARAM(out, header, "databus_width", BUS_WIDTH_IN_BYTES, );
+                MEM_REQ_WINDOW_SIZE, );
+
+  /* Note: McPAT accpets data bus in bits, internally converts it to bytes, and
+   * computes additional bus control bits. This is consistent with the second
+   * parameter here, which we subtract log2 of bus width in bytes. */
+  ADD_XML_PARAM(out, header, "databus_width", BUS_WIDTH_IN_BYTES * 8, "bits");
   ADD_XML_PARAM(out, header, "addressbus_width",
                 physical_address_length - std::log2(BUS_WIDTH_IN_BYTES),
                 "McPAT will add the control bus width to the addressbus width "
                 "automatically");
 
-  ADD_XML_ACCUM_STAT(out, header, "memory_accesses",
-                     POWER_MEMORY_CTRL_ACCESS, );
-  ADD_XML_ACCUM_STAT(out, header, "memory_reads", POWER_MEMORY_CTRL_READ, );
-  ADD_XML_ACCUM_STAT(out, header, "memory_writes", POWER_MEMORY_CTRL_WRITE, );
+  ADD_XML_ACCUM_STAT(out, header, "memory_accesses", POWER_MEMORY_CTRL_ACCESS, );
+  ADD_XML_ACCUM_STAT(out, header, "memory_reads",    POWER_MEMORY_CTRL_READ, );
+  ADD_XML_ACCUM_STAT(out, header, "memory_writes",   POWER_MEMORY_CTRL_WRITE, );
 
-  /*McPAT does not track individual mc, instead, it takes the total accesses and
-    calculate the average power per MC or per channel. This is sufficent for
-    most application. Further trackdown can be easily added in later versions.*/
+  /* McPAT does not track individual mc, instead, it takes the total accesses
+   * and calculate the average power per MC or per channel. This is sufficent
+   * for most application. Further trackdown can be easily added in later
+   * versions.*/
   END_OF_COMPONENT(out, header);
 }
 
