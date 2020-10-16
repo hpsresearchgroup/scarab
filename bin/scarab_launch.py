@@ -86,7 +86,7 @@ class Scarab:
     if args.params:
       shutil.copy2(args.params, args.simdir + "/PARAMS.in") 
     else:
-      scarab_utils.warn("Using existing PARAMS.in file in current directory!");
+      scarab_utils.warn("Using existing PARAMS.in file in current directory!")
 
   def __get_scarab_command(self):
     self.cmd = "{scarab} --num_cores {num_cores} --pin_exec_driven_fe_socket {socket_path} --bindir {bin_dir} {additional_args}".format(
