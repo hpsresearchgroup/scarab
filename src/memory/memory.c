@@ -169,7 +169,8 @@ static Flag mem_adjust_matching_request(
   uns delay, Op* op, Flag done_func(Mem_Req*), Counter unique_num,
   Flag demand_hit_prefetch, Flag demand_hit_writeback,
   Mem_Queue_Entry** queue_entry, Counter new_priority);
-static inline Mem_Req* mem_allocate_req_buffer(uns proc_id, Mem_Req_Type type);
+static inline Mem_Req* mem_allocate_req_buffer(uns proc_id, Mem_Req_Type type,
+                                               Flag for_l1_writeback);
 static Mem_Req* mem_kick_out_prefetch_from_queue(uns mem_bank, Mem_Queue* queue,
                                                  Counter new_priority);
 static Mem_Req* mem_kick_out_prefetch_from_queues(uns     mem_bank,
@@ -3095,7 +3096,8 @@ Flag mem_adjust_matching_request(Mem_Req* req, Mem_Req_Type type, Addr addr,
 /**************************************************************************************/
 /* mem_can_allocate_req_buffer: */
 
-Flag mem_can_allocate_req_buffer(uns proc_id, Mem_Req_Type type) {
+Flag mem_can_allocate_req_buffer(uns proc_id, Mem_Req_Type type,
+                                 Flag for_l1_writeback) {
   if(type == MRT_IPRF || type == MRT_DPRF) {
     if(PRIVATE_MSHR_ON &&
        mem->num_req_buffers_per_core[proc_id] + MEM_REQ_BUFFER_PREF_WATERMARK >=
@@ -3118,6 +3120,26 @@ Flag mem_can_allocate_req_buffer(uns proc_id, Mem_Req_Type type) {
     }
   }
 
+  // to ensure deadlock freedom, we need to make sure that there will at least
+  // be space for a L1 (i.e., LLC) writeback, since this is the only type of
+  // request that is guaranteed not to cause additional write backs (and hence
+  // guaranteed to not require additional mem_req entries)
+  if(PRIVATE_MSHR_ON &&
+     mem->num_req_buffers_per_core[proc_id] + 1 >= MEM_REQ_BUFFER_ENTRIES) {
+    if(!for_l1_writeback) {
+      return FALSE;
+    } else {
+      ASSERT(proc_id, MRT_WB == type);
+    }
+
+  } else if(!PRIVATE_MSHR_ON && mem->req_buffer_free_list.count <= 1) {
+    if(!for_l1_writeback) {
+      return FALSE;
+    } else {
+      ASSERT(proc_id, MRT_WB == type);
+    }
+  }
+
   if(PRIVATE_MSHR_ON) {
     ASSERT(proc_id,
            mem->num_req_buffers_per_core[proc_id] <= MEM_REQ_BUFFER_ENTRIES);
@@ -3137,8 +3159,9 @@ Flag mem_can_allocate_req_buffer(uns proc_id, Mem_Req_Type type) {
 /* mem_allocate_req_buffer: */
 /* If queue is specified, only allocates if its entry_count < size */
 
-static inline Mem_Req* mem_allocate_req_buffer(uns proc_id, Mem_Req_Type type) {
-  if(!mem_can_allocate_req_buffer(proc_id, type))
+static inline Mem_Req* mem_allocate_req_buffer(uns proc_id, Mem_Req_Type type,
+                                               Flag for_l1_writeback) {
+  if(!mem_can_allocate_req_buffer(proc_id, type, for_l1_writeback))
     return FALSE;
 
   int* reqbuf_num_ptr = sl_list_remove_head(&mem->req_buffer_free_list);
@@ -3664,7 +3687,7 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
 
   /* Step 3: Not already in request buffer. Figure out if a free request buffer
    * exists */
-  new_req = mem_allocate_req_buffer(proc_id, type);
+  new_req = mem_allocate_req_buffer(proc_id, type, FALSE);
 
   /* Step 4: No free request buffer - If demand, try to kick
      something out from the l1 access queue (not bus_out and
@@ -3895,7 +3918,7 @@ Flag new_mem_dc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
 
   /* Step 3: Not already in request buffer. Figure out if a free request buffer
    * exists */
-  new_req = mem_allocate_req_buffer(proc_id, type);
+  new_req = mem_allocate_req_buffer(proc_id, type, FALSE);
 
   /* Step 4: No free request buffer - If demand, try to kick
      something out from the l1 access queue (not bus_out and
@@ -3986,7 +4009,7 @@ static Flag new_mem_mlc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
 
   /* Step 3: Not already in request buffer. Figure out if a free request buffer
    * exists */
-  new_req = mem_allocate_req_buffer(proc_id, type);
+  new_req = mem_allocate_req_buffer(proc_id, type, FALSE);
 
   /* Step 4: No free request buffer - If demand, try to kick
      something out from the l1 access queue (not bus_out and
@@ -4091,7 +4114,7 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
    * exists */
 
   ASSERT(proc_id, type == MRT_WB);
-  new_req = mem_allocate_req_buffer(proc_id, type);
+  new_req = mem_allocate_req_buffer(proc_id, type, TRUE);
 
   /* Step 4: No free request buffer - If demand, try to kick
      something out from the l1 access queue (not bus_out and

@@ -84,7 +84,7 @@ class Scarab:
 
   def __copy_params_file_to_simdir(self):
     if args.params:
-      shutil.copy2(args.params, os.getcwd() + "/PARAMS.in") 
+      shutil.copy2(args.params, args.simdir + "/PARAMS.in") 
     else:
       scarab_utils.warn("Using existing PARAMS.in file in current directory!");
 
@@ -177,7 +177,7 @@ class Pin:
     self.__get_stdout()
     self.__get_stderr()
 
-    cmd = command.Command(self.cmd, stdout=self.stdout, stderr=self.stderr)
+    cmd = command.Command(self.cmd, run_dir=args.simdir, stdout=self.stdout, stderr=self.stderr)
     cmd.run_in_background()
     return cmd
 
@@ -198,7 +198,7 @@ def launch_checkpoints(proc_list, core, socket_path):
 def main():
   core = 0
   proc_list = command.CommandTracker()
-  socket_path = scarab_utils.get_temp_socket_path();
+  socket_path = scarab_utils.get_temp_socket_path()
 
   if args.checkpoint:
     make_checkpoint_loader()
