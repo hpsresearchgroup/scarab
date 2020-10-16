@@ -252,10 +252,10 @@ static void read_memory_regions() {
           fatal_and_kill_child("Found multiple stack regions");
         }
         stack_region_id = i;
-      } else if(!strcmp(path, "[vdso]")) {
-        vdso_region_id = i;
-      } else if(!strcmp(path, "[vsyscall]")) {
-        vsyscall_region_id = i;
+      //} else if(!strcmp(path, "[vdso]")) {
+      //  vdso_region_id = i;
+      //} else if(!strcmp(path, "[vsyscall]")) {
+      //  vsyscall_region_id = i;
       }
     }
 
@@ -271,12 +271,12 @@ static void read_memory_regions() {
   if(stack_region_id == -1) {
     fatal_and_kill_child("Did not find the stack region in the checkpoint");
   }
-  if(vdso_region_id == -1) {
-    fatal_and_kill_child("Did not find the vdso region in the checkpoint");
-  }
-  if(vsyscall_region_id == -1) {
-    //fatal_and_kill_child("Did not find the vsyscall region in the checkpoint");
-  }
+  //if(vdso_region_id == -1) {
+  //  fatal_and_kill_child("Did not find the vdso region in the checkpoint");
+  //}
+  //if(vsyscall_region_id == -1) {
+  //  fatal_and_kill_child("Did not find the vsyscall region in the checkpoint");
+  //}
 }
 
 void read_fpstate(const struct hconfig_t* registers_config) {
@@ -648,7 +648,9 @@ void allocate_new_regions(pid_t child_pid) {
       } else if(!strncmp(child_region.file_name.c_str(), "[vvar]", 6)) {
         //simply ingoring vvar
       } else if(!strncmp(child_region.file_name.c_str(), "[vsyscall]", 10)) {
-        //simply ingoring vvar
+        //simply ingoring vsyscall
+      } else if(!strncmp(child_region.file_name.c_str(), "[vdso]", 10)) {
+        //simply ingoring vdso
       } else if(!strncmp(child_region.file_name.c_str(), "[stack", 6)) {
         resize_stack(child_pid, child_region,
                      memory_regions[stack_region_id].region_info);
