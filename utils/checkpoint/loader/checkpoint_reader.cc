@@ -275,7 +275,7 @@ static void read_memory_regions() {
     fatal_and_kill_child("Did not find the vdso region in the checkpoint");
   }
   if(vsyscall_region_id == -1) {
-    fatal_and_kill_child("Did not find the vsyscall region in the checkpoint");
+    //fatal_and_kill_child("Did not find the vsyscall region in the checkpoint");
   }
 }
 
@@ -646,6 +646,8 @@ void allocate_new_regions(pid_t child_pid) {
                     memory_regions[heap_region_id].region_info);
         memory_regions[heap_region_id].already_mapped = true;
       } else if(!strncmp(child_region.file_name.c_str(), "[vvar]", 6)) {
+        //simply ingoring vvar
+      } else if(!strncmp(child_region.file_name.c_str(), "[vsyscall]", 10)) {
         //simply ingoring vvar
       } else if(!strncmp(child_region.file_name.c_str(), "[stack", 6)) {
         resize_stack(child_pid, child_region,
