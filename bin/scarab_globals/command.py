@@ -58,6 +58,7 @@ class Command:
     if self.stderr:
       self.stderr = os.path.join(self.results_dir, self.stderr)
 
+    self.cwd = None
     if self.run_dir:
       self.run_dir     = os.path.abspath(run_dir)
 
@@ -87,9 +88,15 @@ class Command:
   def __prepare_to_run(self):
     self.__open_stdout()
     self.__open_stderr()
+    self.cwd = os.getcwd()
 
     if self.run_dir:
       os.chdir(self.run_dir)
+
+  def __clean_up(self):
+    self.__close_files()
+    if self.cwd:
+      os.chdir(self.cwd)
 
   def process_command_list(self):
     return [ self ]
@@ -97,13 +104,13 @@ class Command:
   def run(self):
     self.__prepare_to_run()
     self.returncode = subprocess.call(shlex.split(self.cmd), stdout=self.stdout_fp, stderr=self.stderr_fp)
-    self.__close_files()
+    self.__clean_up()
     return self.returncode
 
   def run_in_background(self):
     self.__prepare_to_run()
     self.process = subprocess.Popen(shlex.split(self.cmd), stdin=None, stdout=self.stdout_fp, stderr=self.stderr_fp)
-    self.__close_files()
+    self.__clean_up()
     return self.process
 
   def append_to_jobfile(self, f):
