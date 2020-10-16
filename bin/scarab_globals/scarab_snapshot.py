@@ -107,3 +107,4 @@ def create_snapshot(scarab_params, results_dir):
         pprint(vars(scarab_params), stream=fp)
 
     scarab_params.snapshot_log = os.path.join(snapshot_dir, SnapshotDefaults.snapshot_log)
+    print("Snapshot created: {}".format(snapshot_dir))

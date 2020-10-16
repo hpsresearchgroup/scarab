@@ -55,6 +55,7 @@ class ScarabRunManager(ObjectManager):
 
     def make(self):
       for job in self.pool:
+        job.create_snapshot()
         job.make()
 
     def run(self):
