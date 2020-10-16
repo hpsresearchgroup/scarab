@@ -339,7 +339,7 @@ class StatFrame:
       exec(equation, stat_values[core_id], stat_values[core_id])
 
       new_stat_row[core_id] = stat_values[core_id][stat_name]
-      new_stat_metadata_row[core_id] = "Equation"
+    new_stat_metadata_row[StatConfig.stat_file_header] = "Equation"
 
     # Update stat in Pandas DF
     self.stat_df.loc[stat_name] = new_stat_row
