@@ -301,6 +301,7 @@ cd $PBS_O_WORKDIR
     return pbs_header
 
   def run_cmd(self, cmd, dep_ids=[]):
+    cwd = os.getcwd()
     if cmd.run_dir:
       os.chdir(cmd.run_dir)
 
@@ -329,6 +330,7 @@ cd $PBS_O_WORKDIR
     print(pbs_job_id)
 
     cmd.write_to_snapshot_log(pbs_job_id)
+    os.chdir(cwd)
 
     return pbs_job_id
 
