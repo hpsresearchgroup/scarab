@@ -890,7 +890,11 @@ void power_print_mc_params(std::ofstream& out) {
                 MEMORY_PEAK_RATE_IN_MB_PER_SEC, "MB/S");
 
   ADD_XML_PARAM(out, header, "block_size", 64, "Bytes");
-  ADD_XML_PARAM(out, header, "number_mcs", 8,         );  // TODO: is this what we think it is?
+
+  // TODO: is this what we think it is?
+  // This is the number of memory controllers, I don't understand why we are
+  // setting to 8 fixed?
+  ADD_XML_PARAM(out, header, "number_mcs", 8,         );
 
   /* current McPAT only supports homogeneous memory controllers */
   ADD_XML_PARAM(out, header, "memory_channels_per_mc", 1, );
