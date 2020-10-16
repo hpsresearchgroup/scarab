@@ -50,6 +50,7 @@ int                             heap_region_id     = -1;
 int                             stack_region_id    = -1;
 int                             vdso_region_id     = -1;
 int                             vsyscall_region_id = -1;
+int                             vvar_region_id     = -1;
 
 void* checkpoint_brk;
 
@@ -256,6 +257,8 @@ static void read_memory_regions() {
         vdso_region_id = i;
       } else if(!strcmp(path, "[vsyscall]")) {
         vsyscall_region_id = i;
+      } else if(!strcmp(path, "[vvar]")) {
+        vvar_region_id = i;
       }
     }
 
@@ -270,12 +273,6 @@ static void read_memory_regions() {
   }
   if(stack_region_id == -1) {
     fatal_and_kill_child("Did not find the stack region in the checkpoint");
-  }
-  if(vdso_region_id == -1) {
-    fatal_and_kill_child("Did not find the vdso region in the checkpoint");
-  }
-  if(vsyscall_region_id == -1) {
-    fatal_and_kill_child("Did not find the vsyscall region in the checkpoint");
   }
 }
 
@@ -637,23 +634,33 @@ void allocate_new_regions(pid_t child_pid) {
   std::vector<RegionInfo> child_regions = read_proc_maps_file(child_pid);
 
   for(auto& child_region : child_regions) {
-    if(child_region.file_name.empty()) {
+    if(child_region.file_name == std::string("[heap]")) {
+      resize_heap(child_pid, child_region,
+                  memory_regions[heap_region_id].region_info);
+      memory_regions[heap_region_id].already_mapped = true;
+
+    } else if(!strncmp(child_region.file_name.c_str(), "[stack", 6)) {
+      resize_stack(child_pid, child_region,
+                   memory_regions[stack_region_id].region_info);
+      memory_regions[stack_region_id].already_mapped = true;
+
+    } else {
+      if((child_region.file_name == std::string("[vvar]") &&
+          vvar_region_id == -1) ||
+         (child_region.file_name == std::string("[vdso]") &&
+          vdso_region_id == -1) ||
+         (child_region.file_name == std::string("[vsyscall]") &&
+          vsyscall_region_id == -1)) {
+        std::cout << " Found the " << child_region.file_name
+                  << " in the binary, but not in the checkpoint. This is "
+                     "probably fine and a is a result of a bug in PIN or "
+                     "ptrace during checkpoint creation. So we'll skip sanity "
+                     "checks for this region.\n";
+        continue;
+      }
+
       int checkpoint_region_id = verify_generic_region(child_pid, child_region);
       memory_regions[checkpoint_region_id].already_mapped = true;
-    } else {
-      if(child_region.file_name == std::string("[heap]")) {
-        resize_heap(child_pid, child_region,
-                    memory_regions[heap_region_id].region_info);
-        memory_regions[heap_region_id].already_mapped = true;
-      } else if(!strncmp(child_region.file_name.c_str(), "[stack", 6)) {
-        resize_stack(child_pid, child_region,
-                     memory_regions[stack_region_id].region_info);
-        memory_regions[stack_region_id].already_mapped = true;
-      } else {
-        int checkpoint_region_id = verify_generic_region(child_pid,
-                                                         child_region);
-        memory_regions[checkpoint_region_id].already_mapped = true;
-      }
     }
   }
 
@@ -696,7 +703,8 @@ void allocate_new_regions(pid_t child_pid) {
         }
       }
     } else {
-      if(i != vsyscall_region_id && i != vdso_region_id) {
+      if(i != vsyscall_region_id && i != vdso_region_id &&
+         i != vvar_region_id) {
         int mprotect_ret = execute_mprotect(child_pid, addr, length, prot);
         if(mprotect_ret != 0) {
           std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
@@ -738,13 +746,13 @@ void write_data_to_regions(pid_t child_pid) {
     }
 
     char temp_byte;
-    fread(&temp_byte, 1, 1, data_file);
-    if(!feof(data_file)) {
+    bytes_read = fread(&temp_byte, 1, 1, data_file);
+    if(bytes_read == 1 || !feof(data_file)) {
       fatal_and_kill_child("dat file has too many bytes: %s",
                            memory_regions[i].data_file.c_str());
     }
 
-    if(i == vsyscall_region_id || i == vdso_region_id) {
+    if(i == vsyscall_region_id || i == vdso_region_id || i == vvar_region_id) {
       assert_equal_mem(child_pid, temp_buffer,
                        (char*)checkpoint_region.range.inclusive_lower_bound,
                        region_size);
