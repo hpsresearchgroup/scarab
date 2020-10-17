@@ -125,7 +125,12 @@ class StatCollection:
       df = frame.get(stat_name=stat_name, core_id=core_id).df
 
       for column in df:
-        combined_df.loc[:, frame.name] = df[column].copy()
+        frame_name = StatRun._generate_name(
+          frame.name,
+          column,
+          core_id
+          )
+        combined_df.loc[:, frame_name] = df[column].copy()
 
     return StatDF(combined_df.copy())
 
@@ -140,7 +145,7 @@ class StatRun(StatCollection):
       df = frame.get(stat_name=stat_name, core_id=core_id).df
 
       for index, row in df.iterrows():
-        frame_name = StatRun._generate_stat_name(
+        frame_name = StatRun._generate_name(
           frame.name,
           index,
           stat_name
@@ -150,7 +155,7 @@ class StatRun(StatCollection):
     return StatDF(combined_df.T.copy())
   
   @staticmethod
-  def _generate_stat_name(frame_name, stat, stat_list):
+  def _generate_name(frame_name, stat, stat_list):
     if not stat_list is None:
       if len(stat_list) > 1:
         frame_name = "{frame_name}:{stat_name}".format(
@@ -339,7 +344,7 @@ class StatFrame:
       exec(equation, stat_values[core_id], stat_values[core_id])
 
       new_stat_row[core_id] = stat_values[core_id][stat_name]
-      new_stat_metadata_row[core_id] = "Equation"
+    new_stat_metadata_row[StatConfig.stat_file_header] = "Equation"
 
     # Update stat in Pandas DF
     self.stat_df.loc[stat_name] = new_stat_row

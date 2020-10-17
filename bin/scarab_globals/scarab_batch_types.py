@@ -37,6 +37,7 @@ Results Dir:
 
 import os
 import sys
+import random
 
 sys.path.append(os.path.dirname(__file__))
 import scarab_paths
@@ -190,6 +191,9 @@ class Executable:
       stat_frame.apply_weight(self.weight)
     return stat_frame
 
+  def get_random_workload(self):
+    return self
+
 class Checkpoint(Executable):
   def __init__(self, name, path, scarab_args="", pintool_args="", weight=1.0):
     super().__init__(name, path, scarab_args, pintool_args, weight)
@@ -289,6 +293,28 @@ class Collection:
     for executable in self.exec_list:
       stat_collection.append(executable.get_stats(results_dir, flat=flat))
     return stat_collection
+
+  def get_random_workload(self):
+    return random.choice(self.exec_list).get_random_workload()
+
+  def get_random_mix(self, size, join='+', seed=None):
+    mix = []
+    name = []
+    scarab_args = ""
+    pintool_args = ""
+
+    random.seed(a=seed, version=2)
+
+    for i in range(size):
+      workload = self.get_random_workload()
+
+      scarab_args = workload.scarab_args
+      pintool_args = workload.pintool_args
+
+      name.append(workload.name)
+      mix.append(workload)
+
+    return Mix(join.join(name), mix, scarab_args=scarab_args, pintool_args=pintool_args)
 
 class Benchmark(Collection):
   """
