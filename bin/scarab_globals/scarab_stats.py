@@ -68,10 +68,16 @@ class StatDF:
   def print(self):
     print(self.df)
 
-  def base(self, base):
+  def speedup(self, base):
     if not base in self.df.index:
       error("Count not find base index {}".format(base))
     self.df.loc[:] = self.df.loc[:].div(self.df.loc[base])
+    return self
+
+  def improvement(self, base):
+    if not base in self.df.index:
+      error("Count not find base index {}".format(base))
+    self.df.loc[:] = (self.df.loc[base] - self.df.loc[:]) / self.df.loc[base]
     return self
 
   def amean(self):
