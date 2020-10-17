@@ -50,4 +50,4 @@ jobs:
         CXX="g++-${{ matrix.gcc }}"
         ${CC} --version
         ${CXX} --version
-        CC=${CC} CXX=${CXX} make -C scarab/utils/checkpoint/loader/
+        make CC=${CC} CCC=${CXX} -C scarab/utils/checkpoint/loader/
