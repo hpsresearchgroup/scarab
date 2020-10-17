@@ -18,11 +18,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - run: cd scarab/utils/checkpoint/creator/
     - run: gcc --version
     - run: g++ --version
     - name: Print Compiler Versions
       run: dpkg --list | grep compiler
+    - run: cd scarab/scarab/utils/checkpoint/creator/
     - name: Run Make
       env:
         CC: ${{ matrix.compiler }}
