@@ -1,0 +1,30 @@
+name: Build Checkpoint Creator and Loader
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-checkpoint-creator:
+
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
+        compiler: [gcc-4.8, gcc-5, gcc-6, gcc-7, gcc-8]
+
+    steps:
+    - uses: actions/checkout@v2
+    - run: cd scarab/utils/checkpoint/creator/
+    - run: gcc --version
+    - run: g++ --version
+    - name: Print Compiler Versions
+      run: dpkg --list | grep compiler
+    - name: Run Make
+      env:
+        CC: ${{ matrix.compiler }}
+        CXX: ${{ matrix.compiler }}
+      run: make
