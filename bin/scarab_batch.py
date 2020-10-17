@@ -41,6 +41,7 @@ parser.add_argument('--stat', action='append', default=None, help="Print stat fr
 parser.add_argument('--core', action='append', default=None, help="Core(s) to get stats for. Only valid with --stat option.")
 parser.add_argument('--results_dir', nargs='*', default=None, help="Results directory(s) to parse stats from. Only valid with --stat option.")
 parser.add_argument('--base', default=None, help="Normalize all runs to this run.")
+parser.add_argument('--improvement', action='store_true', help="Use the improvement formula instead of speedup.")
 parser.add_argument('--amean', action='store_true', help="Print the arithmetic mean.")
 parser.add_argument('--gmean', action='store_true', help="Print the geometric mean.")
 #parser.add_argument('--flat', action='store_true', help="Print all checkpoints equally.")
@@ -104,7 +105,10 @@ def get_stats(stat_name, cores, results_dirs, base=None):
 
   if base:
     #df.loc[:] = df.loc[:].div(df.loc[base])
-    df.base(base)
+    if args.improvement:
+      df.improvement(base)
+    else:
+      df.speedup(base)
 
   if args.gmean:
     df.gmean()
