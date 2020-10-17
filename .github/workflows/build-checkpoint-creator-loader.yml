@@ -13,18 +13,34 @@ jobs:
     
     strategy:
       matrix:
-        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
-        compiler: [gcc-4.8, gcc-5, gcc-6, gcc-7, gcc-8]
+        #os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-18.04]
+        gcc: [5, 7, 8]
 
     steps:
+    - name: Install Scarab Dependencies
+      id: install-scarab
+      if: steps.cache-scarab-dep.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        path: scarab-dependencies
+        repository: hpsresearchgroup/scarab-dependencies
+        token: ${{ secrets.HPS_ACCESS_TOKEN }}
+      env:
+        PIN_ROOT: $(pwd)/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
+        
+    # Check out scarab repo
     - uses: actions/checkout@v2
-    - run: gcc --version
-    - run: g++ --version
-    - name: Print Compiler Versions
-      run: dpkg --list | grep compiler
-    - run: cd scarab/scarab/utils/checkpoint/creator/
+      with:
+        path: scarab
+    
+    - run: cd scarab/utils/checkpoint/creator/
     - name: Run Make
       env:
-        CC: ${{ matrix.compiler }}
-        CXX: ${{ matrix.compiler }}
-      run: make
+        CC: gcc-${{ matrix.gcc }}
+        CXX: g++-${{ matrix.g++ }}
+        PIN_ROOT: ${{ github.workspace }}/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
+      run: |
+        ${CC} --version
+        ${CXX} --version
+        make
