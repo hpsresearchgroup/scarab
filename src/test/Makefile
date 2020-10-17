@@ -15,7 +15,7 @@ SCARAB_CFILES=$(SCARAB_PATH)/hash_lib.c $(SCARAB_PATH)/malloc_lib.c $(SCARAB_PAT
 SCARAB_OBJS= $(patsubst $(SCARAB_PATH)/%.cc,$(TARGET_PATH)/%.o,$(SCARAB_CCFILES)) $(patsubst $(SCARAB_PATH)/%.c,$(TARGET_PATH)/%.o,$(SCARAB_CFILES))
 
 
-.PHONY: gtest message_test server_client_test run_server_client_test scarab_dummy_client_test pin_lib clean objdir
+.PHONY: gtest message_test server_client_test run_server_client_test scarab_dummy_client_test pin_lib clean objdir shm_test
 
 objdir:
 	mkdir -p obj
@@ -31,6 +31,11 @@ pin_lib: $(wildcard $(COMMON_LIB_DIR)/*.cc)
 gtest:
 	make message_test
 	make run_server_client_test
+
+shm_test:
+	mkdir obj
+	g++ -std=c++11 -O3 -I$(SCARAB_PATH)  -o obj/shmq_test_pin shmq_test_pin.cc $(SCARAB_PATH)/shared_mem_queue/shm_queue_interface_lib.cc $(SCARAB_PATH)/pin/pin_lib/message_queue_interface_lib.cc -lrt
+	g++ -std=c++11 -O3 -I$(SCARAB_PATH) -o obj/shmq_test_scarab shmq_test_scarab.cc $(SCARAB_PATH)/shared_mem_queue/shm_queue_interface_lib.cc $(SCARAB_PATH)/pin/pin_lib/message_queue_interface_lib.cc -lrt	
 
 $(TARGET_PATH)/%.o:%.cc
 	g++ -std=c++14 -c $^ -o $@ -DNO_STAT -DGTEST_COMPILE -DNUM_CLIENTS=$(NUM_CLIENTS)
