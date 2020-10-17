@@ -14,8 +14,8 @@ jobs:
     strategy:
       matrix:
         #os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
-        os: [ubuntu-18.04]
-        gcc: [5, 7, 8]
+        os: [ubuntu-18.04, ubuntu-20.04]
+        gcc: [7, 8, 9]
 
     steps:
     - name: Install Scarab Dependencies
@@ -34,7 +34,7 @@ jobs:
       with:
         path: scarab
     
-    - name: Run Make
+    - name: Build Checkpoint Creator
       env:
         PIN_ROOT: ${{ github.workspace }}/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
       run: |
@@ -43,3 +43,11 @@ jobs:
         ${CC} --version
         ${CXX} --version
         CC=${CC} CXX=${CXX} make -C scarab/utils/checkpoint/creator/
+        
+    - name: Build Checkpoint Loader
+      run: |
+        CC="gcc-${{ matrix.gcc }}"
+        CXX="g++-${{ matrix.gcc }}"
+        ${CC} --version
+        ${CXX} --version
+        CC=${CC} CXX=${CXX} make -C scarab/utils/checkpoint/loader/
