@@ -34,7 +34,6 @@ jobs:
       with:
         path: scarab
     
-    - run: cd scarab/utils/checkpoint/creator/
     - name: Run Make
       env:
         PIN_ROOT: ${{ github.workspace }}/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
@@ -43,4 +42,4 @@ jobs:
         CXX="g++-${{ matrix.gcc }}"
         ${CC} --version
         ${CXX} --version
-        make
+        CC=${CC} CXX=${CXX} make -C scarab/utils/checkpoint/creator/
