@@ -15,20 +15,15 @@ int main() {
         msg.inst_uid = 10-count;
         pin->send_cmd(msg, 0);
 
-        for(int i=0; i<2; i++)
+        ScarabOpBuffer_type buf;
+        buf = pin->receive_op_buffer(0);
+        printf("Op Buf received: ");
+        for(int i=0; i<buf.size(); i++)
         {
-          ScarabOpBuffer_type buf;
-          printf("Before Op Buf received: ");
-          fflush(stdout);
-          buf = pin->receive_op_buffer(0);
-          printf("Op Buf received: ");
-          fflush(stdout);
-          for(int i=0; i<buf.size(); i++)
-          {
-            printf("%lx, ", buf[i].instruction_addr);
-            printf("\n");
-          }
+          printf("%lx, ", buf[i].instruction_addr);
         }
+        printf("\n");
+        fflush(stdout);
 
         count--;
         if(count<1) break;

@@ -2,6 +2,16 @@
 #include "shared_mem_queue/shm_queue_interface_lib.h"
 #include "shared_mem_queue/shmmap.h"
 
+ScarabOpBuffer_type get_ScarabOpBuffer_type(ScarabOpBuffer_type_fixed_alloc * src)
+{
+    ScarabOpBuffer_type retval;
+    retval.resize(src->size);
+    for(int i=0; i<src->size; i++)
+    {
+        retval[i] = src->cop_array[i];
+    }
+    return retval;
+}
 
 void pin_shm_interface::init(int cop_queue_shm_key, int cmd_queue_shm_key, int core_id) {
 
@@ -17,7 +27,7 @@ void pin_shm_interface::disconnect() {
 }
 
 void pin_shm_interface::send_op_buffer(ScarabOpBuffer_type op_buffer) {
-    Message<ScarabOpBuffer_type> * shm_ptr;
+    ScarabOpBuffer_type_fixed_alloc * shm_ptr;
     
     while((shm_ptr = cop_queue_ptr->alloc()) == nullptr);
     *shm_ptr = op_buffer;   
@@ -67,17 +77,11 @@ void scarab_shm_interface::disconnect() {
 
 ScarabOpBuffer_type scarab_shm_interface::receive_op_buffer(int core_id) {
     
-    Message<ScarabOpBuffer_type> * shm_ptr;
+    ScarabOpBuffer_type_fixed_alloc * shm_ptr;
     ScarabOpBuffer_type op_buffer;
     
     while((shm_ptr = cop_queue_ptr[core_id]->front()) == nullptr);
-    printf("Rec1\n");
-    Message<ScarabOpBuffer_type> temp;
-    printf("Rec1.5\n");
-    temp = *shm_ptr;
-    printf("Rec2\n");
-    op_buffer = temp;
-    printf("Rec3\n");
+    op_buffer = get_ScarabOpBuffer_type(shm_ptr);
     cop_queue_ptr[core_id]->pop();    
     return op_buffer;
 }
@@ -91,7 +95,7 @@ void scarab_shm_interface::send_cmd(Scarab_To_Pin_Msg cmd, int core_id) {
 }
 
 void scarab_shm_interface::clear_cop_queue(int core_id) {
-    Message<ScarabOpBuffer_type> * shm_ptr;
+    ScarabOpBuffer_type_fixed_alloc * shm_ptr;
     while(true)
     {
         if((shm_ptr = cop_queue_ptr[core_id]->front()) == nullptr) break;

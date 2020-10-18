@@ -22,12 +22,7 @@ int main() {
         cop.instruction_addr = 0x3000 + 2*count+1;
         op_buf.push_back(cop);
 
-        Message<ScarabOpBuffer_type> op_buf2;
-        printf("%d\n", op_buf2.size());
-        op_buf2 = op_buf;
-        printf("%d\n", op_buf2.size());
-
-        scarab->send_op_buffer(op_buf2);
+        scarab->send_op_buffer(op_buf);
 
         count++;
         if(count>9) break;

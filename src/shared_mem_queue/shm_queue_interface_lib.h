@@ -11,8 +11,30 @@
 #define COP_QUEUE_SIZE 256
 #define CMD_QUEUE_SIZE 256
 
+#define MAX_SCARAB_BUFFER_OPS 8
+
+struct ScarabOpBuffer_type_fixed_alloc
+{
+    int size;
+    compressed_op cop_array[MAX_SCARAB_BUFFER_OPS];
+    
+    ScarabOpBuffer_type_fixed_alloc & operator=(const ScarabOpBuffer_type src)
+    {
+        size = src.size();
+        for(int i=0; i<size; i++)
+        {
+            cop_array[i] = src[i];
+        }
+        return *this;
+    }
+
+};
+
+ScarabOpBuffer_type get_ScarabOpBuffer_type(ScarabOpBuffer_type_fixed_alloc * src);
+    
+
 //Global Queue Types
-typedef SPSCQueue<Message<ScarabOpBuffer_type>, COP_QUEUE_SIZE> cop_queue;
+typedef SPSCQueue<ScarabOpBuffer_type_fixed_alloc, COP_QUEUE_SIZE> cop_queue;
 typedef SPSCQueue<Scarab_To_Pin_Msg, CMD_QUEUE_SIZE> cmd_queue;
 
 class pin_shm_interface {
