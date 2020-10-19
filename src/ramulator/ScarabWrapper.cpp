@@ -75,7 +75,7 @@ void ScarabWrapper::tick() {
   mem->tick();
 }
 
-bool ScarabWrapper::send(Request req) {
+bool ScarabWrapper::send(Request& req) {
   return mem->send(req);
 }
 

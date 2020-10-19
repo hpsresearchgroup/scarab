@@ -217,6 +217,7 @@ void init_configs() {
   configs->add("use_rest_of_addr_as_row_addr",
                RAMULATOR_USE_REST_OF_ADDR_AS_ROW_ADDR);
   configs->add("track_reuse_distance", RAMULATOR_TRACK_REUSE_DISTANCE);
+  configs->add("addr_map_type", RAMULATOR_ADDR_MAP_TYPE);
 
   configs->add("scheduling_policy", RAMULATOR_SCHEDULING_POLICY);
   configs->add("readq_entries", to_string(RAMULATOR_READQ_ENTRIES));

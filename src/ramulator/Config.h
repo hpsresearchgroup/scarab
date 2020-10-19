@@ -72,7 +72,8 @@ class Config {
     {"record_cmd_trace", "off"},
     {"print_cmd_trace", "off"},
     {"use_rest_of_addr_as_row_addr", "on"},
-    {"track_reuse_distance", "off"}};
+    {"track_reuse_distance", "off"},
+    {"addr_map_type", "RoBaRaCoCh"}};
 
   template <typename T>
   T get(const std::string& param_name,

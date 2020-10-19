@@ -43,7 +43,7 @@ class ScarabWrapper {
                 void (*stats_callback)(int, unsigned, int));
   ~ScarabWrapper();
   void tick();
-  bool send(Request req);
+  bool send(Request& req);
   void finish(void);
 
   int get_chip_width();

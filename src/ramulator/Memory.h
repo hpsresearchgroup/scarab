@@ -22,6 +22,7 @@
 #ifndef __MEMORY_H
 #define __MEMORY_H
 
+#include <bitset>
 #include <cassert>
 #include <cmath>
 #include <functional>
@@ -53,7 +54,7 @@ class MemoryBase {
   virtual ~MemoryBase() {}
   virtual double clk_ns()                                         = 0;
   virtual void   tick()                                           = 0;
-  virtual bool   send(Request req)                                = 0;
+  virtual bool   send(Request& req)                               = 0;
   virtual int    pending_requests()                               = 0;
   virtual void   finish(void)                                     = 0;
   virtual long   page_allocator(long addr, int coreid)            = 0;
@@ -109,6 +110,7 @@ class Memory : public MemoryBase {
   enum class Type {
     ChRaBaRoCo,
     RoBaRaCoCh,
+    SkylakeDDR4,
     MAX,
   } type = Type::RoBaRaCoCh;
 
@@ -147,6 +149,9 @@ class Memory : public MemoryBase {
     int tx  = (spec->prefetch_size * spec->channel_width / 8);
     tx_bits = calc_log2(tx);
     assert((1 << tx_bits) == tx);
+
+    type = parse_addr_map_type(configs);
+
     // If hi address bits will not be assigned to Rows
     // then the chips must not be LPDDRx 6Gb, 12Gb etc.
     if(type != Type::RoBaRaCoCh && spec->standard_name.substr(0, 5) == "LPDDR")
@@ -290,7 +295,7 @@ class Memory : public MemoryBase {
     }
   }
 
-  bool send(Request req) {
+  bool send(Request& req) {
     req.addr_vec.resize(addr_bits.size());
     long addr   = req.addr;
     int  coreid = req.coreid;
@@ -317,15 +322,10 @@ class Memory : public MemoryBase {
         // fill out addr_vec for everything up until row
         for(int i = 1; i < int(T::Level::Row); i++)
           req.addr_vec[i] = slice_lower_bits(addr, addr_bits[i]);
-        // for the row addr, if use_rest_of_addr_as_row_addr is on, then we use
-        // all the remaining phys addr bits in the row address (to make sure two
-        // distinct phys addrs never alias to the same data in Ramulator)
-        req.addr_vec[int(T::Level::Row)] = slice_lower_bits(
-          addr, use_rest_of_addr_as_row_addr ?
-                  sizeof(addr) * CHAR_BIT - __builtin_clzl(addr) :
-                  addr_bits[int(T::Level::Row)]);
-        if(use_rest_of_addr_as_row_addr)
-          assert(0 == addr);  // should have consumed all the phys addr bits
+        req.addr_vec[int(T::Level::Row)] = slice_row_addr(addr);
+        break;
+      case int(Type::SkylakeDDR4):
+        set_skylakeddr4_addr_vec(req, addr);
         break;
       default:
         assert(false);
@@ -446,9 +446,15 @@ class Memory : public MemoryBase {
     return n;
   }
   int slice_lower_bits(long& addr, int bits) {
+    assert(bits < (int)(sizeof(int) * CHAR_BIT));
     int lbits = addr & ((1 << bits) - 1);
     addr >>= bits;
     return lbits;
+  }
+  int slice_lower_bits_and_track_num_shifted(long& addr, int bits,
+                                             int& num_shifted) {
+    num_shifted += bits;
+    return slice_lower_bits(addr, bits);
   }
   void clear_lower_bits(long& addr, int bits) { addr >>= bits; }
   long lrand(void) {
@@ -458,7 +464,43 @@ class Memory : public MemoryBase {
 
     return rand();
   }
+
+  Type parse_addr_map_type(const Config& configs) {
+    if("ChRaBaRoCo" == configs["addr_map_type"]) {
+      return Type::ChRaBaRoCo;
+    } else if("RoBaRaCoCh" == configs["addr_map_type"]) {
+      return Type::RoBaRaCoCh;
+    } else if("SkylakeDDR4" == configs["addr_map_type"]) {
+      return Type::SkylakeDDR4;
+    } else {
+      assert(false);
+      return Type::MAX;
+    }
+  }
+
+  int slice_row_addr(long addr) {
+    // for the row addr, if use_rest_of_addr_as_row_addr is on, then we use
+    // all the remaining phys addr bits in the row address (to make sure two
+    // distinct phys addrs never alias to the same data in Ramulator)
+    if(use_rest_of_addr_as_row_addr) {
+      constexpr uint num_folded_bits = sizeof(int) * CHAR_BIT;
+      long           shifted         = (addr >> num_folded_bits);
+      return (shifted ^ addr);
+
+    } else {
+      return slice_lower_bits(addr, addr_bits[int(T::Level::Row)]);
+    }
+  }
+
+  vector<int> BaRaBgCo7ChCo2(Request& req, long addr) { assert(false); }
+  void set_skylakeddr4_addr_vec(Request& req, long addr) { assert(false); }
 };
+
+template <>
+vector<int> Memory<DDR4>::BaRaBgCo7ChCo2(Request& req, long addr);
+
+template <>
+void Memory<DDR4>::set_skylakeddr4_addr_vec(Request& req, long addr);
 
 } /*namespace ramulator*/
 
