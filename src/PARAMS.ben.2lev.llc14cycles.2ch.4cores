@@ -182,8 +182,8 @@
 --ramulator_rows		65536
 --ramulator_cols		1024
 --ramulator_scheduling_policy	FRFCFS_Cap		
---ramulator_readq_entries	32		
---ramulator_writeq_entries	32		
+--ramulator_readq_entries	64		
+--ramulator_writeq_entries	64		
 --ramulator_record_cmd_trace	FALSE		
 --ramulator_print_cmd_trace	FALSE		
 --ramulator_tCK			833333
