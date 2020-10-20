@@ -22,12 +22,14 @@
 #ifndef __MEMORY_H
 #define __MEMORY_H
 
+#include <algorithm>
 #include <bitset>
 #include <cassert>
 #include <cmath>
 #include <functional>
 #include <limits.h>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 #include "Config.h"
 #include "Controller.h"
@@ -99,6 +101,17 @@ class Memory : public MemoryBase {
   ScalarStat in_queue_read_req_num_avg;
   ScalarStat in_queue_write_req_num_avg;
 
+  VectorStat channel_reuses;
+  VectorStat channel_pages_touched;
+  VectorStat reuse_threshold_at_50;
+  VectorStat reuse_threshold_at_80;
+  VectorStat access_threshold_at_50;
+  VectorStat access_threshold_at_80;
+  VectorStat num_pages_threshold_at_50_reuse;
+  VectorStat num_pages_threshold_at_80_reuse;
+  VectorStat num_pages_threshold_at_50_access;
+  VectorStat num_pages_threshold_at_80_access;
+
 #ifndef INTEGRATED_WITH_GEM5
   VectorStat record_read_requests;
   VectorStat record_write_requests;
@@ -125,6 +138,14 @@ class Memory : public MemoryBase {
     {"Random", Translation::Random},
   };
 
+  struct OsPageInfo {
+    uint64_t lines_seen;
+    long     reuse_count;
+    long     access_count;
+  };
+  std::vector<std::unordered_map<long, OsPageInfo>> os_page_tracking_map_by_ch;
+  bool                                              track_os_pages;
+
   bool use_rest_of_addr_as_row_addr;
 
   vector<int>                free_physical_pages;
@@ -150,7 +171,11 @@ class Memory : public MemoryBase {
     tx_bits = calc_log2(tx);
     assert((1 << tx_bits) == tx);
 
-    type = parse_addr_map_type(configs);
+    type           = parse_addr_map_type(configs);
+    track_os_pages = configs.get_config("track_os_page_reuse");
+    for(int ch = 0; ch < sz[0]; ch++)
+      os_page_tracking_map_by_ch.push_back(
+        std::unordered_map<long, OsPageInfo>());
 
     // If hi address bits will not be assigned to Rows
     // then the chips must not be LPDDRx 6Gb, 12Gb etc.
@@ -235,6 +260,45 @@ class Memory : public MemoryBase {
     in_queue_write_req_num_avg.name("in_queue_write_req_num_avg")
       .desc("Average of write queue length per memory cycle")
       .precision(6);
+
+    channel_reuses.init(sz[int(T::Level::Channel)])
+      .name("channel_reuses")
+      .desc("Number of times a read/write was to a previously accessed cache "
+            "line in "
+            "each DRAM channel");
+    channel_pages_touched.init(sz[int(T::Level::Channel)])
+      .name("channel_pages_touched")
+      .desc("Number of 4KB OS pages touched in this channel");
+    reuse_threshold_at_50.init(sz[int(T::Level::Channel)])
+      .name("reuse_threshold_at_50")
+      .desc("What the reuse threshold per page should be if we want to capture "
+            "50% of all reuses");
+    reuse_threshold_at_80.init(sz[int(T::Level::Channel)])
+      .name("reuse_threshold_at_80")
+      .desc("What the reuse threshold per page should be if we want to capture "
+            "80% of all reuses");
+    access_threshold_at_50.init(sz[int(T::Level::Channel)])
+      .name("access_threshold_at_50")
+      .desc(
+        "What the access threshold per page should be if we want to capture "
+        "50% of all accesses");
+    access_threshold_at_80.init(sz[int(T::Level::Channel)])
+      .name("access_threshold_at_80")
+      .desc(
+        "What the access threshold per page should be if we want to capture "
+        "80% of all accesses");
+    num_pages_threshold_at_50_reuse.init(sz[int(T::Level::Channel)])
+      .name("num_pages_threshold_at_50_reuse")
+      .desc("How many pages were needed to achieve 50% reuse");
+    num_pages_threshold_at_80_reuse.init(sz[int(T::Level::Channel)])
+      .name("num_pages_threshold_at_80_reuse")
+      .desc("How many pages were needed to achieve 80% reuse");
+    num_pages_threshold_at_50_access.init(sz[int(T::Level::Channel)])
+      .name("num_pages_threshold_at_50_access")
+      .desc("How many pages were needed to achieve 50% access");
+    num_pages_threshold_at_80_access.init(sz[int(T::Level::Channel)])
+      .name("num_pages_threshold_at_80_access")
+      .desc("How many pages were needed to achieve 80% access");
 #ifndef INTEGRATED_WITH_GEM5
     record_read_requests.init(configs.get_core_num())
       .name("record_read_requests")
@@ -332,6 +396,10 @@ class Memory : public MemoryBase {
     }
 
     if(ctrls[req.addr_vec[0]]->enqueue(req)) {
+      if(track_os_pages) {
+        update_os_page_info(req, req.addr_vec[0]);
+      }
+
       // tally stats here to avoid double counting for requests that aren't
       // enqueued
       ++num_incoming_requests;
@@ -377,6 +445,9 @@ class Memory : public MemoryBase {
       long read_req = long(
         incoming_read_reqs_per_channel[ctrl->channel->id].value());
       ctrl->finish(read_req, dram_cycles);
+      if(track_os_pages) {
+        compute_os_page_stats(ctrl->channel->id);
+      }
     }
 
     // finalize average queueing requests
@@ -494,6 +565,117 @@ class Memory : public MemoryBase {
 
   vector<int> BaRaBgCo7ChCo2(Request& req, long addr) { assert(false); }
   void set_skylakeddr4_addr_vec(Request& req, long addr) { assert(false); }
+
+  void update_os_page_info(const Request& req, int channel) {
+    if((req.type == Request::Type::READ) ||
+       (req.type == Request::Type::WRITE)) {
+      long       addr         = req.addr;
+      const uint page_offset  = slice_lower_bits(addr, 12);
+      const long page_index   = addr;
+      const uint line_on_page = page_offset >> 6;
+      assert(line_on_page < (sizeof(OsPageInfo().lines_seen) * CHAR_BIT));
+
+      std::unordered_map<long, OsPageInfo>& os_page_tracking_map =
+        os_page_tracking_map_by_ch[channel];
+
+      if(0 == os_page_tracking_map.count(page_index))
+        os_page_tracking_map[page_index] = OsPageInfo();
+
+      const long line_on_page_bit = (((long)1) << line_on_page);
+      if(line_on_page_bit & os_page_tracking_map.at(page_index).lines_seen) {
+        os_page_tracking_map.at(page_index).reuse_count++;
+      }
+      os_page_tracking_map.at(page_index).lines_seen |= line_on_page_bit;
+      os_page_tracking_map.at(page_index).access_count++;
+    }
+  }
+
+  void check_if_threshold_satisfied(int channel, vector<long>& vec, long i,
+                                    long seen_count, long desired_count,
+                                    VectorStat& threshold_stat,
+                                    VectorStat& num_pages_stat, bool& done) {
+    if((seen_count > desired_count) && !done) {
+      long threshold_candidiate  = vec[i];
+      long lost_due_to_threshold = (i + 1) * threshold_candidiate;
+      long remaining             = seen_count - lost_due_to_threshold;
+
+      if(remaining > desired_count) {
+        threshold_stat[channel] = threshold_candidiate;
+        num_pages_stat[channel] = (i + 1);
+
+        done = true;
+      }
+    }
+  }
+
+  void compute_os_page_stats(int channel) {
+    std::unordered_map<long, OsPageInfo>& os_page_tracking_map =
+      os_page_tracking_map_by_ch[channel];
+
+    long              total_reuses   = 0;
+    long              total_accesses = 0;
+    std::vector<long> reuses, accesses;
+    const ulong       total_pages = os_page_tracking_map.size();
+    reuses.reserve(total_pages);
+    accesses.reserve(total_pages);
+
+    for(auto page_it = os_page_tracking_map.cbegin();
+        page_it != os_page_tracking_map.cend(); page_it++) {
+      long reuse_count  = page_it->second.reuse_count;
+      long access_count = page_it->second.access_count;
+      total_reuses += reuse_count;
+      total_accesses += access_count;
+      reuses.push_back(reuse_count);
+      accesses.push_back(access_count);
+    }
+    std::sort(reuses.begin(), reuses.end(), std::greater<long>());
+    std::sort(accesses.begin(), accesses.end(), std::greater<long>());
+    assert(reuses.size() == total_pages);
+    assert(accesses.size() == total_pages);
+
+    channel_reuses[channel]        = total_reuses;
+    channel_pages_touched[channel] = total_pages;
+    const long reuses_50           = 0.5 * total_reuses;
+    const long reuses_80           = 0.8 * total_reuses;
+    const long accesses_50         = 0.5 * total_accesses;
+    const long accesses_80         = 0.9 * total_accesses;
+
+    {
+      long seen_reuses   = 0;
+      bool done_50_reuse = false;
+      bool done_80_reuse = false;
+      for(ulong i = 0; i < reuses.size(); i++) {
+        seen_reuses += reuses[i];
+        check_if_threshold_satisfied(
+          channel, reuses, i, seen_reuses, reuses_50, reuse_threshold_at_50,
+          num_pages_threshold_at_50_reuse, done_50_reuse);
+        check_if_threshold_satisfied(
+          channel, reuses, i, seen_reuses, reuses_80, reuse_threshold_at_80,
+          num_pages_threshold_at_80_reuse, done_80_reuse);
+        if(done_50_reuse && done_80_reuse)
+          break;
+      }
+    }
+
+    {
+      long seen_accesses  = 0;
+      bool done_50_access = false;
+      bool done_80_access = false;
+      for(ulong i = 0; i < accesses.size(); i++) {
+        seen_accesses += accesses[i];
+        check_if_threshold_satisfied(channel, accesses, i, seen_accesses,
+                                     accesses_50, access_threshold_at_50,
+                                     num_pages_threshold_at_50_access,
+                                     done_50_access);
+        check_if_threshold_satisfied(channel, accesses, i, seen_accesses,
+                                     accesses_80, access_threshold_at_80,
+                                     num_pages_threshold_at_80_access,
+                                     done_80_access);
+        if(done_50_access && done_80_access)
+          break;
+      }
+    }
+  }
 };
 
 template <>

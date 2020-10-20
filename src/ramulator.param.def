@@ -77,6 +77,7 @@ DEF_PARAM(ramulator_print_cmd_trace      , RAMULATOR_PRINT_CMD_TRACE            
 // will be included as a row bit
 DEF_PARAM(ramulator_use_rest_of_addr_as_row_addr, RAMULATOR_USE_REST_OF_ADDR_AS_ROW_ADDR  , char*   , string , "on"        , )
 DEF_PARAM(ramulator_track_reuse_distance        , RAMULATOR_TRACK_REUSE_DISTANCE          , char*   , string , "off"       , )
+DEF_PARAM(ramulator_track_os_page_reuse        , RAMULATOR_TRACK_OS_PAGE_REUSE          , char*   , string , "off"       , )
 DEF_PARAM(ramulator_addr_map_type               , RAMULATOR_ADDR_MAP_TYPE                 , char*   , string , "RoBaRaCoCh", )
 
 // Timing parameters (TODO: make these optional. If not specified, present // values defined by RAMULATOR_SPEED should be used instead.)

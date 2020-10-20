@@ -73,6 +73,7 @@ class Config {
     {"print_cmd_trace", "off"},
     {"use_rest_of_addr_as_row_addr", "on"},
     {"track_reuse_distance", "off"},
+    {"track_os_page_reuse", "off"},
     {"addr_map_type", "RoBaRaCoCh"}};
 
   template <typename T>
