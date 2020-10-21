@@ -23,6 +23,7 @@ import sys
 import subprocess
 import tempfile
 import shutil
+import time
 
 sys.path.append(os.path.dirname(__file__))
 import command
@@ -76,8 +77,42 @@ def get_temp_socket_path():
   socket_path = os.path.join(tempfile.mkdtemp(prefix=temp_prefix), 'socket')
   return socket_path
 
+
+class Timer:
+    def __init__(self):
+        self._start_time = None
+
+    def start(self):
+      """Start a new timer"""
+      if self._start_time is not None:
+        error("Timer is already running")
+
+      self._start_time = time.perf_counter()
+
+    def get_eta(self, perc_complete):
+      """Estimate an eta given a percentage completeness.
+         perc_complete: [0, 1]
+      """
+      if self._start_time is None:
+        error("Timer is not running")
+
+      elapsed_time = time.perf_counter() - self._start_time
+      estimated_total_time = elapsed_time / perc_complete if perc_complete > 0 else float('inf')
+      estimated_remaining_time = estimated_total_time - elapsed_time
+      return str(f"ETA: {estimated_remaining_time:0.4f} s")
+      
+
+    def stop(self):
+      """Stop the timer, and report the elapsed time"""
+      if self._start_time is None:
+        error("Timer is not running")
+
+      elapsed_time = time.perf_counter() - self._start_time
+      self._start_time = None
+      return str(f"time: {elapsed_time:0.4f} s")
+
 class ProgressBar:
-  def __init__(self, banner, total_count):
+  def __init__(self, banner, total_count, enable_timer=True):
     self.bar_char = '='
     self.edge_char = '|'
     self.max_bar_length = 10
@@ -85,13 +120,23 @@ class ProgressBar:
     self.total_count = total_count
     self.count = 0
 
+    self.timer = None
+    if enable_timer:
+      self.timer = Timer()
+      self.timer.start()
     self._print_current_progress()
 
   def _print_current_progress(self):
-    bar_length = int(self.count * self.max_bar_length / self.total_count)
+    perc_complete = self.count / self.total_count if self.total_count > 0 else 1
+    bar_length = int(self.count * self.max_bar_length /
+                     self.total_count) if self.total_count > 0 else self.max_bar_length
     bar        =  ''.join(bar_length * [self.bar_char])
     not_bar    =  ''.join((self.max_bar_length - bar_length) * [' '])
-    end        = "complete.\n" if self.total_count == self.count else ""
+    end        = "complete. {timer}\n".format(
+      timer=self.timer.stop() if not self.timer is None else ""
+    ) if self.total_count == self.count else "{timer}".format(
+      timer=self.timer.get_eta(perc_complete) if not self.timer is None else ""
+    )
     progress   = "\r{banner}: {edge}{bar}{not_bar}{edge} {end}".format(
       banner=self.banner,
       edge=self.edge_char,
