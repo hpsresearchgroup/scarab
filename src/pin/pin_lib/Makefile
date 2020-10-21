@@ -9,14 +9,14 @@ VERSION = 0
 
 SCARAB_DIR ?= ../../
 OBJDIR := obj
-CCFILES = message_queue_interface_lib.cc pin_scarab_common_lib.cc shared_mem_queue/shm_queue_interface_lib.cc
+CCFILES = message_queue_interface_lib.cc pin_scarab_common_lib.cc shm_queue_interface_lib.cc
 CFILES = uop_generator.c
 OBJFILES = $(patsubst %.cc,$(OBJDIR)/%.o,$(CCFILES)) $(patsubst %.c,$(OBJDIR)/%.o,$(CFILES))
 TARGET = libpin_fe
 
 # will always generate the debug functions, but won't call them unless debug is enabled
 DEBUG_FLAGS = #-DNO_DEBUG
-XFLAGS	    = -D_REENTRANT
+XFLAGS	    = -D_REENTRANT -lrt
 WARN_CFLAGS = -Wall -Wunused -Wmissing-prototypes -Wmissing-declarations -Wno-long-long -Wpointer-arith -Wimplicit -Werror
 ifeq ($(CCVER), gcc (GCC) 4.7.3)
 WARN_CFLAGS += -Wno-unused-but-set-variable -Wno-maybe-uninitialized
@@ -60,8 +60,6 @@ archive: $(OBJDIR)/$(TARGET).a
 
 dir:
 	mkdir -p $(OBJDIR)
-	#TODO: Deal with hard coded directory added to deal with deps for shared memory queues.
-	mkdir -p $(OBJDIR)/shared_mem_queue
 
 clean:
 	-rm -rf $(OBJDIR)

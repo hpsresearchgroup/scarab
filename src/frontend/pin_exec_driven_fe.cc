@@ -39,7 +39,7 @@ extern "C" {
 }
 
 #include "frontend/pin_exec_driven_fe.h"
-#include "pin/pin_lib/shared_mem_queue/shm_queue_interface_lib.h"
+#include "pin/pin_lib/shm_queue_interface_lib.h"
 #include "pin/pin_lib/pin_scarab_common_lib.h"
 #include "pin/pin_lib/uop_generator.h"
 

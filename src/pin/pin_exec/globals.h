@@ -33,7 +33,7 @@
 #undef UNUSED
 #undef WARNING
 
-#include "../pin_lib/shared_mem_queue/shm_queue_interface_lib.h"
+#include "../pin_lib/shm_queue_interface_lib.h"
 #include "read_mem_map.h"
 #include "utils.h"
 

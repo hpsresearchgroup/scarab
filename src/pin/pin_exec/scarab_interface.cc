@@ -20,7 +20,7 @@
  */
 
 #include "scarab_interface.h"
-#include "../pin_lib/shared_mem_queue/shm_queue_interface_lib.h"
+#include "../pin_lib/shm_queue_interface_lib.h"
 
 Scarab_To_Pin_Msg get_scarab_cmd() {
   Scarab_To_Pin_Msg cmd;
