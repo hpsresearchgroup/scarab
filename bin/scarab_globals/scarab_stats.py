@@ -81,11 +81,13 @@ class StatDF:
     return self
 
   def amean(self):
-    self.df['amean'] = self.df.mean(numeric_only=True, axis=1)
+    """Compute amean ignoreing NaN values"""
+    self.df['amean'] = self.df.dropna(axis=1).mean(numeric_only=True, axis=1)
     return self
 
   def gmean(self):
-    self.df['gmean'] = stats.gmean(self.df.iloc[:], axis=1)
+    """Compute gmean ignoreing NaN values"""
+    self.df['gmean'] = stats.gmean(self.df.dropna(axis=1).iloc[:], axis=1)
 
 class StatCollection:
   """A collection (1 or more) of StatFrames.
@@ -427,21 +429,20 @@ class StatFileParser:
       if print_warnings:
         warn("Unable to read stats file {} : ".format(statsfile) + str(e))
 
-  def _parse_stat(self, stat_str, reset_stats_column=True):
+  def _parse_stat(self, stat_str):
     """Convert stat string to stat name and float
 
     Args:
         stat_str (string): A string from the Scarab statfile that contains a stat. 
-        reset_stats_column (Boolean): If true, returnt the reset stats column,
         otherwise return the column not affected by reset stats.
 
     Returns:
         string, float: The string name of the stat, the float value of the stat
     """
-    m = self._is_stat_line(stat_str, reset_stats_column=reset_stats_column)
+    m = self._is_stat_line(stat_str)
     return m.group(1), float(m.group(2))
 
-  def _is_stat_line(self, stat_str, reset_stats_column=True):
+  def _is_stat_line(self, stat_str):
     """The regex pattern that 1) tells you if a line from the statsfile contains a stat and
        2) parses the stat value from the file.
 
@@ -451,7 +452,6 @@ class StatFileParser:
 
     Args:
         stat_str (string): The string that may or may not contain a stat
-        reset_stats_column (Boolean): If true, returnt the reset stats column,
         otherwise return the column not affected by reset stats.
 
     Returns:
@@ -460,12 +460,8 @@ class StatFileParser:
     # A slow regex that grabs all stat values from file:
     pattern_all_values = '([^\s]+)\s+([0-9]+)\s+([0-9.]+)?[%]?\s+([0-9]+)\s+([0-9.]+)?[%]?'
 
-    # A noticably faster regex that only grabs the reset stats value (all that we need most of the time):
-    pattern_reset_stats = '^([^\s]+)\s+([0-9]+).*$'
-
     # If we only need the reset stats, then use the faster regex...
-    pattern = pattern_reset_stats if reset_stats_column else pattern_all_values
-    m = re.search(pattern, stat_str)
+    m = re.search(pattern_all_values, stat_str)
     return m
 
   def _add_stat(self, core_id, stat, value, statsfile):
