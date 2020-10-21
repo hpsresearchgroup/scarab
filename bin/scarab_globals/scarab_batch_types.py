@@ -186,9 +186,7 @@ class Executable:
 
   def get_stats(self, basename, flat=False):
     results_dir = self._results_dir(basename)
-    stat_frame = scarab_stats.StatFrame(self.name, results_dir)
-    if not flat:
-      stat_frame.apply_weight(self.weight)
+    stat_frame = scarab_stats.StatFrame(self.name, results_dir, weight=self.weight)
     return stat_frame
 
   def get_random_workload(self):
@@ -330,7 +328,9 @@ class Benchmark(Collection):
     if flat:
       return stat_collection
     else:
-      return stat_collection.accumulate().normalize().apply_weight(self.weight)
+      stat_frame = stat_collection.apply_weight(1.0).accumulate().normalize()
+      stat_frame.weight = self.weight
+      return stat_frame
 
 class Suite(Collection):
   """
