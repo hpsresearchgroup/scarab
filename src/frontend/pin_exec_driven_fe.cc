@@ -39,7 +39,7 @@ extern "C" {
 }
 
 #include "frontend/pin_exec_driven_fe.h"
-#include "pin/pin_lib/message_queue_interface_lib.h"
+#include "pin/pin_lib/shared_mem_queue/shm_queue_interface_lib.h"
 #include "pin/pin_lib/pin_scarab_common_lib.h"
 #include "pin/pin_lib/uop_generator.h"
 
@@ -47,7 +47,7 @@ extern "C" {
 
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_PIN_EXEC_DRIVEN, ##args)
 
-Server*                          server;
+scarab_shm_interface*                          server;
 std::vector<ScarabOpBuffer_type> cached_cop_buffers;
 
 void get_next_op_buffer_from_pin(uns proc_id);
@@ -64,9 +64,8 @@ void get_next_op_buffer_from_pin(uns proc_id) {
   msg.inst_addr = 0;
   msg.inst_uid  = 0;
 
-  server->send(proc_id, (Message<Scarab_To_Pin_Msg>)msg);  // blocking
-  cached_cop_buffers[proc_id] = server->receive<ScarabOpBuffer_type>(
-    proc_id);  // blocking
+  server->send(proc_id, msg);  // blocking
+  cached_cop_buffers[proc_id] = server->receive(proc_id);  // blocking
 }
 
 void update_op_buffer_if_empty(uns proc_id) {
@@ -88,14 +87,15 @@ Addr get_fetch_address(uns proc_id, compressed_op* cop) {
  * PIN Exec Driven Interface Functions
  **********************************************************/
 void pin_exec_driven_init(uns numProcs) {
-  server = new Server(PIN_EXEC_DRIVEN_FE_SOCKET, numProcs);
+  server = new scarab_shm_interface;
+  server->init(1234, 5678, numProcs);
   cached_cop_buffers.resize(numProcs);
   uop_generator_init(numProcs);
 }
 
 void pin_exec_driven_done(Flag* retired_exit) {
   // Send final exit message, telling client to stop running.
-  for(uint32_t i = 0; i < server->getNumClients(); ++i) {
+  for(uint32_t i = 0; i < server->getNumCores(); ++i) {
     if(!retired_exit[i]) {
       pin_exec_driven_retire(i, -1);
     }
@@ -103,9 +103,7 @@ void pin_exec_driven_done(Flag* retired_exit) {
 
   // Must wait for all clients to close socket before we shutdown,
   // otherwise they may crash when reading the final retire.
-  for(uint32_t i = 0; i < server->getNumClients(); ++i) {
-    server->wait_for_client_to_close(i);
-  }
+  server->disconnect();
   delete server;
 }
 
@@ -150,7 +148,7 @@ void pin_exec_driven_redirect(uns proc_id, uns64 inst_uid, Addr fetch_addr) {
   msg.inst_uid  = inst_uid;
   uop_generator_recover(proc_id);
 
-  server->send(proc_id, (Message<Scarab_To_Pin_Msg>)msg);  // blocking
+  server->send(proc_id, msg);  // blocking
   invalidate_op_buffer(proc_id);
   DEBUG(proc_id, "Fetch Redirect end: %llx\n", fetch_addr);
 }
@@ -165,7 +163,7 @@ void pin_exec_driven_recover(uns proc_id, uns64 inst_uid) {
   msg.inst_uid  = inst_uid;
   uop_generator_recover(proc_id);
 
-  server->send(proc_id, (Message<Scarab_To_Pin_Msg>)msg);  // blocking
+  server->send(proc_id, msg);  // blocking
   invalidate_op_buffer(proc_id);
   DEBUG(proc_id, "Fetch Recover end: %llu\n", inst_uid);
 }
@@ -177,6 +175,6 @@ void pin_exec_driven_retire(uns proc_id, uns64 inst_uid) {
   msg.inst_addr = inst_uid == (uns64)-1;
   msg.inst_uid  = inst_uid;
 
-  server->send(proc_id, (Message<Scarab_To_Pin_Msg>)msg);  // blocking
+  server->send(proc_id, msg);  // blocking
   DEBUG(proc_id, "Fetch Retire end: %llu\n", inst_uid);
 }

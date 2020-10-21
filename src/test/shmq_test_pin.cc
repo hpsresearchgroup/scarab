@@ -1,5 +1,5 @@
 
-#include "shared_mem_queue/shm_queue_interface_lib.h"
+#include "pin/pin_lib/shared_mem_queue/shm_queue_interface_lib.h"
 #include "pin/pin_lib/pin_scarab_common_lib.h"
 
 int main() {
@@ -13,7 +13,7 @@ int main() {
     while(1) {
         Scarab_To_Pin_Msg cmd;
         ScarabOpBuffer_type op_buf;
-        cmd = scarab->receive_cmd();
+        cmd = scarab->receive();
         printf("Received cmd inst uid = %lu\n", cmd.inst_uid);
         
         compressed_op cop;
@@ -22,7 +22,7 @@ int main() {
         cop.instruction_addr = 0x3000 + 2*count+1;
         op_buf.push_back(cop);
 
-        scarab->send_op_buffer(op_buf);
+        scarab->send(op_buf);
 
         count++;
         if(count>9) break;

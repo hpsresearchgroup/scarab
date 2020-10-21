@@ -36,7 +36,7 @@ UINT64 heartbeat = 0;
 CONTEXT last_ctxt;
 ADDRINT next_eip;
 
-Client*                   scarab;
+pin_shm_interface*        scarab;
 ScarabOpBuffer_type       scarab_op_buffer;
 compressed_op             op_mailbox;
 bool                      op_mailbox_full           = false;

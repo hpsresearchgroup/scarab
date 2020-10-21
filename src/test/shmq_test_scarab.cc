@@ -1,5 +1,5 @@
 
-#include "shared_mem_queue/shm_queue_interface_lib.h"
+#include "pin/pin_lib/shared_mem_queue/shm_queue_interface_lib.h"
 #include "pin/pin_lib/pin_scarab_common_lib.h"
 
 int main() {
@@ -13,10 +13,10 @@ int main() {
     while(1) {
         Scarab_To_Pin_Msg msg;
         msg.inst_uid = 10-count;
-        pin->send_cmd(msg, 0);
+        pin->send(0, msg);
 
         ScarabOpBuffer_type buf;
-        buf = pin->receive_op_buffer(0);
+        buf = pin->receive(0);
         printf("Op Buf received: ");
         for(int i=0; i<buf.size(); i++)
         {

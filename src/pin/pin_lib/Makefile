@@ -9,7 +9,7 @@ VERSION = 0
 
 SCARAB_DIR ?= ../../
 OBJDIR := obj
-CCFILES = message_queue_interface_lib.cc pin_scarab_common_lib.cc
+CCFILES = message_queue_interface_lib.cc pin_scarab_common_lib.cc shared_mem_queue/shm_queue_interface_lib.cc
 CFILES = uop_generator.c
 OBJFILES = $(patsubst %.cc,$(OBJDIR)/%.o,$(CCFILES)) $(patsubst %.c,$(OBJDIR)/%.o,$(CFILES))
 TARGET = libpin_fe
@@ -60,6 +60,8 @@ archive: $(OBJDIR)/$(TARGET).a
 
 dir:
 	mkdir -p $(OBJDIR)
+	#TODO: Deal with hard coded directory added to deal with deps for shared memory queues.
+	mkdir -p $(OBJDIR)/shared_mem_queue
 
 clean:
 	-rm -rf $(OBJDIR)

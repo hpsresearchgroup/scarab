@@ -1,6 +1,6 @@
 
-#include "shared_mem_queue/shm_queue_interface_lib.h"
-#include "shared_mem_queue/shmmap.h"
+#include "shm_queue_interface_lib.h"
+#include "shmmap.h"
 
 ScarabOpBuffer_type get_ScarabOpBuffer_type(ScarabOpBuffer_type_fixed_alloc * src)
 {
@@ -13,7 +13,7 @@ ScarabOpBuffer_type get_ScarabOpBuffer_type(ScarabOpBuffer_type_fixed_alloc * sr
     return retval;
 }
 
-void pin_shm_interface::init(int cop_queue_shm_key, int cmd_queue_shm_key, int core_id) {
+void pin_shm_interface::init(int cop_queue_shm_key, int cmd_queue_shm_key, uint32_t core_id) {
 
     //Key for core number x is base_key + x
     cop_queue_ptr = shm_map<cop_queue>(cop_queue_shm_key + core_id, &cop_queue_shm_id);
@@ -26,7 +26,7 @@ void pin_shm_interface::disconnect() {
     shm_del(cmd_queue_shm_id);
 }
 
-void pin_shm_interface::send_op_buffer(ScarabOpBuffer_type op_buffer) {
+void pin_shm_interface::send(ScarabOpBuffer_type op_buffer) {
     ScarabOpBuffer_type_fixed_alloc * shm_ptr;
     
     while((shm_ptr = cop_queue_ptr->alloc()) == nullptr);
@@ -34,7 +34,7 @@ void pin_shm_interface::send_op_buffer(ScarabOpBuffer_type op_buffer) {
     cop_queue_ptr->push();
 }
 
-Scarab_To_Pin_Msg pin_shm_interface::receive_cmd() {
+Scarab_To_Pin_Msg pin_shm_interface::receive() {
     Scarab_To_Pin_Msg * shm_ptr;
     Scarab_To_Pin_Msg cmd;
     
@@ -52,7 +52,7 @@ void pin_shm_interface::clear_cmd_queue() {
     }
 }
 
-void scarab_shm_interface::init(int cop_queue_shm_key, int cmd_queue_shm_key, int num_cores) {
+void scarab_shm_interface::init(int cop_queue_shm_key, int cmd_queue_shm_key, uint32_t num_cores) {
 
     scarab_shm_interface::num_cores = num_cores;
     cop_queue_ptr.resize(num_cores);
@@ -60,7 +60,7 @@ void scarab_shm_interface::init(int cop_queue_shm_key, int cmd_queue_shm_key, in
     cop_queue_shm_id.resize(num_cores);
     cmd_queue_shm_id.resize(num_cores);
     
-    for(int i=0; i<num_cores; i++)
+    for(uint32_t i=0; i<num_cores; i++)
     {
         cop_queue_ptr[i] = shm_map<cop_queue>(cop_queue_shm_key, &cop_queue_shm_id[i]);
         cmd_queue_ptr[i] = shm_map<cmd_queue>(cmd_queue_shm_key, &cmd_queue_shm_id[i]); 
@@ -68,14 +68,18 @@ void scarab_shm_interface::init(int cop_queue_shm_key, int cmd_queue_shm_key, in
 }
 
 void scarab_shm_interface::disconnect() {
-    for(int i=0; i<num_cores; i++)
+    for(uint32_t i=0; i<num_cores; i++)
     {
         shm_del(cop_queue_shm_id[i]);
         shm_del(cmd_queue_shm_id[i]);
     }
 }
 
-ScarabOpBuffer_type scarab_shm_interface::receive_op_buffer(int core_id) {
+uint32_t scarab_shm_interface::getNumCores() {
+    return num_cores;
+}
+
+ScarabOpBuffer_type scarab_shm_interface::receive(uint32_t core_id) {
     
     ScarabOpBuffer_type_fixed_alloc * shm_ptr;
     ScarabOpBuffer_type op_buffer;
@@ -86,7 +90,7 @@ ScarabOpBuffer_type scarab_shm_interface::receive_op_buffer(int core_id) {
     return op_buffer;
 }
 
-void scarab_shm_interface::send_cmd(Scarab_To_Pin_Msg cmd, int core_id) {
+void scarab_shm_interface::send(uint32_t core_id, Scarab_To_Pin_Msg cmd) {
     Scarab_To_Pin_Msg * shm_ptr;
     
     while((shm_ptr = cmd_queue_ptr[core_id]->alloc()) == nullptr);
@@ -94,7 +98,7 @@ void scarab_shm_interface::send_cmd(Scarab_To_Pin_Msg cmd, int core_id) {
     cmd_queue_ptr[core_id]->push();
 }
 
-void scarab_shm_interface::clear_cop_queue(int core_id) {
+void scarab_shm_interface::clear_cop_queue(uint32_t core_id) {
     ScarabOpBuffer_type_fixed_alloc * shm_ptr;
     while(true)
     {

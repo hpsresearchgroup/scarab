@@ -2,11 +2,10 @@
 #ifndef __SHM_QUEUE_INTERFACE_LIB_H__
 #define __SHM_QUEUE_INTERFACE_LIB_H__
 
-#include "shared_mem_queue/SPSCQueue.h"
-#include "shared_mem_queue/SPSCQueueOPT.h"
+#include "SPSCQueue.h"
+#include "SPSCQueueOPT.h"
 
-#include "pin/pin_lib/pin_scarab_common_lib.h"
-#include "pin/pin_lib/message_queue_interface_lib.h"
+#include "../pin_scarab_common_lib.h"
 
 #define COP_QUEUE_SIZE 256
 #define CMD_QUEUE_SIZE 256
@@ -45,10 +44,10 @@ private:
     int cmd_queue_shm_id;
 
 public:
-    void init(int cop_queue_shm_key, int cmd_queue_shm_key, int core_id);
+    void init(int cop_queue_shm_key, int cmd_queue_shm_key, uint32_t core_id);
     void disconnect();
-    void send_op_buffer(ScarabOpBuffer_type op_buffer);
-    Scarab_To_Pin_Msg receive_cmd();
+    void send(ScarabOpBuffer_type op_buffer);
+    Scarab_To_Pin_Msg receive();
     void clear_cmd_queue();
 };
 
@@ -58,14 +57,15 @@ private:
     std::vector<cmd_queue*> cmd_queue_ptr;
     std::vector<int> cop_queue_shm_id;
     std::vector<int> cmd_queue_shm_id;
-    int num_cores;
+    uint32_t num_cores;
 
 public:
-    void init(int cop_queue_shm_key, int cmd_queue_shm_key, int num_cores);
+    void init(int cop_queue_shm_key, int cmd_queue_shm_key, uint32_t num_cores);
     void disconnect();
-    ScarabOpBuffer_type receive_op_buffer(int core_id);
-    void send_cmd(Scarab_To_Pin_Msg msg, int core_id);    
-    void clear_cop_queue(int core_id);
+    uint32_t getNumCores();
+    ScarabOpBuffer_type receive(uint32_t core_id);
+    void send(uint32_t core_id, Scarab_To_Pin_Msg msg);    
+    void clear_cop_queue(uint32_t core_id);
 };
 
 #endif /* #ifndef __SHM_QUEUE_INTERFACE_H__ */

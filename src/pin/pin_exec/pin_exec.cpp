@@ -44,7 +44,7 @@
 
 // scarab files
 #include "../pin_lib/decoder.h"
-#include "../pin_lib/message_queue_interface_lib.h"
+#include "../../shared_mem_queue/shm_queue_interface_lib.h"
 #include "../pin_lib/pin_scarab_common_lib.h"
 
 /* ===================================================================== */
@@ -323,7 +323,8 @@ int main(int argc, char* argv[]) {
   // Register function to be called when the application exits
   PIN_AddFiniFunction(Fini, 0);
 
-  scarab = new Client(KnobSocketPath, KnobCoreId);
+  scarab = new pin_shm_interface;
+  scarab->init(1234, 5678, KnobCoreId);
 
   // Start the program, never returns
   PIN_StartProgram();

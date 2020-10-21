@@ -33,7 +33,7 @@
 #undef UNUSED
 #undef WARNING
 
-#include "../pin_lib/message_queue_interface_lib.h"
+#include "../pin_lib/shared_mem_queue/shm_queue_interface_lib.h"
 #include "read_mem_map.h"
 #include "utils.h"
 
@@ -53,7 +53,7 @@ extern UINT64 heartbeat;
 extern CONTEXT last_ctxt;
 extern ADDRINT next_eip;
 
-extern Client*                   scarab;
+extern pin_shm_interface*                   scarab;
 extern ScarabOpBuffer_type       scarab_op_buffer;
 extern compressed_op             op_mailbox;
 extern bool                      op_mailbox_full;
