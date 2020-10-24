@@ -28,6 +28,7 @@
 #include <cmath>
 #include <functional>
 #include <limits.h>
+#include <set>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
@@ -119,6 +120,8 @@ class Memory : public MemoryBase {
 
   long max_address;
 
+  const int os_page_offset_bits = 12;
+
  public:
   enum class Type {
     ChRaBaRoCo,
@@ -133,6 +136,13 @@ class Memory : public MemoryBase {
     MAX,
   } translation = Translation::None;
 
+  enum class RemapPolicy {
+    None,
+    AlwaysToAlternate,
+    Flexible,
+    MAX,
+  } remap_policy = RemapPolicy::None;
+
   std::map<string, Translation> name_to_translation = {
     {"None", Translation::None},
     {"Random", Translation::Random},
@@ -145,8 +155,11 @@ class Memory : public MemoryBase {
   };
   std::vector<std::unordered_map<long, OsPageInfo>> os_page_tracking_map_by_ch;
   bool                                              track_os_pages;
+  bool                                              row_always_0;
+  int                                               num_cores;
 
   bool use_rest_of_addr_as_row_addr;
+
 
   vector<int>                free_physical_pages;
   long                       free_physical_pages_remaining;
@@ -155,6 +168,22 @@ class Memory : public MemoryBase {
   vector<Controller<T>*> ctrls;
   T*                     spec;
   vector<int>            addr_bits;
+  vector<int>            addr_bits_start_pos;
+
+  const int   stride_to_upper_xored_bit = 4;
+  vector<int> xored_row_bits_pos;
+  vector<int> channel_xor_bits_pos;
+  vector<int> fixed_channel_xor_bits_pos;
+  vector<int> free_channel_xor_bits_pos;
+
+  unordered_map<int, long> ch_to_oldest_unfilled_row;
+  unordered_map<int, long> ch_to_newest_unfilled_row;
+
+  unordered_map<int, unordered_map<long, unordered_map<int, vector<long>>>>
+    ch_to_row_to_ch_freebits_parity_to_avail_frames;
+
+  unordered_map<int, unordered_map<long, long>> ch_to_page_index_remapping;
+
 
   int tx_bits;
 
@@ -172,10 +201,16 @@ class Memory : public MemoryBase {
     assert((1 << tx_bits) == tx);
 
     type           = parse_addr_map_type(configs);
+    remap_policy   = parse_addr_remap_policy(configs);
     track_os_pages = configs.get_config("track_os_page_reuse");
+    row_always_0   = configs.get_config("row_always_0");
     for(int ch = 0; ch < sz[0]; ch++)
       os_page_tracking_map_by_ch.push_back(
         std::unordered_map<long, OsPageInfo>());
+
+    addr_bits_start_pos = vector<int>(int(T::Level::MAX), -1);
+
+    num_cores = configs.get_core_num();
 
     // If hi address bits will not be assigned to Rows
     // then the chips must not be LPDDRx 6Gb, 12Gb etc.
@@ -198,7 +233,7 @@ class Memory : public MemoryBase {
     if(translation != Translation::None) {
       // construct a list of available pages
       // TODO: this should not assume a 4KB page!
-      free_physical_pages_remaining = max_address >> 12;
+      free_physical_pages_remaining = max_address >> os_page_offset_bits;
 
       free_physical_pages.resize(free_physical_pages_remaining, -1);
     }
@@ -361,39 +396,19 @@ class Memory : public MemoryBase {
 
   bool send(Request& req) {
     req.addr_vec.resize(addr_bits.size());
-    long addr   = req.addr;
-    int  coreid = req.coreid;
+    long      addr   = req.addr;
+    const int coreid = req.coreid;
+    assert((addr >> 58) == coreid);
 
-    // Each transaction size is 2^tx_bits, so first clear the lowest tx_bits
-    // bits
-    clear_lower_bits(addr, tx_bits);
-
-    switch(int(type)) {
-      case int(Type::ChRaBaRoCo):
-        // currently only support RoBaRaCoCh with Scarab, because we only
-        // scramble the bits just above the VA page offset bits, and we want
-        // channel/rank/bank bits to come from the scrambled bits. Also, if
-        // use_rest_of_addr_as_row_addr is on, then we want row addr to come
-        // from the most significant bits
-        assert(false);
-        for(int i = addr_bits.size() - 1; i >= 0; i--)
-          req.addr_vec[i] = slice_lower_bits(addr, addr_bits[i]);
-        break;
-      case int(Type::RoBaRaCoCh):
-        req.addr_vec[0] = slice_lower_bits(addr, addr_bits[0]);
-        req.addr_vec[addr_bits.size() - 1] = slice_lower_bits(
-          addr, addr_bits[addr_bits.size() - 1]);
-        // fill out addr_vec for everything up until row
-        for(int i = 1; i < int(T::Level::Row); i++)
-          req.addr_vec[i] = slice_lower_bits(addr, addr_bits[i]);
-        req.addr_vec[int(T::Level::Row)] = slice_row_addr(addr);
-        break;
-      case int(Type::SkylakeDDR4):
-        set_skylakeddr4_addr_vec(req, addr);
-        break;
-      default:
-        assert(false);
+    if(remap_policy == RemapPolicy::AlwaysToAlternate) {
+      // TODO: temporary
+      // long page_offset = addr & ((long(1) << os_page_offset_bits) - 1);
+      // addr             = page_offset | (long(coreid) << 58);
     }
+
+    set_req_addr_vec(addr, req.addr_vec);
+    if(row_always_0)
+      req.addr_vec[int(T::Level::Row)] = 0;
 
     if(ctrls[req.addr_vec[0]]->enqueue(req)) {
       if(track_os_pages) {
@@ -458,7 +473,7 @@ class Memory : public MemoryBase {
   }
 
   long page_allocator(long addr, int coreid) {
-    long virtual_page_number = addr >> 12;
+    long virtual_page_number = addr >> os_page_offset_bits;
 
     switch(int(translation)) {
       case int(Translation::None): {
@@ -502,7 +517,8 @@ class Memory : public MemoryBase {
         }
 
         // SAUGATA TODO: page size should not always be fixed to 4KB
-        return (page_translation[target] << 12) | (addr & ((1 << 12) - 1));
+        return (page_translation[target] << os_page_offset_bits) |
+               (addr & ((1 << os_page_offset_bits) - 1));
       }
       default:
         assert(false);
@@ -523,7 +539,9 @@ class Memory : public MemoryBase {
     return lbits;
   }
   int slice_lower_bits_and_track_num_shifted(long& addr, int bits,
-                                             int& num_shifted) {
+                                             int& num_shifted, int level) {
+    if(-1 == addr_bits_start_pos[level])
+      addr_bits_start_pos[level] = num_shifted;
     num_shifted += bits;
     return slice_lower_bits(addr, bits);
   }
@@ -534,6 +552,48 @@ class Memory : public MemoryBase {
     }
 
     return rand();
+  }
+
+  void set_req_addr_vec(long addr, vector<int>& addr_vec) {
+    // Each transaction size is 2^tx_bits, so first clear the lowest tx_bits
+    // bits
+    clear_lower_bits(addr, tx_bits);
+    int bits_sliced = 0;
+
+    switch(int(type)) {
+      case int(Type::ChRaBaRoCo):
+        // currently only support RoBaRaCoCh with Scarab, because we only
+        // scramble the bits just above the VA page offset bits, and we want
+        // channel/rank/bank bits to come from the scrambled bits. Also, if
+        // use_rest_of_addr_as_row_addr is on, then we want row addr to come
+        // from the most significant bits
+        assert(false);
+
+        for(int i = addr_bits.size() - 1; i >= 0; i--) {
+          addr_vec[i] = slice_lower_bits_and_track_num_shifted(
+            addr, addr_bits[i], bits_sliced, i);
+        }
+        break;
+      case int(Type::RoBaRaCoCh):
+        addr_vec[0] = slice_lower_bits_and_track_num_shifted(addr, addr_bits[0],
+                                                             bits_sliced, 0);
+
+        addr_vec[addr_bits.size() - 1] = slice_lower_bits_and_track_num_shifted(
+          addr, addr_bits[addr_bits.size() - 1], bits_sliced,
+          addr_bits.size() - 1);
+        // fill out addr_vec for everything up until row
+        for(int i = 1; i < int(T::Level::Row); i++) {
+          addr_vec[i] = slice_lower_bits_and_track_num_shifted(
+            addr, addr_bits[i], bits_sliced, i);
+        }
+        addr_vec[int(T::Level::Row)] = slice_row_addr(addr, bits_sliced);
+        break;
+      case int(Type::SkylakeDDR4):
+        set_skylakeddr4_addr_vec(addr_vec, addr);
+        break;
+      default:
+        assert(false);
+    }
   }
 
   Type parse_addr_map_type(const Config& configs) {
@@ -549,7 +609,21 @@ class Memory : public MemoryBase {
     }
   }
 
-  int slice_row_addr(long addr) {
+  RemapPolicy parse_addr_remap_policy(const Config& configs) {
+    if("None" == configs["addr_remap_policy"]) {
+      return RemapPolicy::None;
+    } else if("AlwaysToAlternate" == configs["addr_remap_policy"]) {
+      return RemapPolicy::AlwaysToAlternate;
+    } else if("Flexible" == configs["addr_remap_policy"]) {
+      return RemapPolicy::Flexible;
+    } else {
+      assert(false);
+      return RemapPolicy::MAX;
+    }
+  }
+
+  int slice_row_addr(long addr, int& bits_sliced) {
+    addr_bits_start_pos[int(T::Level::Row)] = bits_sliced;
     // for the row addr, if use_rest_of_addr_as_row_addr is on, then we use
     // all the remaining phys addr bits in the row address (to make sure two
     // distinct phys addrs never alias to the same data in Ramulator)
@@ -559,18 +633,24 @@ class Memory : public MemoryBase {
       return (shifted ^ addr);
 
     } else {
-      return slice_lower_bits(addr, addr_bits[int(T::Level::Row)]);
+      return slice_lower_bits_and_track_num_shifted(
+        addr, addr_bits[int(T::Level::Row)], bits_sliced, int(T::Level::Row));
     }
   }
 
-  vector<int> BaRaBgCo7ChCo2(Request& req, long addr) { assert(false); }
-  void set_skylakeddr4_addr_vec(Request& req, long addr) { assert(false); }
+  void add_to_xored_row_bits_pos(int bit_pos, bool initialized) {
+    assert(false);
+  }
+  void BaRaBgCo7ChCo2(vector<int>& addr_vec, long addr) { assert(false); }
+  void set_skylakeddr4_addr_vec(vector<int>& addr_vec, long addr) {
+    assert(false);
+  }
 
   void update_os_page_info(const Request& req, int channel) {
     if((req.type == Request::Type::READ) ||
        (req.type == Request::Type::WRITE)) {
       long       addr         = req.addr;
-      const uint page_offset  = slice_lower_bits(addr, 12);
+      const uint page_offset  = slice_lower_bits(addr, os_page_offset_bits);
       const long page_index   = addr;
       const uint line_on_page = page_offset >> 6;
       assert(line_on_page < (sizeof(OsPageInfo().lines_seen) * CHAR_BIT));
@@ -679,10 +759,13 @@ class Memory : public MemoryBase {
 };
 
 template <>
-vector<int> Memory<DDR4>::BaRaBgCo7ChCo2(Request& req, long addr);
+void Memory<DDR4>::add_to_xored_row_bits_pos(int bit_pos, bool initialized);
 
 template <>
-void Memory<DDR4>::set_skylakeddr4_addr_vec(Request& req, long addr);
+void Memory<DDR4>::BaRaBgCo7ChCo2(vector<int>& addr_vec, long addr);
+
+template <>
+void Memory<DDR4>::set_skylakeddr4_addr_vec(vector<int>& addr_vec, long addr);
 
 } /*namespace ramulator*/
 

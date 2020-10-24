@@ -216,9 +216,12 @@ void init_configs() {
   configs->add("print_cmd_trace", RAMULATOR_PRINT_CMD_TRACE);
   configs->add("use_rest_of_addr_as_row_addr",
                RAMULATOR_USE_REST_OF_ADDR_AS_ROW_ADDR);
-  configs->add("track_reuse_distance", RAMULATOR_TRACK_REUSE_DISTANCE);
+  configs->add("track_col_reuse_distance", RAMULATOR_TRACK_COL_REUSE_DISTANCE);
+  configs->add("track_row_reuse_distance", RAMULATOR_TRACK_ROW_REUSE_DISTANCE);
   configs->add("track_os_page_reuse", RAMULATOR_TRACK_OS_PAGE_REUSE);
+  configs->add("row_always_0", RAMULATOR_ROW_ALWAYS_0);
   configs->add("addr_map_type", RAMULATOR_ADDR_MAP_TYPE);
+  configs->add("addr_remap_policy", RAMULATOR_ADDR_REMAP_POLICY);
 
   configs->add("scheduling_policy", RAMULATOR_SCHEDULING_POLICY);
   configs->add("readq_entries", to_string(RAMULATOR_READQ_ENTRIES));

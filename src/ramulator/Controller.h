@@ -137,8 +137,9 @@ class Controller {
       channel(channel),
       scheduler(new Scheduler<T>(this, configs)),
       rowpolicy(new RowPolicy<T>(this)),
-      rowtable(
-        new RowTable<T>(this, configs.get_config("track_reuse_distance"))),
+      rowtable(new RowTable<T>(this,
+                               configs.get_config("track_col_reuse_distance"),
+                               configs.get_config("track_row_reuse_distance"))),
       refresh(new Refresh<T>(this)), cmd_trace_files(channel->children.size()) {
     stats_callback = _stats_callback;
 

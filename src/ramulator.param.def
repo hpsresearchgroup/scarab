@@ -76,9 +76,12 @@ DEF_PARAM(ramulator_print_cmd_trace      , RAMULATOR_PRINT_CMD_TRACE            
 // every single phys addr bit in the DRAM address. All phys addrs bits not included as a channel/rank/bank group/bank/column bit
 // will be included as a row bit
 DEF_PARAM(ramulator_use_rest_of_addr_as_row_addr, RAMULATOR_USE_REST_OF_ADDR_AS_ROW_ADDR  , char*   , string , "on"        , )
-DEF_PARAM(ramulator_track_reuse_distance        , RAMULATOR_TRACK_REUSE_DISTANCE          , char*   , string , "off"       , )
-DEF_PARAM(ramulator_track_os_page_reuse        , RAMULATOR_TRACK_OS_PAGE_REUSE          , char*   , string , "off"       , )
+DEF_PARAM(ramulator_track_col_reuse_distance    , RAMULATOR_TRACK_COL_REUSE_DISTANCE      , char*   , string , "off"       , )
+DEF_PARAM(ramulator_track_row_reuse_distance    , RAMULATOR_TRACK_ROW_REUSE_DISTANCE      , char*   , string , "off"       , )
+DEF_PARAM(ramulator_track_os_page_reuse         , RAMULATOR_TRACK_OS_PAGE_REUSE           , char*   , string , "off"       , )
+DEF_PARAM(ramulator_row_always_0                , RAMULATOR_ROW_ALWAYS_0                  , char*   , string , "off"       , )
 DEF_PARAM(ramulator_addr_map_type               , RAMULATOR_ADDR_MAP_TYPE                 , char*   , string , "RoBaRaCoCh", )
+DEF_PARAM(ramulator_addr_remap_policy           , RAMULATOR_ADDR_REMAP_POLICY             , char*   , string , "None", )
 
 // Timing parameters (TODO: make these optional. If not specified, present // values defined by RAMULATOR_SPEED should be used instead.)
 DEF_PARAM(ramulator_tCK                  , RAMULATOR_TCK                           , uns     , uns    , 833333               , ) //in femtosecs
