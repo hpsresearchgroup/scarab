@@ -120,8 +120,6 @@ class Memory : public MemoryBase {
 
   long max_address;
 
-  const int os_page_offset_bits = 12;
-
  public:
   enum class Type {
     ChRaBaRoCo,
@@ -170,11 +168,10 @@ class Memory : public MemoryBase {
   vector<int>            addr_bits;
   vector<int>            addr_bits_start_pos;
 
-  const int   stride_to_upper_xored_bit = 4;
-  vector<int> xored_row_bits_pos;
+  const int   stride_to_upper_xored_bit        = 4;
+  int         addr_remap_page_access_threshold = INT_MAX;
   vector<int> channel_xor_bits_pos;
-  vector<int> fixed_channel_xor_bits_pos;
-  vector<int> free_channel_xor_bits_pos;
+  vector<int> frame_index_channel_xor_bits_pos;
 
   unordered_map<int, long> ch_to_oldest_unfilled_row;
   unordered_map<int, long> ch_to_newest_unfilled_row;
@@ -182,7 +179,8 @@ class Memory : public MemoryBase {
   unordered_map<int, unordered_map<long, unordered_map<int, vector<long>>>>
     ch_to_row_to_ch_freebits_parity_to_avail_frames;
 
-  unordered_map<int, unordered_map<long, long>> ch_to_page_index_remapping;
+  unordered_map<int, unordered_map<long, std::pair<long, OsPageInfo>>>
+    ch_to_page_index_remapping;
 
 
   int tx_bits;
@@ -210,7 +208,9 @@ class Memory : public MemoryBase {
 
     addr_bits_start_pos = vector<int>(int(T::Level::MAX), -1);
 
-    num_cores = configs.get_core_num();
+    num_cores                        = configs.get_core_num();
+    addr_remap_page_access_threshold = configs.get_int(
+      "addr_remap_page_access_threshold");
 
     // If hi address bits will not be assigned to Rows
     // then the chips must not be LPDDRx 6Gb, 12Gb etc.
@@ -345,6 +345,27 @@ class Memory : public MemoryBase {
       .desc("record write requests for this core when it reaches request limit "
             "or to the end");
 #endif
+    if(remap_policy != RemapPolicy::None) {
+      const long first_reserved_line = (long(num_cores)
+                                        << coreid_start_bit_pos) >>
+                                       tx_bits;
+      int total_non_row_bits = 0;
+      for(uint lev = 0; lev != addr_bits.size(); lev++) {
+        if(lev != uint(T::Level::Row))
+          total_non_row_bits += addr_bits[lev];
+      }
+      const long first_reserved_row = (first_reserved_line >>
+                                       total_non_row_bits);
+
+      vector<int> dummy_addr_vec(addr_bits.size());
+      set_req_addr_vec(
+        0, dummy_addr_vec);  // just to initialize addr_bits_start_pos
+      for(int ch = 0; ch < sz[int(T::Level::Channel)]; ch++) {
+        ch_to_oldest_unfilled_row[ch] = first_reserved_row;
+        ch_to_newest_unfilled_row[ch] = first_reserved_row;
+        populate_frames_freelist_for_ch_row(ch, first_reserved_row);
+      }
+    }
   }
 
   ~Memory() {
@@ -398,7 +419,7 @@ class Memory : public MemoryBase {
     req.addr_vec.resize(addr_bits.size());
     long      addr   = req.addr;
     const int coreid = req.coreid;
-    assert((addr >> 58) == coreid);
+    assert(get_coreid_from_addr(addr) == coreid);
 
     if(remap_policy == RemapPolicy::AlwaysToAlternate) {
       // TODO: temporary
@@ -526,6 +547,9 @@ class Memory : public MemoryBase {
   }
 
  private:
+  const int os_page_offset_bits  = 12;
+  const int coreid_start_bit_pos = 58;
+  int get_coreid_from_addr(long addr) { return (addr >> coreid_start_bit_pos); }
   int calc_log2(int val) {
     int n = 0;
     while((val >>= 1))
@@ -638,11 +662,11 @@ class Memory : public MemoryBase {
     }
   }
 
-  void add_to_xored_row_bits_pos(int bit_pos, bool initialized) {
-    assert(false);
-  }
   void BaRaBgCo7ChCo2(vector<int>& addr_vec, long addr) { assert(false); }
   void set_skylakeddr4_addr_vec(vector<int>& addr_vec, long addr) {
+    assert(false);
+  }
+  void populate_frames_freelist_for_ch_row(const int channel, const long row) {
     assert(false);
   }
 
@@ -759,7 +783,8 @@ class Memory : public MemoryBase {
 };
 
 template <>
-void Memory<DDR4>::add_to_xored_row_bits_pos(int bit_pos, bool initialized);
+void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
+                                                       const long row);
 
 template <>
 void Memory<DDR4>::BaRaBgCo7ChCo2(vector<int>& addr_vec, long addr);

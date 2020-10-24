@@ -222,6 +222,8 @@ void init_configs() {
   configs->add("row_always_0", RAMULATOR_ROW_ALWAYS_0);
   configs->add("addr_map_type", RAMULATOR_ADDR_MAP_TYPE);
   configs->add("addr_remap_policy", RAMULATOR_ADDR_REMAP_POLICY);
+  configs->add("addr_remap_page_access_threshold",
+               to_string(RAMULATOR_ADDR_REMAP_PAGE_ACCESS_THRESHOLD));
 
   configs->add("scheduling_policy", RAMULATOR_SCHEDULING_POLICY);
   configs->add("readq_entries", to_string(RAMULATOR_READQ_ENTRIES));

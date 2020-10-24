@@ -64,6 +64,7 @@ DEF_PARAM(ramulator_cols                 , RAMULATOR_COLS                       
 
 // Request Scheduling Policy
 DEF_PARAM(ramulator_scheduling_policy    , RAMULATOR_SCHEDULING_POLICY             , char*   , string , "FRFCFS_Cap"         , )
+DEF_PARAM(ramulator_addr_remap_page_access_threshold , RAMULATOR_ADDR_REMAP_PAGE_ACCESS_THRESHOLD, uns     , uns    , 32                 , )
 
 // Request Queues
 DEF_PARAM(ramulator_readq_entries        , RAMULATOR_READQ_ENTRIES                 , uns     , uns    , 32                   , ) 

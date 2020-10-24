@@ -32,11 +32,54 @@ using namespace ramulator;
 namespace ramulator {
 
 template <>
-void Memory<DDR4>::add_to_xored_row_bits_pos(int bit_pos, bool initialized) {
-  if(!initialized) {
-    if(bit_pos >= addr_bits_start_pos[int(DDR4::Level::Row)]) {
-      xored_row_bits_pos.push_back(bit_pos);
+void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
+                                                       const long row) {
+  const int row_start_pos = addr_bits_start_pos[int(DDR4::Level::Row)];
+  assert(0 != row_start_pos);
+  assert(0 != tx_bits);
+
+  const int frame_index_start_pos   = os_page_offset_bits - tx_bits;
+  const int log2_num_frames_per_row = row_start_pos - frame_index_start_pos;
+  assert(log2_num_frames_per_row > 0);
+  const int num_frames_per_row = (1 << log2_num_frames_per_row);
+
+  if(0 == ch_to_row_to_ch_freebits_parity_to_avail_frames.count(channel)) {
+    ch_to_row_to_ch_freebits_parity_to_avail_frames[channel] =
+      unordered_map<long, unordered_map<int, vector<long>>>();
+  }
+
+  assert(0 ==
+         ch_to_row_to_ch_freebits_parity_to_avail_frames[channel].count(row));
+  ch_to_row_to_ch_freebits_parity_to_avail_frames[channel][row] =
+    unordered_map<int, vector<long>>();
+  ch_to_row_to_ch_freebits_parity_to_avail_frames[channel][row][0] =
+    vector<long>();
+  ch_to_row_to_ch_freebits_parity_to_avail_frames[channel][row][1] =
+    vector<long>();
+
+  int xored_row_addr = -1;
+  for(long frame_subindex = 0; frame_subindex < num_frames_per_row;
+      frame_subindex++) {
+    const long frame_index = ((row << log2_num_frames_per_row) +
+                              frame_subindex);
+    const long addr        = frame_index << os_page_offset_bits;
+    std::bitset<sizeof(addr) * CHAR_BIT> addr_bitset(addr >> tx_bits);
+    int                                  channel_parity = 0;
+    for(auto frame_index_bit_pos : frame_index_channel_xor_bits_pos) {
+      channel_parity ^= addr_bitset[frame_index_bit_pos];
     }
+
+    ch_to_row_to_ch_freebits_parity_to_avail_frames[channel][row]
+                                                   [channel_parity]
+                                                     .push_back(frame_index);
+
+    vector<int> addr_vec(addr_bits.size());
+    set_req_addr_vec(addr, addr_vec);
+    if(-1 == xored_row_addr)
+      xored_row_addr = addr_vec[int(DDR4::Level::Row)];
+    assert(addr_vec[int(DDR4::Level::Row)] == xored_row_addr);
+    assert(get_coreid_from_addr(addr) == num_cores);
+    assert(channel_parity = addr_vec[int(DDR4::Level::Channel)]);
   }
 }
 
@@ -100,17 +143,14 @@ void Memory<DDR4>::set_skylakeddr4_addr_vec(vector<int>& addr_vec, long addr) {
       channel_xor_bits_pos = vector<int>(
         {ch_start_pos, ch_start_pos + 1, ch_start_pos + 4, ch_start_pos + 5,
          ch_start_pos + 10, ch_start_pos + 11});
-      assert(fixed_channel_xor_bits_pos.empty());
-      assert(free_channel_xor_bits_pos.empty());
+      assert(frame_index_channel_xor_bits_pos.empty());
 
       int row_start_pos = addr_bits_start_pos[int(DDR4::Level::Row)];
       assert(row_start_pos >= 0);
+      int frame_index_start_pos = os_page_offset_bits - tx_bits;
       for(auto channel_xor_bit_pos : channel_xor_bits_pos) {
-        if((channel_xor_bit_pos < 6) ||
-           (channel_xor_bit_pos >= row_start_pos)) {
-          fixed_channel_xor_bits_pos.push_back(channel_xor_bit_pos);
-        } else {
-          free_channel_xor_bits_pos.push_back(channel_xor_bit_pos);
+        if(channel_xor_bit_pos >= frame_index_start_pos) {
+          frame_index_channel_xor_bits_pos.push_back(channel_xor_bit_pos);
         }
       }
     }
@@ -135,10 +175,6 @@ void Memory<DDR4>::set_skylakeddr4_addr_vec(vector<int>& addr_vec, long addr) {
     int bg1_high_xor_pos = bg_start_pos + 1 + stride_to_upper_xored_bit;
     bg_bitset[1]         = bg_bitset[1] ^ addr_bitset[bg1_high_xor_pos];
     addr_vec[int(DDR4::Level::BankGroup)] = bg_bitset.to_ulong();
-    if(!initialized) {
-      assert(xored_row_bits_pos.empty());
-      add_to_xored_row_bits_pos(bg1_high_xor_pos, initialized);
-    }
   }
 
   if(addr_bits[int(DDR4::Level::Rank)] > 0) {
@@ -150,7 +186,6 @@ void Memory<DDR4>::set_skylakeddr4_addr_vec(vector<int>& addr_vec, long addr) {
     }
     int ra_high_xor_pos = ra_start_pos + stride_to_upper_xored_bit;
     addr_vec[int(DDR4::Level::Rank)] ^= addr_bitset[ra_high_xor_pos];
-    add_to_xored_row_bits_pos(ra_high_xor_pos, initialized);
   }
 
   {
@@ -166,8 +201,6 @@ void Memory<DDR4>::set_skylakeddr4_addr_vec(vector<int>& addr_vec, long addr) {
     ba_bitset[0] = ba_bitset[0] ^ addr_bitset[ba0_high_xor_pos];
     ba_bitset[1] = ba_bitset[1] ^ addr_bitset[ba1_high_xor_pos];
     addr_vec[int(DDR4::Level::Bank)] = ba_bitset.to_ulong();
-    add_to_xored_row_bits_pos(ba0_high_xor_pos, initialized);
-    add_to_xored_row_bits_pos(ba1_high_xor_pos, initialized);
   }
   initialized = true;
 }

@@ -78,7 +78,7 @@ class Config {
     {"row_always_0", "off"},
     {"addr_map_type", "RoBaRaCoCh"},
     {"addr_remap_policy", "None"},
-  };
+    {"addr_remap_page_access_threshold", "128"}};
 
   template <typename T>
   T get(const std::string& param_name,
