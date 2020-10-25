@@ -60,14 +60,10 @@ void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
   int xored_row_addr = -1;
   for(long frame_subindex = 0; frame_subindex < num_frames_per_row;
       frame_subindex++) {
-    const long frame_index = ((row << log2_num_frames_per_row) +
+    const long frame_index    = ((row << log2_num_frames_per_row) +
                               frame_subindex);
-    const long addr        = frame_index << os_page_offset_bits;
-    std::bitset<sizeof(addr) * CHAR_BIT> addr_bitset(addr >> tx_bits);
-    int                                  channel_parity = 0;
-    for(auto frame_index_bit_pos : frame_index_channel_xor_bits_pos) {
-      channel_parity ^= addr_bitset[frame_index_bit_pos];
-    }
+    const long addr           = frame_index << os_page_offset_bits;
+    int        channel_parity = get_channel_from_frame_index(frame_index);
 
     ch_to_row_to_ch_freebits_parity_to_avail_frames[channel][row]
                                                    [channel_parity]
@@ -79,7 +75,7 @@ void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
       xored_row_addr = addr_vec[int(DDR4::Level::Row)];
     assert(addr_vec[int(DDR4::Level::Row)] == xored_row_addr);
     assert(get_coreid_from_addr(addr) == num_cores);
-    assert(channel_parity = addr_vec[int(DDR4::Level::Channel)]);
+    assert(channel_parity == addr_vec[int(DDR4::Level::Channel)]);
   }
 }
 

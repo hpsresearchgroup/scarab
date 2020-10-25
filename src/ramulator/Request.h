@@ -33,11 +33,14 @@ class Request {
  public:
   bool is_first_command;
   long addr;
+  long orig_addr;
   // long addr_row;
   vector<int> addr_vec;
   // specify which core this request sent from, for virtual address translation
   int  coreid;
-  bool is_demand = false;
+  bool is_demand   = false;
+  bool is_copy     = false;
+  bool is_remapped = false;
 
   enum class Type {
     READ,
@@ -54,13 +57,14 @@ class Request {
   function<void(Request&)> callback;  // call back with more info
 
   Request(long addr, Type type, int coreid = 0) :
-      is_first_command(true), addr(addr), coreid(coreid), type(type),
-      callback([](Request& req) {}) {}
+      is_first_command(true), addr(addr), orig_addr(addr), coreid(coreid),
+      type(type), callback([](Request& req) {}) {}
 
   Request(long addr, Type type, function<void(Request&)> callback,
           int coreid = 0) :
       is_first_command(true),
-      addr(addr), coreid(coreid), type(type), callback(callback) {}
+      addr(addr), orig_addr(addr), coreid(coreid), type(type),
+      callback(callback) {}
 
   Request(vector<int>& addr_vec, Type type, function<void(Request&)> callback,
           int coreid = 0) :

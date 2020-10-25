@@ -78,6 +78,8 @@ class Config {
     {"row_always_0", "off"},
     {"addr_map_type", "RoBaRaCoCh"},
     {"addr_remap_policy", "None"},
+    {"addr_remap_copy_mode", "Real"},
+    {"addr_remap_copy_granularity", "Line"},
     {"addr_remap_page_access_threshold", "128"}};
 
   template <typename T>

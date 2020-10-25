@@ -222,6 +222,9 @@ void init_configs() {
   configs->add("row_always_0", RAMULATOR_ROW_ALWAYS_0);
   configs->add("addr_map_type", RAMULATOR_ADDR_MAP_TYPE);
   configs->add("addr_remap_policy", RAMULATOR_ADDR_REMAP_POLICY);
+  configs->add("addr_remap_copy_mode", RAMULATOR_ADDR_REMAP_COPY_MODE);
+  configs->add("addr_remap_copy_granularity",
+               RAMULATOR_ADDR_REMAP_COPY_GRANULARITY);
   configs->add("addr_remap_page_access_threshold",
                to_string(RAMULATOR_ADDR_REMAP_PAGE_ACCESS_THRESHOLD));
 
@@ -262,14 +265,15 @@ int ramulator_send(Mem_Req* scarab_req) {
   // Mem_Req_Type_str(scarab_req->type), scarab_req->addr);
 
   // does inflight_read_reqs have the proc_id in the req?
-  auto it_scarab_req = inflight_read_reqs.find(req.addr);
+  assert(req.orig_addr == req.addr);
+  auto it_scarab_req = inflight_read_reqs.find(req.orig_addr);
   if(it_scarab_req != inflight_read_reqs.end()) {
     DEBUG(scarab_req->proc_id,
           "Ramulator: Duplicate (%s) request to address %llx\n",
           Mem_Req_Type_str(scarab_req->type), scarab_req->addr);
 
     if(req.type == Request::Type::READ)
-      inflight_read_reqs[req.addr].push_back(
+      inflight_read_reqs[req.orig_addr].push_back(
         scarab_req);  // save it as an inflight request so later it will be
                       // moved to the resp_queue at the same time with the older
                       // request
@@ -283,11 +287,11 @@ int ramulator_send(Mem_Req* scarab_req) {
     STAT_EVENT(scarab_req->proc_id, POWER_MEMORY_CTRL_ACCESS);
 
     if(req.type == Request::Type::READ) {
-      ASSERTM(0, inflight_read_reqs.find(req.addr) == inflight_read_reqs.end(),
-              "ERROR: A read request to the same address shouldn't be sent "
-              "multiple times to Ramulator\n");
-      // inflight_read_reqs[req.addr] = scarab_req;
-      inflight_read_reqs[req.addr].push_back(scarab_req);
+      ASSERTM(
+        0, inflight_read_reqs.find(req.orig_addr) == inflight_read_reqs.end(),
+        "ERROR: A read request to the same address shouldn't be sent "
+        "multiple times to Ramulator\n");
+      inflight_read_reqs[req.orig_addr].push_back(scarab_req);
       STAT_EVENT(scarab_req->proc_id, POWER_MEMORY_CTRL_READ);
     } else if(req.type == Request::Type::WRITE) {
       STAT_EVENT(scarab_req->proc_id, POWER_MEMORY_CTRL_WRITE);
@@ -310,12 +314,12 @@ void enqueue_response(Request& req) {
   // This should only be called by READ requests
   ASSERTM(0, req.type == Request::Type::READ,
           "ERROR: Responses should be sent only for read requests! \n");
-  ASSERTM(0, inflight_read_reqs.find(req.addr) != inflight_read_reqs.end(),
+  ASSERTM(0, inflight_read_reqs.find(req.orig_addr) != inflight_read_reqs.end(),
           "ERROR: A corresponding Scarab request was not found for the "
           "Ramulator request that read address: %lu\n",
-          req.addr);
+          req.orig_addr);
 
-  auto it_scarab_req = inflight_read_reqs.find(req.addr);
+  auto it_scarab_req = inflight_read_reqs.find(req.orig_addr);
   for(auto req : it_scarab_req->second)
     resp_queue.push_back(req);
   // resp_queue.push_back(it_scarab_req->second);
@@ -372,6 +376,7 @@ void to_ramulator_req(const Mem_Req* scarab_req, Request* ramulator_req) {
             scarab_req->type);
 
   ramulator_req->addr      = scarab_req->phys_addr;
+  ramulator_req->orig_addr = scarab_req->phys_addr;
   ramulator_req->coreid    = scarab_req->proc_id;
   ramulator_req->is_demand = mem_req_type_is_demand(scarab_req->type);
 
