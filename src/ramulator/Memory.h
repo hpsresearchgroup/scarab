@@ -178,6 +178,8 @@ class Memory : public MemoryBase {
     num_cores                        = configs.get_core_num();
     addr_remap_page_access_threshold = configs.get_int(
       "addr_remap_page_access_threshold");
+    addr_remap_page_reuse_threshold = configs.get_int(
+      "addr_remap_page_reuse_threshold");
 
     // If hi address bits will not be assigned to Rows
     // then the chips must not be LPDDRx 6Gb, 12Gb etc.
@@ -573,7 +575,8 @@ class Memory : public MemoryBase {
   vector<int> addr_bits_start_pos;
 
   const int   stride_to_upper_xored_bit        = 4;
-  int         addr_remap_page_access_threshold = INT_MAX;
+  int         addr_remap_page_access_threshold = -1;
+  int         addr_remap_page_reuse_threshold  = -1;
   vector<int> channel_xor_bits_pos;
   vector<int> frame_index_channel_xor_bits_pos;
 
@@ -983,9 +986,16 @@ class Memory : public MemoryBase {
         os_page_tracking_map.at(page_index).access_count++;
 
         if(remap_policy != RemapPolicy::None) {
-          if(os_page_tracking_map.at(page_index).access_count >
-             addr_remap_page_access_threshold) {
-            remap_and_copy(channel, page_index, line_on_page_bit, req);
+          if(-1 != addr_remap_page_reuse_threshold) {
+            if(os_page_tracking_map.at(page_index).reuse_count >
+               addr_remap_page_reuse_threshold) {
+              remap_and_copy(channel, page_index, line_on_page_bit, req);
+            }
+          } else if(-1 != addr_remap_page_access_threshold) {
+            if(os_page_tracking_map.at(page_index).access_count >
+               addr_remap_page_access_threshold) {
+              remap_and_copy(channel, page_index, line_on_page_bit, req);
+            }
           }
         }
       }

@@ -40,6 +40,7 @@ enum class StatCallbackType : int {
   NONDEMAND_COL_REUSE,
   DEMAND_ROW_REUSE,
   NONDEMAND_ROW_REUSE,
+  ROW_REUSE_TIME,
   MAX
 };
 
@@ -80,7 +81,8 @@ class Config {
     {"addr_remap_policy", "None"},
     {"addr_remap_copy_mode", "Real"},
     {"addr_remap_copy_granularity", "Line"},
-    {"addr_remap_page_access_threshold", "128"}};
+    {"addr_remap_page_access_threshold", "-1"},
+    {"addr_remap_page_reuse_threshold", "-1"}};
 
   template <typename T>
   T get(const std::string& param_name,

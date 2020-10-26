@@ -186,6 +186,23 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
               PER_CORE_DRAM_ALL_ROW_REUSE_DIST_2048_MORE));
       STAT_EVENT(proc_id, PER_CORE_DRAM_ALL_ROW_REUSE_DIST_0 + stat_index);
       break;
+
+    case int(StatCallbackType::ROW_REUSE_TIME): {
+      int all_cores_index = ALL_CORES_DRAM_ROW_REUSE_TIME_ROW_HIT +
+                            bucket_index;
+      assert((all_cores_index >= ALL_CORES_DRAM_ROW_REUSE_TIME_INF) &&
+             (all_cores_index <= ALL_CORES_DRAM_ROW_REUSE_TIME_MORE));
+      STAT_EVENT_ALL(all_cores_index);
+
+      int per_core_index = PER_CORE_DRAM_ROW_REUSE_TIME_ROW_HIT + bucket_index;
+      assert((per_core_index >= PER_CORE_DRAM_ROW_REUSE_TIME_INF) &&
+             (per_core_index <= PER_CORE_DRAM_ROW_REUSE_TIME_MORE));
+      STAT_EVENT(proc_id, per_core_index);
+      break;
+    }
+
+    default:
+      assert(false);
   }
 }
 
@@ -227,6 +244,8 @@ void init_configs() {
                RAMULATOR_ADDR_REMAP_COPY_GRANULARITY);
   configs->add("addr_remap_page_access_threshold",
                to_string(RAMULATOR_ADDR_REMAP_PAGE_ACCESS_THRESHOLD));
+  configs->add("addr_remap_page_reuse_threshold",
+               to_string(RAMULATOR_ADDR_REMAP_PAGE_REUSE_THRESHOLD));
 
   configs->add("scheduling_policy", RAMULATOR_SCHEDULING_POLICY);
   configs->add("readq_entries", to_string(RAMULATOR_READQ_ENTRIES));

@@ -273,6 +273,7 @@ struct ReuseDistance {
   bool valid;
   int  column_reuse_distance;
   int  row_reuse_distance;
+  long cycles_reuse_distance;
 };
 
 template <typename T>
@@ -306,7 +307,7 @@ class RowTable {
     int         row = *end;
 
     T*            spec = ctrl->channel->spec;
-    ReuseDistance rd   = {false, -1, -1};
+    ReuseDistance rd   = {false, -1, -1, 0};
 
     if(spec->is_opening(cmd))
       table.insert({rowgroup, {row, 0, clk}});
@@ -414,7 +415,7 @@ class RowTable {
     vector<int> row_vec(begin, col_itr);
     int         col = *col_itr;
 
-    ReuseDistance rd = {true, -1, -1};
+    ReuseDistance rd = {true, -1, -1, 0};
 
     if(track_col_reuse_distance) {
       if(0 == row_to_timestamp_to_col.count(row_vec)) {
@@ -448,6 +449,8 @@ class RowTable {
       size_t count = bank_to_row_to_timestamp.at(bank_vec).count(row);
       if(count) {
         long last_clk = bank_to_row_to_timestamp.at(bank_vec).at(row);
+        assert(clk >= last_clk);
+        rd.cycles_reuse_distance = clk - last_clk;
         std::map<long int, int>::const_iterator itr =
           bank_to_timestamp_to_row.at(bank_vec).find(last_clk);
         assert(itr != bank_to_timestamp_to_row.at(bank_vec).cend());

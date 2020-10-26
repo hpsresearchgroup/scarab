@@ -145,6 +145,7 @@ class Controller {
 
     record_cmd_trace = configs.get_config("record_cmd_trace");
     print_cmd_trace  = configs.get_config("print_cmd_trace");
+    tCK_in_ns        = configs.get_int("tCK") / 1000000.0f;
 
     if(record_cmd_trace) {
       if(configs["cmd_trace_prefix"] != "") {
@@ -527,6 +528,8 @@ class Controller {
   }
 
  private:
+  double tCK_in_ns = 0;
+
   typename T::Command get_first_cmd(list<Request>::iterator req) {
     typename T::Command cmd = channel->spec->translate[int(req->type)];
     return channel->decode(cmd, req->addr_vec.data());
@@ -581,6 +584,26 @@ class Controller {
     }
   }
 
+  int get_cycles_reuse_distance_bucket(const ReuseDistance& rd) {
+    if(rd.row_reuse_distance == -1) {
+      return -1;
+    } else if(rd.row_reuse_distance == 0) {
+      return 0;
+    } else {
+      assert(0 != tCK_in_ns);
+      long delta_ns = rd.cycles_reuse_distance * tCK_in_ns;
+      if(delta_ns <= 1000) {
+        return 1;
+      } else if(delta_ns <= 4000) {
+        return 2;
+      } else if(delta_ns <= 16000) {
+        return 3;
+      } else {
+        return 4;
+      }
+    }
+  }
+
   void issue_cmd(typename T::Command cmd, const vector<int>& addr_vec,
                  int coreid = -1, bool demand_req = false,
                  bool first_command = false) {
@@ -621,6 +644,9 @@ class Controller {
         stats_callback(int(StatCallbackType::NONDEMAND_ROW_REUSE), coreid,
                        rd.row_reuse_distance);
       }
+
+      stats_callback(int(StatCallbackType::ROW_REUSE_TIME), coreid,
+                     get_cycles_reuse_distance_bucket(rd));
     }
 
     if(record_cmd_trace) {
