@@ -113,6 +113,14 @@ class Memory : public MemoryBase {
   VectorStat num_pages_threshold_at_50_access;
   VectorStat num_pages_threshold_at_80_access;
 
+  VectorStat num_reserved_pages_allocated;
+  VectorStat num_reserved_rows_allocated;
+  VectorStat num_accesses_to_reserved_rows;
+  VectorStat num_reads_to_reserved_rows;
+  VectorStat num_writes_to_reserved_rows;
+  VectorStat num_copy_reads;
+  VectorStat num_copy_writes;
+
 #ifndef INTEGRATED_WITH_GEM5
   VectorStat record_read_requests;
   VectorStat record_write_requests;
@@ -293,6 +301,32 @@ class Memory : public MemoryBase {
     num_pages_threshold_at_80_access.init(sz[int(T::Level::Channel)])
       .name("num_pages_threshold_at_80_access")
       .desc("How many pages were needed to achieve 80% access");
+
+    num_reserved_pages_allocated.init(sz[int(T::Level::Channel)])
+      .name("num_reserved_pages_allocated")
+      .desc("How many total reserved pages were allocated");
+    num_reserved_rows_allocated.init(sz[int(T::Level::Channel)])
+      .name("num_reserved_rows_allocated")
+      .desc("How many total reserved rows were allocated");
+    num_accesses_to_reserved_rows.init(sz[int(T::Level::Channel)])
+      .name("num_accesses_to_reserved_rows")
+      .desc("How many accesses were there to reserved rows");
+    num_reads_to_reserved_rows.init(sz[int(T::Level::Channel)])
+      .name("num_reads_to_reserved_rows")
+      .desc("How many reads were there to reserved rows");
+    num_writes_to_reserved_rows.init(sz[int(T::Level::Channel)])
+      .name("num_writes_to_reserved_rows")
+      .desc("How many writes were there to reserved rows");
+    num_writes_to_reserved_rows.init(sz[int(T::Level::Channel)])
+      .name("num_writes_to_reserved_rows")
+      .desc("How many writes were there to reserved rows");
+    num_copy_reads.init(sz[int(T::Level::Channel)])
+      .name("num_copy_reads")
+      .desc("How many reads needed to be performed for copies");
+    num_copy_writes.init(sz[int(T::Level::Channel)])
+      .name("num_copy_writes")
+      .desc("How many writes needed to be performed for copies");
+
 #ifndef INTEGRATED_WITH_GEM5
     record_read_requests.init(configs.get_core_num())
       .name("record_read_requests")
@@ -396,9 +430,10 @@ class Memory : public MemoryBase {
       req.addr_vec[int(T::Level::Row)] = 0;
     }
 
-    if(ctrls[req.addr_vec[0]]->enqueue(req)) {
+    int channel = req.addr_vec[int(T::Level::Channel)];
+    if(ctrls[channel]->enqueue(req)) {
       if(track_os_pages) {
-        update_os_page_info(req, req.addr_vec[0]);
+        update_os_page_info(req, channel);
       }
 
       // tally stats here to avoid double counting for requests that aren't
@@ -406,12 +441,16 @@ class Memory : public MemoryBase {
       ++num_incoming_requests;
       if(req.type == Request::Type::READ) {
         ++num_read_requests[coreid];
-        ++incoming_read_reqs_per_channel[req.addr_vec[int(T::Level::Channel)]];
+        ++incoming_read_reqs_per_channel[channel];
+        if(req.is_remapped)
+          ++num_reads_to_reserved_rows[channel];
       }
       if(req.type == Request::Type::WRITE) {
         ++num_write_requests[coreid];
+        if(req.is_remapped)
+          ++num_writes_to_reserved_rows[channel];
       }
-      ++incoming_requests_per_channel[req.addr_vec[int(T::Level::Channel)]];
+      ++incoming_requests_per_channel[channel];
       return true;
     }
 
@@ -448,6 +487,9 @@ class Memory : public MemoryBase {
       ctrl->finish(read_req, dram_cycles);
       if(track_os_pages) {
         compute_os_page_stats(ctrl->channel->id);
+        num_accesses_to_reserved_rows[ctrl->channel->id] =
+          num_reads_to_reserved_rows[ctrl->channel->id].value() +
+          num_writes_to_reserved_rows[ctrl->channel->id].value();
       }
     }
 
@@ -568,9 +610,9 @@ class Memory : public MemoryBase {
   unordered_map<int, unordered_map<long, std::pair<long, uint64_t>>>
     ch_to_page_index_remapping;
 
-  long map_addr_to_new_frame(const long addr, const long new_frame) {
+  uint64_t map_addr_to_new_frame(const long addr, const long new_frame) {
     return (new_frame << os_page_offset_bits) |
-           (addr & ((1 << os_page_offset_bits) - 1));
+           (addr & ((uint64_t(1) << os_page_offset_bits) - 1));
   }
   long get_line_on_page_bit(const uint line_on_page) {
     return (((long)1) << line_on_page);
@@ -750,8 +792,9 @@ class Memory : public MemoryBase {
     int channel = orig_addr_vec[int(T::Level::Channel)];
     if(ch_to_page_index_remapping.count(channel)) {
       if(ch_to_page_index_remapping.at(channel).count(orig_frame_index)) {
-        if(ch_to_page_index_remapping.at(channel).at(orig_frame_index).second |
-           line_on_page_bit) {
+        uint64_t copied_lines_mask =
+          ch_to_page_index_remapping.at(channel).at(orig_frame_index).second;
+        if(copied_lines_mask & line_on_page_bit) {
           req.addr = map_addr_to_new_frame(
             req.addr,
             ch_to_page_index_remapping.at(channel).at(orig_frame_index).first);
@@ -809,6 +852,7 @@ class Memory : public MemoryBase {
 
     ch_to_page_index_remapping[channel][frame_index] = std::make_pair(
       new_frame_index, 0);
+    num_reserved_pages_allocated[channel]++;
   }
 
   void remap_and_copy(const int channel, const long frame_index,
@@ -823,13 +867,38 @@ class Memory : public MemoryBase {
     }
 
     // actually copy the line(s)
+    uint64_t copied_lines_mask =
+      ch_to_page_index_remapping[channel][frame_index].second;
     switch(remap_copy_mode) {
       case CopyMode::Free:
         if(CopyGranularity::Line == remap_copy_granularity) {
-          ch_to_page_index_remapping[channel][frame_index].second |=
-            line_on_page_bit;
+          if(0 == (copied_lines_mask & line_on_page_bit)) {
+            ch_to_page_index_remapping[channel][frame_index].second |=
+              line_on_page_bit;
+            num_copy_writes[channel]++;
+          }
         } else if(CopyGranularity::Page == remap_copy_granularity) {
-          ch_to_page_index_remapping[channel][frame_index].second = UINT64_MAX;
+          if(0 == copied_lines_mask) {
+            int num_tx_in_frame_ch_slice_log2 = (os_page_offset_bits - tx_bits);
+            if(addr_bits[int(T::Level::Channel)] > 0) {
+              // make sure some of the channel bits come from the page offset
+              // bits, which means each page will be interleaved across the
+              // channels
+              assert(channel_xor_bits_pos.size() >
+                     frame_index_channel_xor_bits_pos.size());
+              num_tx_in_frame_ch_slice_log2 -=
+                addr_bits[int(T::Level::Channel)];
+              assert(num_tx_in_frame_ch_slice_log2 > 0);
+            }
+
+            ch_to_page_index_remapping[channel][frame_index].second =
+              UINT64_MAX;
+
+            const int num_tx_in_frame_ch_slice =
+              (1 << num_tx_in_frame_ch_slice_log2);
+            num_copy_reads[channel] += num_tx_in_frame_ch_slice;
+            num_copy_writes[channel] += num_tx_in_frame_ch_slice;
+          }
         } else {
           assert(false);
         }
@@ -839,6 +908,9 @@ class Memory : public MemoryBase {
         assert(false);
         break;
     }
+
+    assert(0 != (ch_to_page_index_remapping[channel][frame_index].second &
+                 line_on_page_bit));
   }
 
   void get_page_index_offset_bit(long addr, long& page_index,

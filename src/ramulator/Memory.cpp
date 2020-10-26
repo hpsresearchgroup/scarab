@@ -77,6 +77,7 @@ void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
     assert(get_coreid_from_addr(addr) == num_cores);
     assert(channel_parity == addr_vec[int(DDR4::Level::Channel)]);
   }
+  num_reserved_rows_allocated[channel]++;
 }
 
 template <>
