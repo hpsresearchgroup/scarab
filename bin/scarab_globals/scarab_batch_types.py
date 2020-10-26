@@ -140,8 +140,11 @@ class ScarabRun:
   def print_progress(self):
     progress = self.job.get_progress(self.results_dir)
     progress.sort()
+    print("JOB: {name}".format(name=self.job_name))
+    print('-'*70)
     for p in progress:
       print(p)
+    print('='*70+"\n")
 
   def get_stats(self, flat=False):
     suite_stat = self.job.get_stats(self.results_dir, flat=flat)
