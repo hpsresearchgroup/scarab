@@ -68,7 +68,7 @@ class Progress:
     return self.status < rhs.status
 
   def __str__(self):
-    return "{results_dir}: {message}".format(results_dir=os.path.basename(self.results_dir), message=self.message)
+    return "{:<40s}: {message}".format(os.path.basename(self.results_dir), message=self.message)
 
   def get_progress(self):
     if not os.path.isdir(self.results_dir):
