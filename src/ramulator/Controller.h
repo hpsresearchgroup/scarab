@@ -327,7 +327,7 @@ class Controller {
     // necessary for coherence
     if(req.type == Request::Type::READ &&
        find_if(writeq.q.begin(), writeq.q.end(), [req](Request& wreq) {
-         return req.addr == wreq.addr;
+         return req.orig_addr == wreq.orig_addr;
        }) != writeq.q.end()) {
       req.depart = clk + 1;
       pending.push_back(req);

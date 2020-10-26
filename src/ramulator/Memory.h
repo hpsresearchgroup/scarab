@@ -430,31 +430,7 @@ class Memory : public MemoryBase {
       req.addr_vec[int(T::Level::Row)] = 0;
     }
 
-    int channel = req.addr_vec[int(T::Level::Channel)];
-    if(ctrls[channel]->enqueue(req)) {
-      if(track_os_pages) {
-        update_os_page_info(req, channel);
-      }
-
-      // tally stats here to avoid double counting for requests that aren't
-      // enqueued
-      ++num_incoming_requests;
-      if(req.type == Request::Type::READ) {
-        ++num_read_requests[coreid];
-        ++incoming_read_reqs_per_channel[channel];
-        if(req.is_remapped)
-          ++num_reads_to_reserved_rows[channel];
-      }
-      if(req.type == Request::Type::WRITE) {
-        ++num_write_requests[coreid];
-        if(req.is_remapped)
-          ++num_writes_to_reserved_rows[channel];
-      }
-      ++incoming_requests_per_channel[channel];
-      return true;
-    }
-
-    return false;
+    return enqueue_req_to_ctrl(req, coreid);
   }
 
   int pending_requests() {
@@ -609,6 +585,34 @@ class Memory : public MemoryBase {
 
   unordered_map<int, unordered_map<long, std::pair<long, uint64_t>>>
     ch_to_page_index_remapping;
+
+  bool enqueue_req_to_ctrl(Request& req, const int coreid) {
+    int channel = req.addr_vec[int(T::Level::Channel)];
+    if(ctrls[channel]->enqueue(req)) {
+      if(track_os_pages) {
+        update_os_page_info(req, channel);
+      }
+
+      // tally stats here to avoid double counting for requests that aren't
+      // enqueued
+      ++num_incoming_requests;
+      if(req.type == Request::Type::READ) {
+        ++num_read_requests[coreid];
+        ++incoming_read_reqs_per_channel[channel];
+        if(req.is_remapped)
+          ++num_reads_to_reserved_rows[channel];
+      }
+      if(req.type == Request::Type::WRITE) {
+        ++num_write_requests[coreid];
+        if(req.is_remapped)
+          ++num_writes_to_reserved_rows[channel];
+      }
+      ++incoming_requests_per_channel[channel];
+      return true;
+    }
+
+    return false;
+  }
 
   uint64_t map_addr_to_new_frame(const long addr, const long new_frame) {
     return (new_frame << os_page_offset_bits) |
@@ -856,7 +860,7 @@ class Memory : public MemoryBase {
   }
 
   void remap_and_copy(const int channel, const long frame_index,
-                      const long line_on_page_bit) {
+                      const long line_on_page_bit, const Request& orig_req) {
     if(0 == ch_to_page_index_remapping.count(channel)) {
       ch_to_page_index_remapping[channel] =
         unordered_map<long, std::pair<long, uint64_t>>();
@@ -898,6 +902,38 @@ class Memory : public MemoryBase {
               (1 << num_tx_in_frame_ch_slice_log2);
             num_copy_reads[channel] += num_tx_in_frame_ch_slice;
             num_copy_writes[channel] += num_tx_in_frame_ch_slice;
+          }
+        } else {
+          assert(false);
+        }
+        break;
+
+      case CopyMode::Real:
+        if(CopyGranularity::Line == remap_copy_granularity) {
+          if(0 == (copied_lines_mask & line_on_page_bit)) {
+            Request copy_req;
+            copy_req.is_first_command = true;
+            const long new_frame_index =
+              ch_to_page_index_remapping[channel][frame_index].first;
+            copy_req.addr      = map_addr_to_new_frame(orig_req.addr,
+                                                  new_frame_index);
+            copy_req.orig_addr = orig_req.orig_addr;
+            copy_req.addr_vec.resize(addr_bits.size());
+            set_req_addr_vec(copy_req.addr, copy_req.addr_vec);
+            assert(copy_req.addr_vec[int(T::Level::Channel)] == channel);
+            copy_req.coreid      = orig_req.coreid;
+            copy_req.is_demand   = false;
+            copy_req.is_copy     = true;
+            copy_req.is_remapped = true;
+            copy_req.type        = Request::Type::WRITE;
+
+            if(enqueue_req_to_ctrl(copy_req, copy_req.coreid)) {
+              ch_to_page_index_remapping[channel][frame_index].second |=
+                line_on_page_bit;
+              num_copy_writes[channel]++;
+            } else {
+              return;
+            }
           }
         } else {
           assert(false);
@@ -949,7 +985,7 @@ class Memory : public MemoryBase {
         if(remap_policy != RemapPolicy::None) {
           if(os_page_tracking_map.at(page_index).access_count >
              addr_remap_page_access_threshold) {
-            remap_and_copy(channel, page_index, line_on_page_bit);
+            remap_and_copy(channel, page_index, line_on_page_bit, req);
           }
         }
       }
