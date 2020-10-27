@@ -317,8 +317,10 @@ void uop_generator_get_uop(uns proc_id, Op* op, ctype_pin_inst* inst) {
      (op->table_info->cf_type == CF_IBR) || (op->table_info->cf_type == CF_ICO))
     op->oracle_info.dir = 1;  // FIXME Hack!! because of StringMOV
 
-  op->oracle_info.target = trace_uop->target ? trace_uop->target :
-                                               trace_uop->npc;
+  /* removing proc_id from target before compare with zero */
+  op->oracle_info.target = convert_to_cmp_addr(0, trace_uop->target) ?
+                             trace_uop->target :
+                             trace_uop->npc;
   op->oracle_info.va  = trace_uop->va;
   op->oracle_info.npc = trace_uop->npc;
   if(op->proc_id)
