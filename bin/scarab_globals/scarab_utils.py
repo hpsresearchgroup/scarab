@@ -28,12 +28,11 @@ import time
 sys.path.append(os.path.dirname(__file__))
 import command
 
-def warn (warning_msg):
-  print("Warning: " + warning_msg)
-  sys.stdout.flush()
+def warn (*args, **kwargs):
+  print("Warning: ", *args, file=sys.stderr, flush=True, **kwargs)
 
-def error(error_msg):
-  print("Error: " + error_msg)
+def error(*args, **kwargs):
+  print("Error: ",*args, file=sys.stderr, flush=True, **kwargs)
   sys.exit(1)
 
 def get_disable_aslr_prefix():
