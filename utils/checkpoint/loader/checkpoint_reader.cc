@@ -786,9 +786,10 @@ void update_region_protections(pid_t child_pid) {
                     checkpoint_region.range.inclusive_lower_bound;
     int prot = checkpoint_region.prot;
     if(i != vsyscall_region_id && i != vdso_region_id) {
-      std::cerr << "Running mprotect for region start: " << checkpoint_region << std::endl;
+      std::cout << "Running mprotect for region start: " << checkpoint_region
+                << std::endl;
       int mprotect_ret = execute_mprotect(child_pid, addr, length, prot);
-      std::cerr << "Running mprotect for region done" << std::endl;
+      std::cout << "Running mprotect for region done" << std::endl;
       if(mprotect_ret != 0) {
         std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
         std::cerr << "mprotect return value: " << mprotect_ret << "\n";
