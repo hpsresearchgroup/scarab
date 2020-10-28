@@ -33,7 +33,8 @@ namespace ramulator {
 
 template <>
 void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
-                                                       const long row) {
+                                                       const long row,
+                                                       const int  coreid) {
   const int row_start_pos = addr_bits_start_pos[int(DDR4::Level::Row)];
   assert(0 != row_start_pos);
   assert(0 != tx_bits);
@@ -74,10 +75,11 @@ void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
     if(-1 == xored_row_addr)
       xored_row_addr = addr_vec[int(DDR4::Level::Row)];
     assert(addr_vec[int(DDR4::Level::Row)] == xored_row_addr);
-    assert(get_coreid_from_addr(addr) == num_cores);
+    assert_remapped_addr_proc_id(addr, coreid);
     assert(channel_parity == addr_vec[int(DDR4::Level::Channel)]);
   }
-  num_reserved_rows_allocated[channel]++;
+  num_reserved_rows_allocated_by_ch[channel]++;
+  stats_callback(int(StatCallbackType::ROW_ALLOCATED), coreid, 0);
 }
 
 template <>

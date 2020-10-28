@@ -236,6 +236,11 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
       STAT_EVENT(proc_id, PER_CORE_DRAM_ORACLE_PREV_WRITTEN_REUSE);
       break;
 
+    case int(StatCallbackType::ROW_ALLOCATED):
+      STAT_EVENT_ALL(ALL_CORES_ROWS_ALLOCATED);
+      STAT_EVENT(proc_id, PER_CORE_ROWS_ALLOCATED);
+      break;
+
     default:
       assert(false);
   }
@@ -281,6 +286,8 @@ void init_configs() {
                to_string(RAMULATOR_ADDR_REMAP_PAGE_ACCESS_THRESHOLD));
   configs->add("addr_remap_page_reuse_threshold",
                to_string(RAMULATOR_ADDR_REMAP_PAGE_REUSE_THRESHOLD));
+  configs->add("addr_remap_to_partitioned_rows",
+               RAMULATOR_ADDR_REMAP_TO_PARTITIONED_ROWS);
 
   configs->add("scheduling_policy", RAMULATOR_SCHEDULING_POLICY);
   configs->add("readq_entries", to_string(RAMULATOR_READQ_ENTRIES));

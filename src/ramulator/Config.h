@@ -42,6 +42,7 @@ enum class StatCallbackType : int {
   NONDEMAND_ROW_REUSE,
   ROW_REUSE_TIME,
   PAGE_REMAPPED,
+  ROW_ALLOCATED,
   PAGE_REMAPPING_COPY_WRITE,
   REMAPPED_DATA_ACCESS,
   DRAM_ORACLE_REUSE,
@@ -87,7 +88,8 @@ class Config {
     {"addr_remap_copy_mode", "Real"},
     {"addr_remap_copy_granularity", "Line"},
     {"addr_remap_page_access_threshold", "-1"},
-    {"addr_remap_page_reuse_threshold", "-1"}};
+    {"addr_remap_page_reuse_threshold", "-1"},
+    {"addr_remap_to_partitioned_rows", "off"}};
 
   template <typename T>
   T get(const std::string& param_name,

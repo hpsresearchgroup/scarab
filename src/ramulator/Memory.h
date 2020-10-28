@@ -102,25 +102,25 @@ class Memory : public MemoryBase {
   ScalarStat in_queue_read_req_num_avg;
   ScalarStat in_queue_write_req_num_avg;
 
-  VectorStat channel_reuses;
-  VectorStat channel_prev_written_reuses;
-  VectorStat channel_pages_touched;
-  VectorStat reuse_threshold_at_50;
-  VectorStat reuse_threshold_at_80;
-  VectorStat access_threshold_at_50;
-  VectorStat access_threshold_at_80;
-  VectorStat num_pages_threshold_at_50_reuse;
-  VectorStat num_pages_threshold_at_80_reuse;
-  VectorStat num_pages_threshold_at_50_access;
-  VectorStat num_pages_threshold_at_80_access;
+  VectorStat channel_reuses_by_ch;
+  VectorStat channel_prev_written_reuses_by_ch;
+  VectorStat channel_pages_touched_by_ch;
+  VectorStat reuse_threshold_at_50_by_ch;
+  VectorStat reuse_threshold_at_80_by_ch;
+  VectorStat access_threshold_at_50_by_ch;
+  VectorStat access_threshold_at_80_by_ch;
+  VectorStat num_pages_threshold_at_50_reuse_by_ch;
+  VectorStat num_pages_threshold_at_80_reuse_by_ch;
+  VectorStat num_pages_threshold_at_50_access_by_ch;
+  VectorStat num_pages_threshold_at_80_access_by_ch;
 
-  VectorStat num_reserved_pages_allocated;
-  VectorStat num_reserved_rows_allocated;
-  VectorStat num_accesses_to_reserved_rows;
-  VectorStat num_reads_to_reserved_rows;
-  VectorStat num_writes_to_reserved_rows;
-  VectorStat num_copy_reads;
-  VectorStat num_copy_writes;
+  VectorStat num_reserved_pages_allocated_by_ch;
+  VectorStat num_reserved_rows_allocated_by_ch;
+  VectorStat num_accesses_to_reserved_rows_by_ch;
+  VectorStat num_reads_to_reserved_rows_by_ch;
+  VectorStat num_writes_to_reserved_rows_by_ch;
+  VectorStat num_copy_reads_by_ch;
+  VectorStat num_copy_writes_by_ch;
 
 #ifndef INTEGRATED_WITH_GEM5
   VectorStat record_read_requests;
@@ -169,12 +169,14 @@ class Memory : public MemoryBase {
     tx_bits = calc_log2(tx);
     assert((1 << tx_bits) == tx);
 
-    type                   = parse_addr_map_type(configs);
-    remap_policy           = parse_addr_remap_policy(configs);
-    remap_copy_mode        = parse_addr_remap_copy_mode(configs);
-    remap_copy_granularity = parse_addr_remap_copy_granularity(configs);
-    track_os_pages         = configs.get_config("track_os_page_reuse");
-    row_always_0           = configs.get_config("row_always_0");
+    type                      = parse_addr_map_type(configs);
+    remap_policy              = parse_addr_remap_policy(configs);
+    remap_copy_mode           = parse_addr_remap_copy_mode(configs);
+    remap_copy_granularity    = parse_addr_remap_copy_granularity(configs);
+    track_os_pages            = configs.get_config("track_os_page_reuse");
+    remap_to_partitioned_rows = configs.get_config(
+      "addr_remap_to_partitioned_rows");
+    row_always_0 = configs.get_config("row_always_0");
     for(int ch = 0; ch < sz[0]; ch++)
       os_page_tracking_map_by_ch.push_back(
         std::unordered_map<long, OsPageInfo>());
@@ -271,73 +273,70 @@ class Memory : public MemoryBase {
       .desc("Average of write queue length per memory cycle")
       .precision(6);
 
-    channel_reuses.init(sz[int(T::Level::Channel)])
-      .name("channel_reuses")
+    channel_reuses_by_ch.init(sz[int(T::Level::Channel)])
+      .name("channel_reuses_by_ch")
       .desc("Number of times a read/write was to a previously accessed cache "
             "line in "
             "each DRAM channel");
-    channel_prev_written_reuses.init(sz[int(T::Level::Channel)])
-      .name("channel_prev_written_reuses")
+    channel_prev_written_reuses_by_ch.init(sz[int(T::Level::Channel)])
+      .name("channel_prev_written_reuses_by_ch")
       .desc("Number of times a read/write was to a previously written cache "
             "line in "
             "each DRAM channel");
-    channel_pages_touched.init(sz[int(T::Level::Channel)])
-      .name("channel_pages_touched")
+    channel_pages_touched_by_ch.init(sz[int(T::Level::Channel)])
+      .name("channel_pages_touched_by_ch")
       .desc("Number of 4KB OS pages touched in this channel");
-    reuse_threshold_at_50.init(sz[int(T::Level::Channel)])
-      .name("reuse_threshold_at_50")
+    reuse_threshold_at_50_by_ch.init(sz[int(T::Level::Channel)])
+      .name("reuse_threshold_at_50_by_ch")
       .desc("What the reuse threshold per page should be if we want to capture "
             "50% of all reuses");
-    reuse_threshold_at_80.init(sz[int(T::Level::Channel)])
-      .name("reuse_threshold_at_80")
+    reuse_threshold_at_80_by_ch.init(sz[int(T::Level::Channel)])
+      .name("reuse_threshold_at_80_by_ch")
       .desc("What the reuse threshold per page should be if we want to capture "
             "80% of all reuses");
-    access_threshold_at_50.init(sz[int(T::Level::Channel)])
-      .name("access_threshold_at_50")
+    access_threshold_at_50_by_ch.init(sz[int(T::Level::Channel)])
+      .name("access_threshold_at_50_by_ch")
       .desc(
         "What the access threshold per page should be if we want to capture "
         "50% of all accesses");
-    access_threshold_at_80.init(sz[int(T::Level::Channel)])
-      .name("access_threshold_at_80")
+    access_threshold_at_80_by_ch.init(sz[int(T::Level::Channel)])
+      .name("access_threshold_at_80_by_ch")
       .desc(
         "What the access threshold per page should be if we want to capture "
         "80% of all accesses");
-    num_pages_threshold_at_50_reuse.init(sz[int(T::Level::Channel)])
-      .name("num_pages_threshold_at_50_reuse")
+    num_pages_threshold_at_50_reuse_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_pages_threshold_at_50_reuse_by_ch")
       .desc("How many pages were needed to achieve 50% reuse");
-    num_pages_threshold_at_80_reuse.init(sz[int(T::Level::Channel)])
-      .name("num_pages_threshold_at_80_reuse")
+    num_pages_threshold_at_80_reuse_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_pages_threshold_at_80_reuse_by_ch")
       .desc("How many pages were needed to achieve 80% reuse");
-    num_pages_threshold_at_50_access.init(sz[int(T::Level::Channel)])
-      .name("num_pages_threshold_at_50_access")
+    num_pages_threshold_at_50_access_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_pages_threshold_at_50_access_by_ch")
       .desc("How many pages were needed to achieve 50% access");
-    num_pages_threshold_at_80_access.init(sz[int(T::Level::Channel)])
-      .name("num_pages_threshold_at_80_access")
+    num_pages_threshold_at_80_access_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_pages_threshold_at_80_access_by_ch")
       .desc("How many pages were needed to achieve 80% access");
 
-    num_reserved_pages_allocated.init(sz[int(T::Level::Channel)])
-      .name("num_reserved_pages_allocated")
+    num_reserved_pages_allocated_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_reserved_pages_allocated_by_ch")
       .desc("How many total reserved pages were allocated");
-    num_reserved_rows_allocated.init(sz[int(T::Level::Channel)])
-      .name("num_reserved_rows_allocated")
+    num_reserved_rows_allocated_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_reserved_rows_allocated_by_ch")
       .desc("How many total reserved rows were allocated");
-    num_accesses_to_reserved_rows.init(sz[int(T::Level::Channel)])
-      .name("num_accesses_to_reserved_rows")
+    num_accesses_to_reserved_rows_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_accesses_to_reserved_rows_by_ch")
       .desc("How many accesses were there to reserved rows");
-    num_reads_to_reserved_rows.init(sz[int(T::Level::Channel)])
-      .name("num_reads_to_reserved_rows")
+    num_reads_to_reserved_rows_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_reads_to_reserved_rows_by_ch")
       .desc("How many reads were there to reserved rows");
-    num_writes_to_reserved_rows.init(sz[int(T::Level::Channel)])
-      .name("num_writes_to_reserved_rows")
+    num_writes_to_reserved_rows_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_writes_to_reserved_rows_by_ch")
       .desc("How many writes were there to reserved rows");
-    num_writes_to_reserved_rows.init(sz[int(T::Level::Channel)])
-      .name("num_writes_to_reserved_rows")
-      .desc("How many writes were there to reserved rows");
-    num_copy_reads.init(sz[int(T::Level::Channel)])
-      .name("num_copy_reads")
+    num_copy_reads_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_copy_reads_by_ch")
       .desc("How many reads needed to be performed for copies");
-    num_copy_writes.init(sz[int(T::Level::Channel)])
-      .name("num_copy_writes")
+    num_copy_writes_by_ch.init(sz[int(T::Level::Channel)])
+      .name("num_copy_writes_by_ch")
       .desc("How many writes needed to be performed for copies");
 
 #ifndef INTEGRATED_WITH_GEM5
@@ -352,24 +351,29 @@ class Memory : public MemoryBase {
             "or to the end");
 #endif
     if(remap_policy != RemapPolicy::None) {
-      const long first_reserved_line = (long(num_cores)
-                                        << coreid_start_bit_pos) >>
-                                       tx_bits;
-      int total_non_row_bits = 0;
-      for(uint lev = 0; lev != addr_bits.size(); lev++) {
-        if(lev != uint(T::Level::Row))
-          total_non_row_bits += addr_bits[lev];
-      }
-      const long first_reserved_row = (first_reserved_line >>
-                                       total_non_row_bits);
-
       vector<int> dummy_addr_vec(addr_bits.size());
       set_req_addr_vec(
         0, dummy_addr_vec);  // just to initialize addr_bits_start_pos
+
+      for(int core = 0; core < num_cores; core++) {
+        core_to_ch_to_oldest_unfilled_row[core] = unordered_map<int, long>();
+        core_to_ch_to_newest_unfilled_row[core] = unordered_map<int, long>();
+      }
+
       for(int ch = 0; ch < sz[int(T::Level::Channel)]; ch++) {
-        ch_to_oldest_unfilled_row[ch] = first_reserved_row;
-        ch_to_newest_unfilled_row[ch] = first_reserved_row;
-        populate_frames_freelist_for_ch_row(ch, first_reserved_row);
+        if(remap_to_partitioned_rows) {
+          for(int core = 0; core < num_cores; core++) {
+            const long first_reserved_row = compute_first_reserved_row(core);
+            core_to_ch_to_oldest_unfilled_row[core][ch] = first_reserved_row;
+            core_to_ch_to_newest_unfilled_row[core][ch] = first_reserved_row;
+            populate_frames_freelist_for_ch_row(ch, first_reserved_row, core);
+          }
+        } else {
+          const long first_reserved_row        = compute_first_reserved_row(0);
+          global_ch_to_oldest_unfilled_row[ch] = first_reserved_row;
+          global_ch_to_newest_unfilled_row[ch] = first_reserved_row;
+          populate_frames_freelist_for_ch_row(ch, first_reserved_row, 0);
+        }
       }
     }
   }
@@ -476,9 +480,9 @@ class Memory : public MemoryBase {
       ctrl->finish(read_req, dram_cycles);
       if(track_os_pages) {
         compute_os_page_stats(ctrl->channel->id);
-        num_accesses_to_reserved_rows[ctrl->channel->id] =
-          num_reads_to_reserved_rows[ctrl->channel->id].value() +
-          num_writes_to_reserved_rows[ctrl->channel->id].value();
+        num_accesses_to_reserved_rows_by_ch[ctrl->channel->id] =
+          num_reads_to_reserved_rows_by_ch[ctrl->channel->id].value() +
+          num_writes_to_reserved_rows_by_ch[ctrl->channel->id].value();
       }
     }
 
@@ -590,11 +594,16 @@ class Memory : public MemoryBase {
   const int   stride_to_upper_xored_bit        = 4;
   int         addr_remap_page_access_threshold = -1;
   int         addr_remap_page_reuse_threshold  = -1;
+  bool        remap_to_partitioned_rows;
   vector<int> channel_xor_bits_pos;
   vector<int> frame_index_channel_xor_bits_pos;
 
-  unordered_map<int, long> ch_to_oldest_unfilled_row;
-  unordered_map<int, long> ch_to_newest_unfilled_row;
+  unordered_map<int, long> global_ch_to_oldest_unfilled_row;
+  unordered_map<int, long> global_ch_to_newest_unfilled_row;
+  unordered_map<int, unordered_map<int, long>>
+    core_to_ch_to_oldest_unfilled_row;
+  unordered_map<int, unordered_map<int, long>>
+    core_to_ch_to_newest_unfilled_row;
 
   unordered_map<int, unordered_map<long, unordered_map<int, vector<long>>>>
     ch_to_row_to_ch_freebits_parity_to_avail_frames;
@@ -616,7 +625,7 @@ class Memory : public MemoryBase {
         ++num_read_requests[coreid];
         ++incoming_read_reqs_per_channel[channel];
         if(req.is_remapped) {
-          ++num_reads_to_reserved_rows[channel];
+          ++num_reads_to_reserved_rows_by_ch[channel];
           stats_callback(int(StatCallbackType::REMAPPED_DATA_ACCESS),
                          req.coreid, 0);
         }
@@ -624,7 +633,7 @@ class Memory : public MemoryBase {
       if(req.type == Request::Type::WRITE) {
         ++num_write_requests[coreid];
         if(req.is_remapped) {
-          ++num_writes_to_reserved_rows[channel];
+          ++num_writes_to_reserved_rows_by_ch[channel];
           stats_callback(int(StatCallbackType::REMAPPED_DATA_ACCESS),
                          req.coreid, 0);
         }
@@ -636,6 +645,13 @@ class Memory : public MemoryBase {
     return false;
   }
 
+  void assert_remapped_addr_proc_id(const long addr, const int coreid) {
+    if(remap_to_partitioned_rows) {
+      assert(get_coreid_from_addr(addr) == num_cores + coreid);
+    } else {
+      assert(get_coreid_from_addr(addr) == num_cores);
+    }
+  }
   uint64_t map_addr_to_new_frame(const long addr, const long new_frame) {
     return (new_frame << os_page_offset_bits) |
            (addr & ((uint64_t(1) << os_page_offset_bits) - 1));
@@ -782,7 +798,8 @@ class Memory : public MemoryBase {
   void set_skylakeddr4_addr_vec(vector<int>& addr_vec, long addr) {
     assert(false);
   }
-  void populate_frames_freelist_for_ch_row(const int channel, const long row) {
+  void populate_frames_freelist_for_ch_row(const int channel, const long row,
+                                           const int coreid) {
     assert(false);
   }
 
@@ -825,6 +842,7 @@ class Memory : public MemoryBase {
           req.addr = map_addr_to_new_frame(
             req.addr,
             ch_to_page_index_remapping.at(channel).at(orig_frame_index).first);
+          assert_remapped_addr_proc_id(req.addr, req.coreid);
           set_req_addr_vec(req.addr, req.addr_vec);
           assert(req.addr_vec[int(T::Level::Channel)] ==
                  orig_addr_vec[int(T::Level::Channel)]);
@@ -834,13 +852,13 @@ class Memory : public MemoryBase {
     }
   }
 
-  void update_ch_to_oldest_unfilled_row(const int channel) {
-    while(row_freelist_exhausted(channel, ch_to_oldest_unfilled_row[channel]) &&
-          (ch_to_oldest_unfilled_row[channel] <
-           ch_to_newest_unfilled_row[channel])) {
-      ch_to_oldest_unfilled_row[channel]++;
-      assert(ch_to_oldest_unfilled_row[channel] <=
-             ch_to_newest_unfilled_row[channel]);
+  void update_ch_to_oldest_unfilled_row(
+    const int channel, unordered_map<int, long>& oldest_unfilled_row,
+    unordered_map<int, long>& newest_unfilled_row) {
+    while(row_freelist_exhausted(channel, oldest_unfilled_row[channel]) &&
+          (oldest_unfilled_row[channel] < newest_unfilled_row[channel])) {
+      oldest_unfilled_row[channel]++;
+      assert(oldest_unfilled_row[channel] <= newest_unfilled_row[channel]);
     }
   }
 
@@ -859,28 +877,36 @@ class Memory : public MemoryBase {
 
   void get_new_free_frame(const int channel, const long frame_index,
                           int coreid) {
-    long row                 = ch_to_oldest_unfilled_row[channel];
+    unordered_map<int, long>& oldest_unfilled_row =
+      remap_to_partitioned_rows ? core_to_ch_to_oldest_unfilled_row[coreid] :
+                                  global_ch_to_oldest_unfilled_row;
+    unordered_map<int, long>& newest_unfilled_row =
+      remap_to_partitioned_rows ? core_to_ch_to_newest_unfilled_row[coreid] :
+                                  global_ch_to_newest_unfilled_row;
+
+    long row                 = oldest_unfilled_row[channel];
     int  orig_channel_parity = get_channel_from_frame_index(frame_index);
-    for(; row <= ch_to_newest_unfilled_row[channel]; row++) {
+    for(; row <= newest_unfilled_row[channel]; row++) {
       if(!ch_to_row_to_ch_freebits_parity_to_avail_frames[channel][row]
                                                          [orig_channel_parity]
                                                            .empty())
         break;
     }
 
-    if(row > ch_to_newest_unfilled_row[channel]) {
-      ch_to_newest_unfilled_row[channel]++;
-      populate_frames_freelist_for_ch_row(channel,
-                                          ch_to_newest_unfilled_row[channel]);
-      row = ch_to_newest_unfilled_row[channel];
+    if(row > newest_unfilled_row[channel]) {
+      newest_unfilled_row[channel]++;
+      populate_frames_freelist_for_ch_row(channel, newest_unfilled_row[channel],
+                                          coreid);
+      row = newest_unfilled_row[channel];
     }
     long new_frame_index = get_free_frame_from_freelist(channel, row,
                                                         orig_channel_parity);
-    update_ch_to_oldest_unfilled_row(channel);
+    update_ch_to_oldest_unfilled_row(channel, oldest_unfilled_row,
+                                     newest_unfilled_row);
 
     ch_to_page_index_remapping[channel][frame_index] = std::make_pair(
       new_frame_index, 0);
-    num_reserved_pages_allocated[channel]++;
+    num_reserved_pages_allocated_by_ch[channel]++;
     stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid, 0);
   }
 
@@ -902,6 +928,7 @@ class Memory : public MemoryBase {
     const long new_frame_index =
       ch_to_page_index_remapping[channel][frame_index].first;
     const long new_addr = map_addr_to_new_frame(orig_req.addr, new_frame_index);
+    assert_remapped_addr_proc_id(new_addr, orig_req.coreid);
 
     switch(remap_copy_mode) {
       case CopyMode::Free:
@@ -917,7 +944,7 @@ class Memory : public MemoryBase {
               // if the orig req wasn't remapped, we assume we were able to
               // redirect it to the remapped page
             } else if(orig_req.type == Request::Type::READ) {
-              num_copy_writes[channel]++;
+              num_copy_writes_by_ch[channel]++;
               stats_callback(int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE),
                              orig_req.coreid, 1);
             } else
@@ -942,8 +969,8 @@ class Memory : public MemoryBase {
 
             const int num_tx_in_frame_ch_slice =
               (1 << num_tx_in_frame_ch_slice_log2);
-            num_copy_reads[channel] += num_tx_in_frame_ch_slice;
-            num_copy_writes[channel] += num_tx_in_frame_ch_slice;
+            num_copy_reads_by_ch[channel] += num_tx_in_frame_ch_slice;
+            num_copy_writes_by_ch[channel] += num_tx_in_frame_ch_slice;
             stats_callback(int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE),
                            orig_req.coreid, num_tx_in_frame_ch_slice);
           }
@@ -972,7 +999,7 @@ class Memory : public MemoryBase {
               if(enqueue_req_to_ctrl(copy_req, copy_req.coreid)) {
                 ch_to_page_index_remapping[channel][frame_index].second |=
                   line_on_page_bit;
-                num_copy_writes[channel]++;
+                num_copy_writes_by_ch[channel]++;
                 stats_callback(int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE),
                                orig_req.coreid, 1);
               } else {
@@ -1002,6 +1029,19 @@ class Memory : public MemoryBase {
 
     assert(0 != (ch_to_page_index_remapping[channel][frame_index].second &
                  line_on_page_bit));
+  }
+
+  long compute_first_reserved_row(const int coreid) {
+    const long first_reserved_line = (long(num_cores + coreid)
+                                      << coreid_start_bit_pos) >>
+                                     tx_bits;
+    int total_non_row_bits = 0;
+    for(uint lev = 0; lev != addr_bits.size(); lev++) {
+      if(lev != uint(T::Level::Row))
+        total_non_row_bits += addr_bits[lev];
+    }
+    const long first_reserved_row = (first_reserved_line >> total_non_row_bits);
+    return first_reserved_row;
   }
 
   void get_page_index_offset_bit(long addr, long& page_index,
@@ -1112,13 +1152,13 @@ class Memory : public MemoryBase {
     assert(reuses.size() == total_pages);
     assert(accesses.size() == total_pages);
 
-    channel_reuses[channel]              = total_reuses;
-    channel_prev_written_reuses[channel] = total_prev_written_reuses;
-    channel_pages_touched[channel]       = total_pages;
-    const long reuses_50                 = 0.5 * total_reuses;
-    const long reuses_80                 = 0.8 * total_reuses;
-    const long accesses_50               = 0.5 * total_accesses;
-    const long accesses_80               = 0.9 * total_accesses;
+    channel_reuses_by_ch[channel]              = total_reuses;
+    channel_prev_written_reuses_by_ch[channel] = total_prev_written_reuses;
+    channel_pages_touched_by_ch[channel]       = total_pages;
+    const long reuses_50                       = 0.5 * total_reuses;
+    const long reuses_80                       = 0.8 * total_reuses;
+    const long accesses_50                     = 0.5 * total_accesses;
+    const long accesses_80                     = 0.9 * total_accesses;
 
     {
       long seen_reuses   = 0;
@@ -1126,12 +1166,14 @@ class Memory : public MemoryBase {
       bool done_80_reuse = false;
       for(ulong i = 0; i < reuses.size(); i++) {
         seen_reuses += reuses[i];
-        check_if_threshold_satisfied(
-          channel, reuses, i, seen_reuses, reuses_50, reuse_threshold_at_50,
-          num_pages_threshold_at_50_reuse, done_50_reuse);
-        check_if_threshold_satisfied(
-          channel, reuses, i, seen_reuses, reuses_80, reuse_threshold_at_80,
-          num_pages_threshold_at_80_reuse, done_80_reuse);
+        check_if_threshold_satisfied(channel, reuses, i, seen_reuses, reuses_50,
+                                     reuse_threshold_at_50_by_ch,
+                                     num_pages_threshold_at_50_reuse_by_ch,
+                                     done_50_reuse);
+        check_if_threshold_satisfied(channel, reuses, i, seen_reuses, reuses_80,
+                                     reuse_threshold_at_80_by_ch,
+                                     num_pages_threshold_at_80_reuse_by_ch,
+                                     done_80_reuse);
         if(done_50_reuse && done_80_reuse)
           break;
       }
@@ -1144,12 +1186,12 @@ class Memory : public MemoryBase {
       for(ulong i = 0; i < accesses.size(); i++) {
         seen_accesses += accesses[i];
         check_if_threshold_satisfied(channel, accesses, i, seen_accesses,
-                                     accesses_50, access_threshold_at_50,
-                                     num_pages_threshold_at_50_access,
+                                     accesses_50, access_threshold_at_50_by_ch,
+                                     num_pages_threshold_at_50_access_by_ch,
                                      done_50_access);
         check_if_threshold_satisfied(channel, accesses, i, seen_accesses,
-                                     accesses_80, access_threshold_at_80,
-                                     num_pages_threshold_at_80_access,
+                                     accesses_80, access_threshold_at_80_by_ch,
+                                     num_pages_threshold_at_80_access_by_ch,
                                      done_80_access);
         if(done_50_access && done_80_access)
           break;
@@ -1160,7 +1202,8 @@ class Memory : public MemoryBase {
 
 template <>
 void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
-                                                       const long row);
+                                                       const long row,
+                                                       const int  coreid);
 
 template <>
 void Memory<DDR4>::BaRaBgCo7ChCo2(vector<int>& addr_vec, long addr);
