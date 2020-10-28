@@ -103,6 +103,7 @@ class Memory : public MemoryBase {
   ScalarStat in_queue_write_req_num_avg;
 
   VectorStat channel_reuses;
+  VectorStat channel_prev_written_reuses;
   VectorStat channel_pages_touched;
   VectorStat reuse_threshold_at_50;
   VectorStat reuse_threshold_at_80;
@@ -273,6 +274,11 @@ class Memory : public MemoryBase {
     channel_reuses.init(sz[int(T::Level::Channel)])
       .name("channel_reuses")
       .desc("Number of times a read/write was to a previously accessed cache "
+            "line in "
+            "each DRAM channel");
+    channel_prev_written_reuses.init(sz[int(T::Level::Channel)])
+      .name("channel_prev_written_reuses")
+      .desc("Number of times a read/write was to a previously written cache "
             "line in "
             "each DRAM channel");
     channel_pages_touched.init(sz[int(T::Level::Channel)])
@@ -564,7 +570,9 @@ class Memory : public MemoryBase {
 
   struct OsPageInfo {
     uint64_t lines_seen;
+    uint64_t lines_written;
     long     reuse_count;
+    long     prev_written_reuse_count;
     long     access_count;
   };
   std::vector<std::unordered_map<long, OsPageInfo>> os_page_tracking_map_by_ch;
@@ -1002,6 +1010,7 @@ class Memory : public MemoryBase {
     page_index              = addr;
     const uint line_on_page = page_offset >> 6;
     assert(line_on_page < (sizeof(OsPageInfo().lines_seen) * CHAR_BIT));
+    assert(line_on_page < (sizeof(OsPageInfo().lines_written) * CHAR_BIT));
     line_on_page_bit = get_line_on_page_bit(line_on_page);
   }
 
@@ -1028,7 +1037,17 @@ class Memory : public MemoryBase {
           stats_callback(int(StatCallbackType::DRAM_ORACLE_REUSE), req.coreid,
                          0 /* TODO: use this to pass retired_inst_window*/);
         }
+        if(line_on_page_bit &
+           os_page_tracking_map.at(page_index).lines_written) {
+          os_page_tracking_map.at(page_index).prev_written_reuse_count++;
+          stats_callback(int(StatCallbackType::DRAM_ORACLE_PREV_WRITTEN_REUSE),
+                         req.coreid,
+                         0 /* TODO: use this to pass retired_inst_window*/);
+        }
         os_page_tracking_map.at(page_index).lines_seen |= line_on_page_bit;
+        if(req.type == Request::Type::WRITE) {
+          os_page_tracking_map.at(page_index).lines_written |= line_on_page_bit;
+        }
         os_page_tracking_map.at(page_index).access_count++;
 
         if(remap_policy != RemapPolicy::None) {
@@ -1070,8 +1089,9 @@ class Memory : public MemoryBase {
     std::unordered_map<long, OsPageInfo>& os_page_tracking_map =
       os_page_tracking_map_by_ch[channel];
 
-    long              total_reuses   = 0;
-    long              total_accesses = 0;
+    long              total_reuses              = 0;
+    long              total_prev_written_reuses = 0;
+    long              total_accesses            = 0;
     std::vector<long> reuses, accesses;
     const ulong       total_pages = os_page_tracking_map.size();
     reuses.reserve(total_pages);
@@ -1082,6 +1102,7 @@ class Memory : public MemoryBase {
       long reuse_count  = page_it->second.reuse_count;
       long access_count = page_it->second.access_count;
       total_reuses += reuse_count;
+      total_prev_written_reuses += page_it->second.prev_written_reuse_count;
       total_accesses += access_count;
       reuses.push_back(reuse_count);
       accesses.push_back(access_count);
@@ -1091,12 +1112,13 @@ class Memory : public MemoryBase {
     assert(reuses.size() == total_pages);
     assert(accesses.size() == total_pages);
 
-    channel_reuses[channel]        = total_reuses;
-    channel_pages_touched[channel] = total_pages;
-    const long reuses_50           = 0.5 * total_reuses;
-    const long reuses_80           = 0.8 * total_reuses;
-    const long accesses_50         = 0.5 * total_accesses;
-    const long accesses_80         = 0.9 * total_accesses;
+    channel_reuses[channel]              = total_reuses;
+    channel_prev_written_reuses[channel] = total_prev_written_reuses;
+    channel_pages_touched[channel]       = total_pages;
+    const long reuses_50                 = 0.5 * total_reuses;
+    const long reuses_80                 = 0.8 * total_reuses;
+    const long accesses_50               = 0.5 * total_accesses;
+    const long accesses_80               = 0.9 * total_accesses;
 
     {
       long seen_reuses   = 0;

@@ -231,6 +231,11 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
       STAT_EVENT(proc_id, PER_CORE_DRAM_ORACLE_REUSE);
       break;
 
+    case int(StatCallbackType::DRAM_ORACLE_PREV_WRITTEN_REUSE):
+      STAT_EVENT_ALL(ALL_CORES_DRAM_ORACLE_PREV_WRITTEN_REUSE);
+      STAT_EVENT(proc_id, PER_CORE_DRAM_ORACLE_PREV_WRITTEN_REUSE);
+      break;
+
     default:
       assert(false);
   }
