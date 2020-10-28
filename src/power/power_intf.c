@@ -166,8 +166,8 @@ void parse_power_model_results(void) {
     uns num_matches = sscanf(line, "%s\t%s\t%le", domain_str, result_str,
                              &value);
     ASSERT(0, num_matches == 3);
-    DEBUG(0, "Parsing domain: %s result: %s value: %le\n", 
-        domain_str, result_str, value);
+    DEBUG(0, "Parsing domain: %s result: %s value: %le\n", domain_str,
+          result_str, value);
 
     Power_Domain domain = Power_Domain_parse(domain_str);
     Power_Result result = Power_Result_parse(result_str);
@@ -189,7 +189,8 @@ void parse_power_model_results(void) {
    * 2. For dynamic power, we use the total number of
    * activate/precharge/read/write in the memory to calculate the overall
    * dynamic power. */
-  values[POWER_DOMAIN_MEMORY][POWER_RESULT_STATIC].intf_value *= ramulator_get_num_chips();
+  values[POWER_DOMAIN_MEMORY][POWER_RESULT_STATIC].intf_value *=
+    ramulator_get_num_chips();
   DEBUG(0, "Number of DRAM chips: %d\n", ramulator_get_num_chips());
 
   /* Set other system power */

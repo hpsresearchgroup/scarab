@@ -60,14 +60,12 @@ def run_scarab():
                      scarab_paths.bin_dir + '/scarab_launch.py',
                      '--program',
                      scarab_paths.sim_dir + '/utils/qsort/test_qsort',
-                     '--program',
-                     scarab_paths.sim_dir + '/utils/qsort/test_qsort',
                      '--param',
                      scarab_paths.sim_dir + '/utils/qsort/PARAMS.qsort',
                      '--pintool_args',
                      '-fast_forward_to_start_inst 1',
                      '--scarab_args',
-                     '--inst_limit 500000 --heartbeat_interval 1 --num_heartbeats 20 --power_intf_on 1 --debug_power_utils 1']
+                     '--inst_limit 5000000 --heartbeat_interval 1 --num_heartbeats 20 --power_intf_on 1']
   print ('Scarab cmd:', ' '.join(scarab_cmd_argv))
   subprocess.check_call(scarab_cmd_argv)
 
