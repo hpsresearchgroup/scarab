@@ -882,7 +882,7 @@ void power_print_noc_params(std::ofstream& out) {
 
 void power_print_mc_params(std::ofstream& out) {
   double MEMORY_FREQ_IN_MHZ             = (1e15 / RAMULATOR_TCK) / 1e6;
-  double MEMORY_PEAK_RATE_IN_MB_PER_SEC = (BUS_WIDTH_IN_BYTES / (1 << 20)) * 2 *
+  double MEMORY_PEAK_RATE_IN_MB_PER_SEC = (double(BUS_WIDTH_IN_BYTES) / double((1 << 20))) * 2 *
                                           MEMORY_FREQ_IN_MHZ * 1e6;
 
   std::string header = "\t";
