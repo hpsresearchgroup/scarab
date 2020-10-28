@@ -612,16 +612,16 @@ class Controller {
     channel->update(cmd, addr_vec.data(), clk);
 
     if(channel->spec->is_opening(cmd))
-      stats_callback(int(StatCallbackType::DRAM_ACT), 0, 0);
+      stats_callback(int(StatCallbackType::DRAM_ACT), coreid, 0);
 
     if(channel->spec->is_closing(cmd))
-      stats_callback(int(StatCallbackType::DRAM_PRE), 0, 0);
+      stats_callback(int(StatCallbackType::DRAM_PRE), coreid, 0);
 
     if(channel->spec->is_reading(cmd))
-      stats_callback(int(StatCallbackType::DRAM_READ), 0, 0);
+      stats_callback(int(StatCallbackType::DRAM_READ), coreid, 0);
 
     if(channel->spec->is_writing(cmd))
-      stats_callback(int(StatCallbackType::DRAM_WRITE), 0, 0);
+      stats_callback(int(StatCallbackType::DRAM_WRITE), coreid, 0);
 
 
     if(cmd == T::Command::PRE) {

@@ -877,7 +877,7 @@ class Memory : public MemoryBase {
   }
 
   void remap_and_copy(const int channel, const long frame_index,
-                      const long line_on_page_bit, Request& orig_req) {
+                      const long line_on_page_bit, const Request& orig_req) {
     if(0 == ch_to_page_index_remapping.count(channel)) {
       ch_to_page_index_remapping[channel] =
         unordered_map<long, std::pair<long, uint64_t>>();
@@ -903,17 +903,11 @@ class Memory : public MemoryBase {
               line_on_page_bit;
 
             if(orig_req.type == Request::Type::WRITE) {
-              // change the orig req (which has already been enqueued) to the
-              // new addr, if necessary (the orig req may have already been
-              // remapped to the new addr, if a frame had already been
-              // allocated)
-              if(!orig_req.is_remapped) {
-                orig_req.addr = new_addr;
-                set_req_addr_vec(orig_req.addr, orig_req.addr_vec);
-                assert(orig_req.addr_vec[int(T::Level::Channel)] == channel);
-                orig_req.is_remapped = true;
+              if(orig_req.is_remapped) {
+                assert(orig_req.addr == new_addr);
               }
-              assert(orig_req.addr == new_addr);
+              // if the orig req wasn't remapped, we assume we were able to
+              // redirect it to the remapped page
             } else if(orig_req.type == Request::Type::READ) {
               num_copy_writes[channel]++;
               stats_callback(int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE),
@@ -979,14 +973,11 @@ class Memory : public MemoryBase {
             } else if(orig_req.type == Request::Type::WRITE) {
               ch_to_page_index_remapping[channel][frame_index].second |=
                 line_on_page_bit;
-              if(!orig_req.is_remapped) {
-                orig_req.addr = new_addr;
-                set_req_addr_vec(orig_req.addr, orig_req.addr_vec);
-                assert(orig_req.addr_vec[int(T::Level::Channel)] == channel);
-                orig_req.is_remapped = true;
+              if(orig_req.is_remapped) {
+                assert(orig_req.addr == new_addr);
               }
-              assert(orig_req.addr == new_addr);
-
+              // if the orig req wasn't remapped, we assume that we were able to
+              // redirect it to the remapped page
             } else {
               assert(false);
             }
@@ -1019,7 +1010,7 @@ class Memory : public MemoryBase {
             (req.type == Request::Type::WRITE));
   }
 
-  void update_os_page_info(Request& req, const int channel) {
+  void update_os_page_info(const Request& req, const int channel) {
     if(!req.is_copy) {
       if(is_read_or_write_req(req)) {
         long page_index;
@@ -1034,6 +1025,8 @@ class Memory : public MemoryBase {
 
         if(line_on_page_bit & os_page_tracking_map.at(page_index).lines_seen) {
           os_page_tracking_map.at(page_index).reuse_count++;
+          stats_callback(int(StatCallbackType::DRAM_ORACLE_REUSE), req.coreid,
+                         0 /* TODO: use this to pass retired_inst_window*/);
         }
         os_page_tracking_map.at(page_index).lines_seen |= line_on_page_bit;
         os_page_tracking_map.at(page_index).access_count++;

@@ -98,16 +98,24 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
 
   switch(type) {
     case int(StatCallbackType::DRAM_ACT):
-      STAT_EVENT(proc_id, POWER_DRAM_ACTIVATE);
+      STAT_EVENT_ALL(POWER_DRAM_ACTIVATE);
       break;
     case int(StatCallbackType::DRAM_PRE):
-      STAT_EVENT(proc_id, POWER_DRAM_PRECHARGE);
+      STAT_EVENT_ALL(POWER_DRAM_PRECHARGE);
       break;
     case int(StatCallbackType::DRAM_READ):
-      STAT_EVENT(proc_id, POWER_DRAM_READ);
+      STAT_EVENT_ALL(POWER_DRAM_READ);
+      STAT_EVENT_ALL(ALL_CORES_DRAM_ACCESS);
+      STAT_EVENT(proc_id, PER_CORE_DRAM_ACCESS);
+      STAT_EVENT_ALL(ALL_CORES_DRAM_READ);
+      STAT_EVENT(proc_id, PER_CORE_DRAM_READ);
       break;
     case int(StatCallbackType::DRAM_WRITE):
-      STAT_EVENT(proc_id, POWER_DRAM_WRITE);
+      STAT_EVENT_ALL(POWER_DRAM_WRITE);
+      STAT_EVENT_ALL(ALL_CORES_DRAM_ACCESS);
+      STAT_EVENT(proc_id, PER_CORE_DRAM_ACCESS);
+      STAT_EVENT_ALL(ALL_CORES_DRAM_WRITE);
+      STAT_EVENT(proc_id, PER_CORE_DRAM_WRITE);
       break;
     case int(StatCallbackType::DEMAND_COL_REUSE):
       assert(bucket_index >= -1 && bucket_index <= 127);
@@ -216,6 +224,11 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
     case int(StatCallbackType::REMAPPED_DATA_ACCESS):
       STAT_EVENT_ALL(ALL_CORES_REMAPPED_DATA_ACCESS);
       STAT_EVENT(proc_id, PER_CORE_REMAPPED_DATA_ACCESS);
+      break;
+
+    case int(StatCallbackType::DRAM_ORACLE_REUSE):
+      STAT_EVENT_ALL(ALL_CORES_DRAM_ORACLE_REUSE);
+      STAT_EVENT(proc_id, PER_CORE_DRAM_ORACLE_REUSE);
       break;
 
     default:
