@@ -871,7 +871,6 @@ void power_print_noc_params(std::ofstream& out) {
 }
 
 void power_print_mc_params(std::ofstream& out) {
-  //TODO:  double check following two lines
   double MEMORY_FREQ_IN_MHZ             = (1e15 / RAMULATOR_TCK) / 1e6;
   double MEMORY_PEAK_RATE_IN_MB_PER_SEC = 
     (BUS_WIDTH_IN_BYTES / (1 << 20)) * 2 * MEMORY_FREQ_IN_MHZ * 1e6;
@@ -891,9 +890,8 @@ void power_print_mc_params(std::ofstream& out) {
 
   ADD_XML_PARAM(out, header, "block_size", 64, "Bytes");
 
-  // TODO: is this what we think it is?
-  // This is the number of memory controllers, I don't understand why we are
-  // setting to 8 fixed?
+  // TODO: This is the number of memory controllers, I don't understand why are we
+  // setting to 8 always?
   ADD_XML_PARAM(out, header, "number_mcs", 8,         );
 
   /* current McPAT only supports homogeneous memory controllers */
@@ -901,11 +899,7 @@ void power_print_mc_params(std::ofstream& out) {
   ADD_XML_PARAM(out, header, "number_ranks", 1, );
   ADD_XML_PARAM(out, header, "withPHY", 0, );  // TODO: what is this?
 
-  //TODO: make sure two following parameters are right.
-  //Following parameter is the size of MC request queue.  which is set in
-  //ramulator for read and write queues with RAMULATOR_READQ_ENTRIES and
-  //RAMULATOR_WRITEQ_ENTRIES. Should we make this the sum of two instead? 
-  uint32_t MEM_REQ_WINDOW_SIZE = 8 ? 8 : MEM_REQ_BUFFER_ENTRIES;
+  uint32_t MEM_REQ_WINDOW_SIZE = RAMULATOR_READQ_ENTRIES + RAMULATOR_WRITEQ_ENTRIES;
   ADD_XML_PARAM(out, header, "req_window_size_per_channel",
                 MEM_REQ_WINDOW_SIZE, );
   ADD_XML_PARAM(out, header, "IO_buffer_size_per_channel",
