@@ -93,8 +93,16 @@ void ramulator_finish() {
   delete configs;
 }
 
+uns get_point_in_sim_bucket(uns proc_id) {
+  Counter cur_inst_count      = inst_count[proc_id];
+  uns     point_in_sim_bucket = cur_inst_count / (inst_limit[proc_id] / 10);
+  return point_in_sim_bucket;
+}
+
 void stats_callback(int type, uns proc_id, int bucket_index) {
   int stat_index;
+
+  uns point_in_sim_bucket = get_point_in_sim_bucket(proc_id);
 
   switch(type) {
     case int(StatCallbackType::DRAM_ACT):
@@ -219,11 +227,19 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
       // for Free Page copies, might copy multiple lines at a time
       INC_STAT_EVENT_ALL(ALL_CORES_REMAP_COPY_WRITE, bucket_index);
       INC_STAT_EVENT(proc_id, PER_CORE_REMAP_COPY_WRITE, bucket_index);
+
+      STAT_EVENT(proc_id, PER_CORE_REMAP_COPY_WRITE_POINT_IN_SIM_0_9 +
+                            MIN2(point_in_sim_bucket, 10));
+
       break;
 
     case int(StatCallbackType::REMAPPED_DATA_ACCESS):
       STAT_EVENT_ALL(ALL_CORES_REMAPPED_DATA_ACCESS);
       STAT_EVENT(proc_id, PER_CORE_REMAPPED_DATA_ACCESS);
+
+      STAT_EVENT(proc_id, PER_CORE_REMAPPED_DATA_ACCESS_POINT_IN_SIM_0_9 +
+                            MIN2(point_in_sim_bucket, 10));
+
       break;
 
     case int(StatCallbackType::DRAM_ORACLE_REUSE):
