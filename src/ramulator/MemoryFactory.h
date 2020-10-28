@@ -75,7 +75,7 @@ class MemoryFactory {
       channel->regStats("");
       ctrls.push_back(new Controller<T>(configs, channel, stats_callback));
     }
-    return new Memory<T>(configs, ctrls);
+    return new Memory<T>(configs, ctrls, stats_callback);
   }
 
   static void validate(int channels, int ranks, const Config& configs) {

@@ -128,6 +128,9 @@ class Memory : public MemoryBase {
 
   long max_address;
 
+  // callback function for passing stats to Scarab when an event occurs
+  void (*stats_callback)(int, unsigned, int) = nullptr;
+
  public:
   enum class Translation {
     None,
@@ -150,9 +153,11 @@ class Memory : public MemoryBase {
 
   int tx_bits;
 
-  Memory(const Config& configs, vector<Controller<T>*> ctrls) :
-      ctrls(ctrls), spec(ctrls[0]->channel->spec),
-      addr_bits(int(T::Level::MAX)) {
+  Memory(const Config& configs, vector<Controller<T>*> ctrls,
+         void (*_stats_callback)(int, unsigned, int)) :
+      ctrls(ctrls),
+      spec(ctrls[0]->channel->spec), addr_bits(int(T::Level::MAX)) {
+    stats_callback = _stats_callback;
     // make sure 2^N channels/ranks
     // TODO support channel number that is not powers of 2
     int* sz = spec->org_entry.count;
@@ -602,13 +607,19 @@ class Memory : public MemoryBase {
       if(req.type == Request::Type::READ) {
         ++num_read_requests[coreid];
         ++incoming_read_reqs_per_channel[channel];
-        if(req.is_remapped)
+        if(req.is_remapped) {
           ++num_reads_to_reserved_rows[channel];
+          stats_callback(int(StatCallbackType::REMAPPED_DATA_ACCESS),
+                         req.coreid, 0);
+        }
       }
       if(req.type == Request::Type::WRITE) {
         ++num_write_requests[coreid];
-        if(req.is_remapped)
+        if(req.is_remapped) {
           ++num_writes_to_reserved_rows[channel];
+          stats_callback(int(StatCallbackType::REMAPPED_DATA_ACCESS),
+                         req.coreid, 0);
+        }
       }
       ++incoming_requests_per_channel[channel];
       return true;
@@ -801,7 +812,8 @@ class Memory : public MemoryBase {
       if(ch_to_page_index_remapping.at(channel).count(orig_frame_index)) {
         uint64_t copied_lines_mask =
           ch_to_page_index_remapping.at(channel).at(orig_frame_index).second;
-        if(copied_lines_mask & line_on_page_bit) {
+        if((copied_lines_mask & line_on_page_bit) ||
+           req.type == Request::Type::WRITE) {
           req.addr = map_addr_to_new_frame(
             req.addr,
             ch_to_page_index_remapping.at(channel).at(orig_frame_index).first);
@@ -837,7 +849,8 @@ class Memory : public MemoryBase {
     return new_frame_index;
   }
 
-  void get_new_free_frame(const int channel, const long frame_index) {
+  void get_new_free_frame(const int channel, const long frame_index,
+                          int coreid) {
     long row                 = ch_to_oldest_unfilled_row[channel];
     int  orig_channel_parity = get_channel_from_frame_index(frame_index);
     for(; row <= ch_to_newest_unfilled_row[channel]; row++) {
@@ -860,29 +873,53 @@ class Memory : public MemoryBase {
     ch_to_page_index_remapping[channel][frame_index] = std::make_pair(
       new_frame_index, 0);
     num_reserved_pages_allocated[channel]++;
+    stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid, 0);
   }
 
   void remap_and_copy(const int channel, const long frame_index,
-                      const long line_on_page_bit, const Request& orig_req) {
+                      const long line_on_page_bit, Request& orig_req) {
     if(0 == ch_to_page_index_remapping.count(channel)) {
       ch_to_page_index_remapping[channel] =
         unordered_map<long, std::pair<long, uint64_t>>();
     }
 
     if(0 == ch_to_page_index_remapping[channel].count(frame_index)) {
-      get_new_free_frame(channel, frame_index);
+      get_new_free_frame(channel, frame_index, orig_req.coreid);
     }
 
     // actually copy the line(s)
     uint64_t copied_lines_mask =
       ch_to_page_index_remapping[channel][frame_index].second;
+
+    const long new_frame_index =
+      ch_to_page_index_remapping[channel][frame_index].first;
+    const long new_addr = map_addr_to_new_frame(orig_req.addr, new_frame_index);
+
     switch(remap_copy_mode) {
       case CopyMode::Free:
         if(CopyGranularity::Line == remap_copy_granularity) {
           if(0 == (copied_lines_mask & line_on_page_bit)) {
             ch_to_page_index_remapping[channel][frame_index].second |=
               line_on_page_bit;
-            num_copy_writes[channel]++;
+
+            if(orig_req.type == Request::Type::WRITE) {
+              // change the orig req (which has already been enqueued) to the
+              // new addr, if necessary (the orig req may have already been
+              // remapped to the new addr, if a frame had already been
+              // allocated)
+              if(!orig_req.is_remapped) {
+                orig_req.addr = new_addr;
+                set_req_addr_vec(orig_req.addr, orig_req.addr_vec);
+                assert(orig_req.addr_vec[int(T::Level::Channel)] == channel);
+                orig_req.is_remapped = true;
+              }
+              assert(orig_req.addr == new_addr);
+            } else if(orig_req.type == Request::Type::READ) {
+              num_copy_writes[channel]++;
+              stats_callback(int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE),
+                             orig_req.coreid, 1);
+            } else
+              assert(false);
           }
         } else if(CopyGranularity::Page == remap_copy_granularity) {
           if(0 == copied_lines_mask) {
@@ -905,6 +942,8 @@ class Memory : public MemoryBase {
               (1 << num_tx_in_frame_ch_slice_log2);
             num_copy_reads[channel] += num_tx_in_frame_ch_slice;
             num_copy_writes[channel] += num_tx_in_frame_ch_slice;
+            stats_callback(int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE),
+                           orig_req.coreid, num_tx_in_frame_ch_slice);
           }
         } else {
           assert(false);
@@ -914,28 +953,42 @@ class Memory : public MemoryBase {
       case CopyMode::Real:
         if(CopyGranularity::Line == remap_copy_granularity) {
           if(0 == (copied_lines_mask & line_on_page_bit)) {
-            Request copy_req;
-            copy_req.is_first_command = true;
-            const long new_frame_index =
-              ch_to_page_index_remapping[channel][frame_index].first;
-            copy_req.addr      = map_addr_to_new_frame(orig_req.addr,
-                                                  new_frame_index);
-            copy_req.orig_addr = orig_req.orig_addr;
-            copy_req.addr_vec.resize(addr_bits.size());
-            set_req_addr_vec(copy_req.addr, copy_req.addr_vec);
-            assert(copy_req.addr_vec[int(T::Level::Channel)] == channel);
-            copy_req.coreid      = orig_req.coreid;
-            copy_req.is_demand   = false;
-            copy_req.is_copy     = true;
-            copy_req.is_remapped = true;
-            copy_req.type        = Request::Type::WRITE;
+            if(orig_req.type == Request::Type::READ) {
+              Request copy_req;
+              copy_req.is_first_command = true;
+              copy_req.addr             = new_addr;
+              copy_req.orig_addr        = orig_req.orig_addr;
+              copy_req.addr_vec.resize(addr_bits.size());
+              set_req_addr_vec(copy_req.addr, copy_req.addr_vec);
+              assert(copy_req.addr_vec[int(T::Level::Channel)] == channel);
+              copy_req.coreid      = orig_req.coreid;
+              copy_req.is_demand   = false;
+              copy_req.is_copy     = true;
+              copy_req.is_remapped = true;
+              copy_req.type        = Request::Type::WRITE;
 
-            if(enqueue_req_to_ctrl(copy_req, copy_req.coreid)) {
+              if(enqueue_req_to_ctrl(copy_req, copy_req.coreid)) {
+                ch_to_page_index_remapping[channel][frame_index].second |=
+                  line_on_page_bit;
+                num_copy_writes[channel]++;
+                stats_callback(int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE),
+                               orig_req.coreid, 1);
+              } else {
+                return;
+              }
+            } else if(orig_req.type == Request::Type::WRITE) {
               ch_to_page_index_remapping[channel][frame_index].second |=
                 line_on_page_bit;
-              num_copy_writes[channel]++;
+              if(!orig_req.is_remapped) {
+                orig_req.addr = new_addr;
+                set_req_addr_vec(orig_req.addr, orig_req.addr_vec);
+                assert(orig_req.addr_vec[int(T::Level::Channel)] == channel);
+                orig_req.is_remapped = true;
+              }
+              assert(orig_req.addr == new_addr);
+
             } else {
-              return;
+              assert(false);
             }
           }
         } else {
@@ -966,7 +1019,7 @@ class Memory : public MemoryBase {
             (req.type == Request::Type::WRITE));
   }
 
-  void update_os_page_info(const Request& req, const int channel) {
+  void update_os_page_info(Request& req, const int channel) {
     if(!req.is_copy) {
       if(is_read_or_write_req(req)) {
         long page_index;

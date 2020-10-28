@@ -467,15 +467,15 @@ class DDR4 {
        0,
        0},
       {3200, 1600, 0.625, prefetch_size / 2 /*DDR*/,
-       4,    10,   2,     22,
+       4,    8,    2,     22,
        22,   22,   16,    56,
        78,   12,   4,     12,
        24,   8,    10,    40,
        0,    0,    8,     10,
        0,    8,    0,     0}
       // rate, freq, tCK,  nBL,           nCCDS  nCCDL nRTRS nCL nRCD nRP nCWL
-      // nRAS nRC nRTP nWTRS nWTRL nWR nRRDS nRRDL nFAW nRFC nREFI nPD nXP nXPDLL
-      // nCKESR nXS nXSDLL
+      // nRAS nRC nRTP nWTRS nWTRL nWR nRRDS nRRDL nFAW nRFC nREFI nPD nXP
+      // nXPDLL nCKESR nXS nXSDLL
   },
     speed_entry;
 

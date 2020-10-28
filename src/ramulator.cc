@@ -201,6 +201,23 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
       break;
     }
 
+    case int(StatCallbackType::PAGE_REMAPPED):
+      STAT_EVENT_ALL(ALL_CORES_PAGE_REMAPPED);
+      STAT_EVENT(proc_id, PER_CORE_PAGE_REMAPPED);
+      break;
+
+    case int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE):
+      // using bucket_index to convey how many copies writes were performed
+      // for Free Page copies, might copy multiple lines at a time
+      INC_STAT_EVENT_ALL(ALL_CORES_REMAP_COPY_WRITE, bucket_index);
+      INC_STAT_EVENT(proc_id, PER_CORE_REMAP_COPY_WRITE, bucket_index);
+      break;
+
+    case int(StatCallbackType::REMAPPED_DATA_ACCESS):
+      STAT_EVENT_ALL(ALL_CORES_REMAPPED_DATA_ACCESS);
+      STAT_EVENT(proc_id, PER_CORE_REMAPPED_DATA_ACCESS);
+      break;
+
     default:
       assert(false);
   }

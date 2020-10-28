@@ -592,11 +592,11 @@ class Controller {
     } else {
       assert(0 != tCK_in_ns);
       long delta_ns = rd.cycles_reuse_distance * tCK_in_ns;
-      if(delta_ns <= 1000) {
+      if(delta_ns <= 1000000) {
         return 1;
-      } else if(delta_ns <= 4000) {
+      } else if(delta_ns <= 4000000) {
         return 2;
-      } else if(delta_ns <= 16000) {
+      } else if(delta_ns <= 16000000) {
         return 3;
       } else {
         return 4;
