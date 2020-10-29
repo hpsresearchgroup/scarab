@@ -442,7 +442,7 @@ class StatFileParser:
         string, float: The string name of the stat, the float value of the stat
     """
     m = self._is_stat_line(stat_str)
-    return m.group(1), float(m.group(2))
+    return m.group(1), float(m.group(4))
 
   def _is_stat_line(self, stat_str):
     """The regex pattern that 1) tells you if a line from the statsfile contains a stat and
@@ -460,7 +460,7 @@ class StatFileParser:
         RegEx Object: The Regex Object containing the parsed results
     """
     # A slow regex that grabs all stat values from file:
-    pattern_all_values = '([^\s]+)\s+([0-9]+)\s+([0-9.]+)?[%]?\s+([0-9]+)\s+([0-9.]+)?[%]?'
+    pattern_all_values = '^([^\s]+)\s+([0-9.]+)\s+([0-9.]+)?[%]?\s+([0-9.]+)\s+([0-9.]+)?[%]?'
 
     # If we only need the reset stats, then use the faster regex...
     m = re.search(pattern_all_values, stat_str)
