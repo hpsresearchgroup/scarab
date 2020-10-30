@@ -544,7 +544,11 @@ void uop_sim() {
         do {
           frontend_fetch_op(proc_id, &op);
 
-          if(op.table_info->mem_type != NOT_MEM && op.oracle_info.va == 0) {
+          // don't care if the va is 0x0 if mem_type is MEM_PF(SW prefetch),
+          // MEM_WH(write hint), or MEM_EVICT(cache block eviction hint)
+          if((op.table_info->mem_type == MEM_LD ||
+              op.table_info->mem_type == MEM_ST) &&
+             op.oracle_info.va == 0) {
             FATAL_ERROR(proc_id, "Access to 0x0\n");
           }
 

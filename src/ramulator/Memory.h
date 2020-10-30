@@ -438,11 +438,9 @@ class Memory : public MemoryBase {
     }
   }
 
-  bool send(Request& req) {
+  void compute_req_addr(Request& req) {
     req.addr_vec.resize(addr_bits.size());
-    long      addr   = req.addr;
-    const int coreid = req.coreid;
-    assert(get_coreid_from_addr(addr) == coreid);
+    assert(get_coreid_from_addr(req.addr) == req.coreid);
 
     if(!req.is_remapped && is_read_or_write_req(req)) {
       assert(req.orig_addr == req.addr);
@@ -454,13 +452,16 @@ class Memory : public MemoryBase {
     }
 
     if(!req.is_remapped)
-      set_req_addr_vec(addr, req.addr_vec);
+      set_req_addr_vec(req.addr, req.addr_vec);
 
     if(row_always_0 && is_read_or_write_req(req)) {
       req.addr_vec[int(T::Level::Row)] = 0;
     }
+  }
 
-    return enqueue_req_to_ctrl(req, coreid);
+  bool send(Request& req) {
+    compute_req_addr(req);
+    return enqueue_req_to_ctrl(req, req.coreid);
   }
 
   int pending_requests() {
