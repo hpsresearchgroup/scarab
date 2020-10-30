@@ -122,6 +122,8 @@ class Memory : public MemoryBase {
   VectorStat num_copy_reads_by_ch;
   VectorStat num_copy_writes_by_ch;
 
+  VectorStat num_reserved_pages_allocated_by_core;
+
 #ifndef INTEGRATED_WITH_GEM5
   VectorStat record_read_requests;
   VectorStat record_write_requests;
@@ -188,6 +190,14 @@ class Memory : public MemoryBase {
       "addr_remap_page_access_threshold");
     addr_remap_page_reuse_threshold = configs.get_int(
       "addr_remap_page_reuse_threshold");
+    const int addr_remap_max_per_core_limit_mb = configs.get_int(
+      "addr_remap_max_per_core_limit_mb");
+    if(addr_remap_max_per_core_limit_mb >= 0) {
+      addr_remap_max_allocated_pages_per_core = addr_remap_max_per_core_limit_mb
+                                                << (20 - os_page_offset_bits);
+    } else {
+      addr_remap_max_allocated_pages_per_core = INT_MAX;
+    }
 
     // If hi address bits will not be assigned to Rows
     // then the chips must not be LPDDRx 6Gb, 12Gb etc.
@@ -320,6 +330,9 @@ class Memory : public MemoryBase {
     num_reserved_pages_allocated_by_ch.init(sz[int(T::Level::Channel)])
       .name("num_reserved_pages_allocated_by_ch")
       .desc("How many total reserved pages were allocated");
+    num_reserved_pages_allocated_by_core.init(num_cores)
+      .name("num_reserved_pages_allocated_by_core")
+      .desc("How many reserved pages have been allocated for this core");
     num_reserved_rows_allocated_by_ch.init(sz[int(T::Level::Channel)])
       .name("num_reserved_rows_allocated_by_ch")
       .desc("How many total reserved rows were allocated");
@@ -591,9 +604,10 @@ class Memory : public MemoryBase {
 
   vector<int> addr_bits_start_pos;
 
-  const int   stride_to_upper_xored_bit        = 4;
-  int         addr_remap_page_access_threshold = -1;
-  int         addr_remap_page_reuse_threshold  = -1;
+  const int   stride_to_upper_xored_bit               = 4;
+  int         addr_remap_page_access_threshold        = -1;
+  int         addr_remap_page_reuse_threshold         = -1;
+  int         addr_remap_max_allocated_pages_per_core = INT_MAX;
   bool        remap_to_partitioned_rows;
   vector<int> channel_xor_bits_pos;
   vector<int> frame_index_channel_xor_bits_pos;
@@ -907,6 +921,7 @@ class Memory : public MemoryBase {
     ch_to_page_index_remapping[channel][frame_index] = std::make_pair(
       new_frame_index, 0);
     num_reserved_pages_allocated_by_ch[channel]++;
+    num_reserved_pages_allocated_by_core[coreid]++;
     stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid, 0);
   }
 
@@ -918,7 +933,12 @@ class Memory : public MemoryBase {
     }
 
     if(0 == ch_to_page_index_remapping[channel].count(frame_index)) {
-      get_new_free_frame(channel, frame_index, orig_req.coreid);
+      if(num_reserved_pages_allocated_by_core[orig_req.coreid].value() <
+         addr_remap_max_allocated_pages_per_core) {
+        get_new_free_frame(channel, frame_index, orig_req.coreid);
+      } else {
+        return;
+      }
     }
 
     // actually copy the line(s)

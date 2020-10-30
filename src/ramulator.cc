@@ -302,6 +302,8 @@ void init_configs() {
                to_string(RAMULATOR_ADDR_REMAP_PAGE_ACCESS_THRESHOLD));
   configs->add("addr_remap_page_reuse_threshold",
                to_string(RAMULATOR_ADDR_REMAP_PAGE_REUSE_THRESHOLD));
+  configs->add("addr_remap_max_per_core_limit_mb",
+               to_string(RAMULATOR_ADDR_REMAP_MAX_PER_CORE_LIMIT_MB));
   configs->add("addr_remap_to_partitioned_rows",
                RAMULATOR_ADDR_REMAP_TO_PARTITIONED_ROWS);
 

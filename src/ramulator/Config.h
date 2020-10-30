@@ -89,6 +89,7 @@ class Config {
     {"addr_remap_copy_granularity", "Line"},
     {"addr_remap_page_access_threshold", "-1"},
     {"addr_remap_page_reuse_threshold", "-1"},
+    {"addr_remap_max_per_core_limit_mb", "-1"},
     {"addr_remap_to_partitioned_rows", "off"}};
 
   template <typename T>
