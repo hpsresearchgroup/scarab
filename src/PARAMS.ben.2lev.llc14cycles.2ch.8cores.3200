@@ -10,7 +10,7 @@
 --model                         cmp
 --sim_limit                     none
 
---num_cores                     4
+--num_cores                     8
 
 ## Core Parameters
 
@@ -120,8 +120,8 @@
 
 ### LLC
 --private_l1                    1
---l1_size                       4194304
---l1_banks                      4
+--l1_size                       8388608
+--l1_banks                      8
 --l1_cycles		                14
 --l1_assoc                      16
 --l1_line_size                  64
@@ -167,14 +167,14 @@
 --mem_priority_wb_nodirty    5
 
 --mem_req_buffer_entries        32
---mem_l1_fill_queue_entries     128
+--mem_l1_fill_queue_entries     256
 --va_page_size_bytes      4096
 --bus_width_in_bytes            8
 
 --ramulator_standard		DDR4
 --ramulator_speed		DDR4_3200
 --ramulator_org 		DDR4_8Gb_x8
---ramulator_channels		1
+--ramulator_channels		2
 --ramulator_ranks		1
 --ramulator_bankgroups		4
 --ramulator_banks		4
@@ -204,7 +204,6 @@
 --ramulator_tRCDW		22		
 --ramulator_tRAS		56		
 --dram_tech_in_nm		32
-
 ## Other
 
 
