@@ -23,6 +23,8 @@ import sys
 import glob
 import re
 import argparse
+
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
 import pandas as pd
 import numpy as np
 from scipy import stats
