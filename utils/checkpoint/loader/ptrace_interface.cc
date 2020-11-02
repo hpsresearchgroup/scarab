@@ -275,6 +275,8 @@ unsigned long long execute_syscall(
   }
 
   // invoke mmap(2)
+  std::cout << "About to single-step for syscall. RIP: " << std::hex
+            << oldregs.rip << ", Arg1: " << arg1 << std::endl;
   singlestep(pid);
 
   // read the new register state, so we can see where the mmap went
@@ -290,6 +292,7 @@ unsigned long long execute_syscall(
 
 void* execute_mmap(pid_t pid, void* addr, size_t length, int prot, int flags,
                    int fd, off_t offset) {
+  std::cout << "Calling mmap, Addr: " << addr << std::endl;
   return (void*)execute_syscall(
     pid, MMAP_SYSCALL, (unsigned long long int)addr,
     (unsigned long long int)length, (unsigned long long int)prot,

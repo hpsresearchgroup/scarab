@@ -365,6 +365,8 @@ void load_fp_state(pid_t pid) {
 
   // Note: it does not matter if we get the address we requested or a different
   // address.
+  debug("load_fp_state: mmapp for fp_state: %llx", fp_page_address);
+  std::cout << std::flush;
   fp_page_address = (char*)execute_mmap(pid, fp_page_address, FPSTATE_SIZE,
                                         PROT_READ | PROT_EXEC,
                                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
