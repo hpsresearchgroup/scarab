@@ -98,7 +98,7 @@ class Mem_Writes_Info {
   }
 
   template <typename F>
-  void for_each_mem(F&& func) {
+  void for_each_mem(F&& func) const {
     switch(type) {
       case Type::NO_WRITE:
         break;
@@ -133,7 +133,6 @@ class Mem_Writes_Info {
   const PIN_MULTI_MEM_ACCESS_INFO* const multi_mem_access_info = nullptr;
   const std::vector<PIN_MEM_ACCESS_INFO> scatter_maskon_mem_access_info;
 
- private:
   static std::vector<PIN_MEM_ACCESS_INFO> produce_scatter_access_info(
     const PIN_MULTI_MEM_ACCESS_INFO* multi_mem_info, CONTEXT* ctxt,
     bool is_scatter) {

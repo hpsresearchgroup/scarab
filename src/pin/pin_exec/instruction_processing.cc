@@ -19,7 +19,7 @@
  * SOFTWARE.
  */
 
-#include "main_loop.h"
+#include "instruction_processing.h"
 
 #include "scarab_interface.h"
 
@@ -63,7 +63,7 @@ void undo_checkpoints_until_uid(UINT64 uid) {
   ASSERTM(0, false, "Checkpoint %" PRIu64 " not found. \n", uid);
 }
 
-void record_written_regions(Mem_Writes_Info mem_writes_info) {
+void record_written_regions(const Mem_Writes_Info& mem_writes_info) {
   mem_writes_info.for_each_mem([](ADDRINT addr, uint32_t) {
     pageTableEntryStruct* p_entry = NULL;
 
@@ -109,7 +109,7 @@ void record_written_regions(Mem_Writes_Info mem_writes_info) {
 }
 
 void trigger_wrongpath_nop_mode_if_writing_to_new_region(
-  Mem_Writes_Info mem_writes_info, uint64_t next_rip) {
+  const Mem_Writes_Info& mem_writes_info, uint64_t next_rip) {
   bool writing_to_new_region = false;
   mem_writes_info.for_each_mem(
     [&writing_to_new_region](ADDRINT addr, uint32_t) {
@@ -268,16 +268,17 @@ void do_fe_fetch_op() {
 }
 
 void buffer_next_instruction(CONTEXT* ctxt, compressed_op* cop,
-                             Mem_Writes_Info mem_writes_info, bool is_syscall,
-                             bool is_exit_syscall, bool wrongpath_nop_mode) {
+                             const Mem_Writes_Info& mem_writes_info,
+                             bool is_syscall, bool is_exit_syscall) {
   const auto inst_uid = pintool_state.get_next_inst_uid();
   cop->inst_uid       = inst_uid;
 
   checkpoints.append_to_cir_buf();
 
   checkpoints.get_tail().update(
-    ctxt, inst_uid, false, pintool_state.is_on_wrongpath(), wrongpath_nop_mode,
-    pintool_state.get_next_rip(), mem_writes_info, is_syscall);
+    ctxt, inst_uid, false, pintool_state.is_on_wrongpath(),
+    pintool_state.is_on_wrongpath_nop_mode(), pintool_state.get_next_rip(),
+    mem_writes_info, is_syscall);
 
   DBG_PRINT(inst_uid, dbg_print_start_uid, dbg_print_end_uid,
             "fenull curr_uid=%" PRIu64 "\n", inst_uid);
@@ -302,7 +303,7 @@ void buffer_next_instruction(CONTEXT* ctxt, compressed_op* cop,
 
   if(pintool_state.is_on_wrongpath()) {
     trigger_wrongpath_nop_mode_if_writing_to_new_region(
-      mem_writes_info, cop->instruction_addr + cop->size);
+      mem_writes_info, pintool_state.get_next_rip());
   } else {
     record_written_regions(mem_writes_info);
   }
@@ -372,46 +373,9 @@ void wait_until_scarab_retires_everything(CONTEXT* ctxt) {
   });
 }
 
-}  // namespace
-
-// Communicates with scarab, and performs the requested actions
-void main_loop(CONTEXT* ctxt, Mem_Writes_Info mem_writes_info, bool is_syscall,
-               bool is_exit_syscall) {
-  buffer_next_instruction(ctxt, pin_decoder_get_latest_inst(), mem_writes_info,
-                          is_syscall, is_exit_syscall,
-                          pintool_state.is_on_wrongpath_nop_mode());
-
-  if(pintool_state.is_on_wrongpath_nop_mode()) {
-    return;
-  }
-
-  if(scarab_buffer_full() || is_syscall) {
-    wait_until_scarab_sends_fetch_op(ctxt);
-    if(pintool_state.skip_further_processing()) {
-      return;
-    }
-
-    scarab_send_buffer();
-
-    if(is_syscall) {
-      wait_until_scarab_retires_everything(ctxt);
-    }
-  }
-}
-
-void send_buffer_wait_until_scarab_retires_everything(CONTEXT* ctxt) {
-  wait_until_scarab_sends_fetch_op(ctxt);
-  if(!pintool_state.skip_further_processing()) {
-    scarab_send_buffer();
-    wait_until_scarab_retires_everything(ctxt);
-  }
-
-  if(pintool_state.is_on_wrongpath_nop_mode()) {
-    wrongpath_nop_mode_main_loop();
-  }
-}
-
-void wrongpath_nop_mode_main_loop() {
+// Execute wrongpath nop mode.
+// Sends dummy NOPs to scarab in consecutive addresses.
+void wrongpath_nop_mode() {
   CONTEXT         dummy_ctxt;
   Mem_Writes_Info empty_write_info;
 
@@ -429,7 +393,7 @@ void wrongpath_nop_mode_main_loop() {
               "command that involves changing the control flow.\n");
 
       if(!scarab_op_buffer.empty()) {
-        // A recovery within wrongpath nop mode could empty the buffer.
+        // A redirect/recovery within wrongpath nop mode could empty the buffer.
         scarab_send_buffer();
       }
     }
@@ -439,6 +403,59 @@ void wrongpath_nop_mode_main_loop() {
     compressed_op dummy_nop = create_dummy_nop(
       rip, pintool_state.get_wrongpath_nop_mode_reason());
     buffer_next_instruction(&dummy_ctxt, &dummy_nop, empty_write_info, false,
-                            false, true);
+                            false);
+  }
+}
+
+}  // namespace
+
+// Communicates with scarab, and performs the requested actions
+void process_syscall_instruction(CONTEXT* ctxt, bool is_exit_syscall) {
+  buffer_next_instruction(ctxt, pin_decoder_get_latest_inst(),
+                          Mem_Writes_Info{}, true, is_exit_syscall);
+
+  ASSERTM(0, !pintool_state.is_on_wrongpath_nop_mode(),
+          "A syscall should not trigger the wrongpath nop mode.\n");
+
+  wait_until_scarab_sends_fetch_op(ctxt);
+  if(!pintool_state.skip_further_processing()) {
+    scarab_send_buffer();
+    wait_until_scarab_retires_everything(ctxt);
+  }
+
+  if(pintool_state.is_on_wrongpath_nop_mode()) {
+    wrongpath_nop_mode();
+  }
+}
+
+// Communicates with scarab, and performs the requested actions
+void process_nonsyscall_instruction(CONTEXT*               ctxt,
+                         const Mem_Writes_Info& mem_writes_info) {
+  buffer_next_instruction(ctxt, pin_decoder_get_latest_inst(), mem_writes_info,
+                          false, false);
+
+  if(!pintool_state.is_on_wrongpath_nop_mode()) {
+    if(scarab_buffer_full()) {
+      wait_until_scarab_sends_fetch_op(ctxt);
+      if(!pintool_state.skip_further_processing()) {
+        scarab_send_buffer();
+      }
+    }
+  }
+
+  if(pintool_state.is_on_wrongpath_nop_mode()) {
+    wrongpath_nop_mode();
+  }
+}
+
+void process_instruction_with_exception(CONTEXT* ctxt) {
+  wait_until_scarab_sends_fetch_op(ctxt);
+  if(!pintool_state.skip_further_processing()) {
+    scarab_send_buffer();
+    wait_until_scarab_retires_everything(ctxt);
+  }
+
+  if(pintool_state.is_on_wrongpath_nop_mode()) {
+    wrongpath_nop_mode();
   }
 }

@@ -19,17 +19,17 @@
  * SOFTWARE.
  */
 
-#ifndef PIN_EXEC_MAIN_LOOP_H__
-#define PIN_EXEC_MAIN_LOOP_H__
+#ifndef PIN_EXEC_INSTRUCTION_PROCESSING_H__
+#define PIN_EXEC_INSTRUCTION_PROCESSING_H__
 
 #include "globals.h"
 
 // Communicates with scarab, and performs the requested actions
-void main_loop(CONTEXT* ctxt, Mem_Writes_Info mem_writes_info, bool is_syscall,
-               bool is_exit_syscall);
+void process_syscall_instruction(CONTEXT* ctxt, bool is_exit_syscall);
 
-void wrongpath_nop_mode_main_loop();
+void process_nonsyscall_instruction(CONTEXT*               ctxt,
+                                    const Mem_Writes_Info& mem_writes_info);
 
-void send_buffer_wait_until_scarab_retires_everything(CONTEXT* ctxt);
+void process_instruction_with_exception(CONTEXT* ctxt);
 
-#endif  // PIN_EXEC_MAIN_LOOP_H__
+#endif  // PIN_EXEC_INSTRUCTION_PROCESSING_H__

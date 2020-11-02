@@ -21,7 +21,7 @@
 
 #include "analysis_functions.h"
 
-#include "main_loop.h"
+#include "instruction_processing.h"
 
 #include "../pin_lib/decoder.h"
 
@@ -73,13 +73,13 @@ void process_syscall(ADDRINT ip, ADDRINT num, ADDRINT arg0, ADDRINT arg1,
     const bool is_exit_syscall = (real_syscall && (EXIT_SYSCALL_NUM1 == num ||
                                                    EXIT_SYSCALL_NUM2 == num));
 
-    main_loop(ctxt, Mem_Writes_Info(), true, is_exit_syscall);
+    process_syscall_instruction(ctxt, is_exit_syscall);
   }
 }
 
 void process_instruction_no_mem_write(CONTEXT* ctxt) {
   if(!fast_forward_count) {
-    main_loop(ctxt, Mem_Writes_Info(), false, false);
+    process_nonsyscall_instruction(ctxt, Mem_Writes_Info());
   }
 }
 
@@ -87,21 +87,16 @@ void process_instruction_one_mem_write(CONTEXT* ctxt, ADDRINT write_addr,
                                        UINT32 write_size) {
   write_addr = ADDR_MASK(write_addr);
   if(!fast_forward_count) {
-    main_loop(ctxt, Mem_Writes_Info(write_addr, write_size), false, false);
+    process_nonsyscall_instruction(ctxt,
+                                   Mem_Writes_Info(write_addr, write_size));
   }
 }
 
 void process_instruction_multi_mem_write(
   CONTEXT* ctxt, PIN_MULTI_MEM_ACCESS_INFO* mem_access_info, bool is_scatter) {
   if(!fast_forward_count) {
-    main_loop(ctxt, Mem_Writes_Info(mem_access_info, ctxt, is_scatter), false,
-              false);
-  }
-}
-
-void enter_wrongpath_nop_mode_if_needed() {
-  if(!fast_forward_count && pintool_state.is_on_wrongpath_nop_mode()) {
-    wrongpath_nop_mode_main_loop();
+    process_nonsyscall_instruction(
+      ctxt, Mem_Writes_Info(mem_access_info, ctxt, is_scatter));
   }
 }
 
@@ -242,8 +237,8 @@ void check_ret_control_ins(ADDRINT read_addr, UINT32 read_size, CONTEXT* ctxt) {
 
 void check_nonret_control_ins(bool taken, ADDRINT target_addr) {
   if(!fast_forward_count) {
-    pintool_state.set_next_rip(target_addr);
     target_addr = ADDR_MASK(target_addr);
+    pintool_state.set_next_rip(target_addr);
     DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
               dbg_print_end_uid, "Non Ret Control targetaddr=%" PRIx64 "\n",
               (uint64_t)target_addr);

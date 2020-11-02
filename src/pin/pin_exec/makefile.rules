@@ -56,7 +56,7 @@ COMMON_LIB_PATH  := ../pin_lib
 COMMON_LIB_CFILES   := $(wildcard $(COMMON_LIB_PATH)/*.cc)
 COMMON_LIB_OBJFILES := $(patsubst $(COMMON_LIB_PATH)/%.cc,$(OBJDIR)%.o,$(COMMON_LIB_CFILES))
 
-SOURCE_FILES := analysis_functions.cc globals.cc main_loop.cc exception_handling.cc scarab_interface.cc
+SOURCE_FILES := analysis_functions.cc globals.cc instruction_processing.cc exception_handling.cc scarab_interface.cc
 SOURCE_OBJFILES := $(patsubst %.cc,$(OBJDIR)%.o,$(SOURCE_FILES))
 
 SCARAB_DIR ?= ../../

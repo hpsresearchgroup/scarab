@@ -185,11 +185,6 @@ void insert_processing_for_nonsyscall_instructions(const INS& ins) {
   }
 }
 
-void insert_conditional_function_wrongpath_nop_mode(const INS& ins) {
-  INS_InsertCall(ins, IPOINT_BEFORE,
-                 (AFUNPTR)enter_wrongpath_nop_mode_if_needed, IARG_END);
-}
-
 void insert_conditional_function_change_pintool_control_flow(const INS& ins) {
   INS_InsertCall(ins, IPOINT_BEFORE,
                  (AFUNPTR)change_pintool_control_flow_if_needed, IARG_CONTEXT,
@@ -270,7 +265,6 @@ void instrumentation_func_per_instruction(INS ins, void* v) {
     insert_processing_for_nonsyscall_instructions(ins);
   }
 
-  insert_conditional_function_wrongpath_nop_mode(ins);
   insert_conditional_function_change_pintool_control_flow(ins);
 }
 

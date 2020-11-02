@@ -21,7 +21,7 @@
 
 #include "exception_handling.h"
 
-#include "main_loop.h"
+#include "instruction_processing.h"
 #include "scarab_interface.h"
 
 #include "../pin_lib/decoder.h"
@@ -90,7 +90,7 @@ bool process_exception_on_wrongpath(CONTEXT* ctxt, INT32 sig) {
     return skip_this_instruction(ctxt);
   } else {
     mark_mailbox_op_as_exception_and_insert_in_buffer();
-    send_buffer_wait_until_scarab_retires_everything(ctxt);
+    process_instruction_with_exception(ctxt);
 
     ASSERTM(0, pintool_state.should_change_control_flow(),
             "An exception in the wrongpath should be flushed before getting "
@@ -110,7 +110,7 @@ bool process_exception_on_wrongpath(CONTEXT* ctxt, INT32 sig) {
 bool process_exception_on_rightpath(CONTEXT* ctxt, INT32 sig, ADDRINT rip,
                                     ADDRINT next_rip) {
   if(sig == SIGFPE || sig == SIGSEGV || sig == SIGILL) {
-    send_buffer_wait_until_scarab_retires_everything(ctxt);
+    process_instruction_with_exception(ctxt);
 
     if(pintool_state.should_change_control_flow()) {
       // The exception is not to be committed due to a recover/redirect.
