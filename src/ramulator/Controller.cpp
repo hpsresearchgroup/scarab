@@ -119,7 +119,7 @@ void Controller<TLDRAM>::tick(){
         auto cmd = TLDRAM::Command::PRE;
         vector<int> victim = rowpolicy->get_victim(cmd);
         if (!victim.empty()){
-            issue_cmd(cmd, victim);
+            issue_cmd(cmd, victim, 0);
         }
         return;  // nothing more to be done this cycle
     }
@@ -165,7 +165,7 @@ void Controller<TLDRAM>::tick(){
 
     // issue command on behalf of request
     auto cmd = get_first_cmd(req);
-    issue_cmd(cmd, get_addr_vec(cmd, req));
+    issue_cmd(cmd, get_addr_vec(cmd, req), req->coreid);
 
     // check whether this is the last command (which finishes the request)
     if (cmd != channel->spec->translate[int(req->type)])

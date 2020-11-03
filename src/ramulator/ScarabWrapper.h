@@ -40,7 +40,7 @@ private:
     MemoryBase *mem;
 public:
     //double tCK;
-    ScarabWrapper(const Config& configs, const unsigned int cacheline, void (* stats_callback)(int));
+    ScarabWrapper(const Config& configs, const unsigned int cacheline, void (* stats_callback)(int, int));
     ~ScarabWrapper();
     void tick();
     bool send(Request req);

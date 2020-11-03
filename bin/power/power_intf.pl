@@ -242,11 +242,22 @@ sub parse_cacti_dram_output($$)
     $values{"MIN_VOLTAGE"} = $values{"VOLTAGE"}                    if ($get_voltage_and_freq); # for now
     $values{"FREQUENCY"}   = $params{"POWER_INTF_REF_MEMORY_FREQ"} if ($get_voltage_and_freq);
 
+    my $power_dram_precharge_stat = 0;
+    my $power_dram_activate_stat  = 0;
+    my $power_dram_read_stat      = 0;
+    my $power_dram_write_stat     = 0;
+    for my $core_id (0..$params{"NUM_CORES"}-1) {
+      $power_dram_precharge_stat += $stats{"POWER_DRAM_PRECHARGE"}[$core_id];
+      $power_dram_activate_stat  += $stats{"POWER_DRAM_ACTIVATE"}[$core_id];
+      $power_dram_read_stat      += $stats{"POWER_DRAM_READ"}[$core_id];
+      $power_dram_write_stat     += $stats{"POWER_DRAM_WRITE"}[$core_id];
+    }
+
     $values{"DYNAMIC"} =
-        $cacti_values{"Precharge Energy (nJ)"} * $stats{"POWER_DRAM_PRECHARGE"}[0] +
-        $cacti_values{"Activate Energy (nJ)"}  * $stats{"POWER_DRAM_ACTIVATE"}[0]  +
-        $cacti_values{"Read Energy (nJ)"}      * $stats{"POWER_DRAM_READ"}[0]      +
-        $cacti_values{"Write Energy (nJ)"}     * $stats{"POWER_DRAM_WRITE"}[0];
+        $cacti_values{"Precharge Energy (nJ)"} * $power_dram_precharge_stat +
+        $cacti_values{"Activate Energy (nJ)"}  * $power_dram_activate_stat  +
+        $cacti_values{"Read Energy (nJ)"}      * $power_dram_read_stat      +
+        $cacti_values{"Write Energy (nJ)"}     * $power_dram_write_stat;
 
     if ($debug) {
       print("[parse_cacti_dram_output] DRAM dynamic energy:\n");
@@ -255,11 +266,6 @@ sub parse_cacti_dram_output($$)
       my $activate_energy  = $cacti_values{"Activate Energy (nJ)"};
       my $read_energy      = $cacti_values{"Read Energy (nJ)"};
       my $write_energy     = $cacti_values{"Write Energy (nJ)"};
-
-      my $power_dram_precharge_stat = $stats{"POWER_DRAM_PRECHARGE"}[0];
-      my $power_dram_activate_stat  = $stats{"POWER_DRAM_ACTIVATE"}[0];
-      my $power_dram_read_stat      = $stats{"POWER_DRAM_READ"}[0];
-      my $power_dram_write_stat     = $stats{"POWER_DRAM_WRITE"}[0];
 
       print("$dynamic_energy nJ (DYNAMIC) =
          $precharge_energy (Precharge Energy nJ) * $power_dram_precharge_stat (POWER_DRAM_PRECHARGE)+

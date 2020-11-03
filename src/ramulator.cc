@@ -63,7 +63,7 @@ void init_configs();
 bool try_completing_request(Mem_Req* req);
 void enqueue_response(Request& req);
 
-void stats_callback(int type);
+void stats_callback(int coreid, int type);
 
 deque<Mem_Req*> resp_queue;  // completed read request that need to send back to
                              // Scarab
@@ -92,19 +92,19 @@ void ramulator_finish() {
   delete configs;
 }
 
-void stats_callback(int type) {
+void stats_callback(int coreid, int type) {
   switch(type) {
     case int(StatCallbackType::DRAM_ACT):
-      STAT_EVENT(0, POWER_DRAM_ACTIVATE);
+      STAT_EVENT(coreid, POWER_DRAM_ACTIVATE);
       break;
     case int(StatCallbackType::DRAM_PRE):
-      STAT_EVENT(0, POWER_DRAM_PRECHARGE);
+      STAT_EVENT(coreid, POWER_DRAM_PRECHARGE);
       break;
     case int(StatCallbackType::DRAM_READ):
-      STAT_EVENT(0, POWER_DRAM_READ);
+      STAT_EVENT(coreid, POWER_DRAM_READ);
       break;
     case int(StatCallbackType::DRAM_WRITE):
-      STAT_EVENT(0, POWER_DRAM_WRITE);
+      STAT_EVENT(coreid, POWER_DRAM_WRITE);
       break;
   }
 }
