@@ -36,6 +36,7 @@
 #include "ramulator/ScarabWrapper.h"
 
 extern "C" {
+#include "addr_trans.h"
 #include "general.param.h"
 #include "globals/assert.h"
 #include "globals/utils.h"
@@ -298,12 +299,20 @@ void init_configs() {
   configs->add("addr_remap_copy_mode", RAMULATOR_ADDR_REMAP_COPY_MODE);
   configs->add("addr_remap_copy_granularity",
                RAMULATOR_ADDR_REMAP_COPY_GRANULARITY);
+  configs->add("addr_remap_copy_time", RAMULATOR_ADDR_REMAP_COPY_TIME);
+  configs->add("addr_remap_periodic_copy_select_policy",
+               RAMULATOR_ADDR_REMAP_PERIODIC_COPY_SELECT_POLICY);
   configs->add("addr_remap_page_access_threshold",
                to_string(RAMULATOR_ADDR_REMAP_PAGE_ACCESS_THRESHOLD));
   configs->add("addr_remap_page_reuse_threshold",
                to_string(RAMULATOR_ADDR_REMAP_PAGE_REUSE_THRESHOLD));
   configs->add("addr_remap_max_per_core_limit_mb",
                to_string(RAMULATOR_ADDR_REMAP_MAX_PER_CORE_LIMIT_MB));
+  configs->add("addr_remap_num_reserved_rows",
+               to_string(RAMULATOR_ADDR_REMAP_NUM_RESERVED_ROWS));
+  configs->add(
+    "addr_remap_dram_cycles_between_periodic_copy",
+    to_string(RAMULATOR_ADDR_REMAP_DRAM_CYCLES_BETWEEN_PERIODIC_COPY));
   configs->add("addr_remap_to_partitioned_rows",
                RAMULATOR_ADDR_REMAP_TO_PARTITIONED_ROWS);
 
@@ -387,6 +396,25 @@ int ramulator_send(Mem_Req* scarab_req) {
   }
 
   return (int)is_sent;
+}
+
+void warmup_setup_scarab_req(Mem_Req& scarab_req, uns proc_id, Addr addr,
+                             Flag is_writeback) {
+  scarab_req.proc_id = proc_id;
+  scarab_req.state   = MRS_MEM_NEW;
+  if(is_writeback)
+    scarab_req.type = MRT_WB;
+  else
+    scarab_req.type = MRT_DFETCH;
+  scarab_req.phys_addr = addr_translate(addr);
+}
+
+void warmup_llc_miss(uns proc_id, Addr addr, Flag is_writeback) {
+  Mem_Req scarab_req;
+  warmup_setup_scarab_req(scarab_req, proc_id, addr, is_writeback);
+  Request req;
+  to_ramulator_req(&scarab_req, &req);
+  wrapper->warmup_process_req(req);
 }
 
 void enqueue_response(Request& req) {

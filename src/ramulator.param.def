@@ -84,9 +84,13 @@ DEF_PARAM(ramulator_addr_map_type               , RAMULATOR_ADDR_MAP_TYPE       
 DEF_PARAM(ramulator_addr_remap_policy           , RAMULATOR_ADDR_REMAP_POLICY             , char*   , string , "None", )
 DEF_PARAM(ramulator_addr_remap_copy_mode        , RAMULATOR_ADDR_REMAP_COPY_MODE          , char*   , string , "Real", )
 DEF_PARAM(ramulator_addr_remap_copy_granularity , RAMULATOR_ADDR_REMAP_COPY_GRANULARITY   , char*   , string , "Line", )
+DEF_PARAM(ramulator_addr_remap_copy_time , RAMULATOR_ADDR_REMAP_COPY_TIME   , char*   , string , "Whenever", )
+DEF_PARAM(ramulator_addr_remap_periodic_copy_select_policy , RAMULATOR_ADDR_REMAP_PERIODIC_COPY_SELECT_POLICY   , char*   , string , "CoreAccessFrac", )
 DEF_PARAM(ramulator_addr_remap_page_access_threshold , RAMULATOR_ADDR_REMAP_PAGE_ACCESS_THRESHOLD, int     , int    , -1  , )
 DEF_PARAM(ramulator_addr_remap_page_reuse_threshold , RAMULATOR_ADDR_REMAP_PAGE_REUSE_THRESHOLD, int     , int    , -1  , )
 DEF_PARAM(ramulator_addr_remap_max_per_core_limit_mb , RAMULATOR_ADDR_REMAP_MAX_PER_CORE_LIMIT_MB, int     , int    , -1  , )
+DEF_PARAM(ramulator_addr_remap_num_reserved_rows , RAMULATOR_ADDR_REMAP_NUM_RESERVED_ROWS, int     , int    , -1  , )
+DEF_PARAM(ramulator_addr_remap_dram_cycles_between_periodic_copy , RAMULATOR_ADDR_REMAP_DRAM_CYCLES_BETWEEN_PERIODIC_COPY, int     , int    , -1  , )
 DEF_PARAM(ramulator_addr_remap_to_partitioned_rows,   RAMULATOR_ADDR_REMAP_TO_PARTITIONED_ROWS    , char*   , string , "off"   , )
 
 // Timing parameters (TODO: make these optional. If not specified, present // values defined by RAMULATOR_SPEED should be used instead.)

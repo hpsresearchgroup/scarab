@@ -26,6 +26,7 @@
 #include <bitset>
 #include <cassert>
 #include <cmath>
+#include <deque>
 #include <functional>
 #include <limits.h>
 #include <set>
@@ -55,15 +56,17 @@ class MemoryBase {
  public:
   MemoryBase() {}
   virtual ~MemoryBase() {}
-  virtual double clk_ns()                                         = 0;
-  virtual void   tick()                                           = 0;
-  virtual bool   send(Request& req)                               = 0;
-  virtual int    pending_requests()                               = 0;
-  virtual void   finish(void)                                     = 0;
-  virtual long   page_allocator(long addr, int coreid)            = 0;
-  virtual void   record_core(int coreid)                          = 0;
-  virtual void   set_high_writeq_watermark(const float watermark) = 0;
-  virtual void   set_low_writeq_watermark(const float watermark)  = 0;
+  virtual double clk_ns()                                                  = 0;
+  virtual void   tick()                                                    = 0;
+  virtual bool   send(Request& req)                                        = 0;
+  virtual void   warmup_process_req(Request& req)                          = 0;
+  virtual void   warmup_perform_periodic_copy(const int num_rows_to_remap) = 0;
+  virtual int    pending_requests()                                        = 0;
+  virtual void   finish(void)                                              = 0;
+  virtual long   page_allocator(long addr, int coreid)                     = 0;
+  virtual void   record_core(int coreid)                                   = 0;
+  virtual void   set_high_writeq_watermark(const float watermark)          = 0;
+  virtual void   set_low_writeq_watermark(const float watermark)           = 0;
 
   virtual int get_chip_width() = 0;
   virtual int get_chip_size()  = 0;
@@ -171,10 +174,13 @@ class Memory : public MemoryBase {
     tx_bits = calc_log2(tx);
     assert((1 << tx_bits) == tx);
 
-    type                      = parse_addr_map_type(configs);
-    remap_policy              = parse_addr_remap_policy(configs);
-    remap_copy_mode           = parse_addr_remap_copy_mode(configs);
-    remap_copy_granularity    = parse_addr_remap_copy_granularity(configs);
+    type                   = parse_addr_map_type(configs);
+    remap_policy           = parse_addr_remap_policy(configs);
+    remap_copy_mode        = parse_addr_remap_copy_mode(configs);
+    remap_copy_granularity = parse_addr_remap_copy_granularity(configs);
+    remap_copy_time        = parse_addr_remap_copy_time(configs);
+    remap_periodic_copy_select_policy =
+      parse_addr_remap_periodic_copy_select_policy(configs);
     track_os_pages            = configs.get_config("track_os_page_reuse");
     remap_to_partitioned_rows = configs.get_config(
       "addr_remap_to_partitioned_rows");
@@ -198,6 +204,12 @@ class Memory : public MemoryBase {
     } else {
       addr_remap_max_allocated_pages_per_core = INT_MAX;
     }
+
+    addr_remap_num_reserved_rows = configs.get_int(
+      "addr_remap_num_reserved_rows");
+
+    addr_remap_dram_cycles_between_periodic_copy = configs.get_int(
+      "addr_remap_dram_cycles_between_periodic_copy");
 
     // If hi address bits will not be assigned to Rows
     // then the chips must not be LPDDRx 6Gb, 12Gb etc.
@@ -364,29 +376,30 @@ class Memory : public MemoryBase {
             "or to the end");
 #endif
     if(remap_policy != RemapPolicy::None) {
+      // has to come before initial call to set_req_ddr_vec
+      frame_index_start_pos = os_page_offset_bits - tx_bits;
       vector<int> dummy_addr_vec(addr_bits.size());
       set_req_addr_vec(
         0, dummy_addr_vec);  // just to initialize addr_bits_start_pos
+      row_start_pos = addr_bits_start_pos[int(T::Level::Row)];
+      assert(0 != row_start_pos);
+      assert(0 != tx_bits);
+
+      log2_num_frames_per_row = row_start_pos - frame_index_start_pos;
+      assert(log2_num_frames_per_row > 0);
+      num_frames_per_row = (1 << log2_num_frames_per_row);
 
       for(int core = 0; core < num_cores; core++) {
         core_to_ch_to_oldest_unfilled_row[core] = unordered_map<int, long>();
         core_to_ch_to_newest_unfilled_row[core] = unordered_map<int, long>();
       }
 
-      for(int ch = 0; ch < sz[int(T::Level::Channel)]; ch++) {
-        if(remap_to_partitioned_rows) {
-          for(int core = 0; core < num_cores; core++) {
-            const long first_reserved_row = compute_first_reserved_row(core);
-            core_to_ch_to_oldest_unfilled_row[core][ch] = first_reserved_row;
-            core_to_ch_to_newest_unfilled_row[core][ch] = first_reserved_row;
-            populate_frames_freelist_for_ch_row(ch, first_reserved_row, core);
-          }
-        } else {
-          const long first_reserved_row        = compute_first_reserved_row(0);
-          global_ch_to_oldest_unfilled_row[ch] = first_reserved_row;
-          global_ch_to_newest_unfilled_row[ch] = first_reserved_row;
-          populate_frames_freelist_for_ch_row(ch, first_reserved_row, 0);
-        }
+      if(remap_copy_time == CopyTime::Whenever) {
+        setup_for_remap_copy_whenever(sz);
+      } else if(remap_copy_time == CopyTime::Periodic) {
+        setup_for_remap_copy_periodic(sz);
+      } else {
+        assert(false);
       }
     }
   }
@@ -428,6 +441,20 @@ class Memory : public MemoryBase {
     in_queue_read_req_num_sum += cur_que_readreq_num;
     in_queue_write_req_num_sum += cur_que_writereq_num;
 
+    const long dram_cycles_so_far = num_dram_cycles.value();
+    if(addr_remap_dram_cycles_between_periodic_copy > 0) {
+      if(0 ==
+         (dram_cycles_so_far % addr_remap_dram_cycles_between_periodic_copy)) {
+        for(auto ctrl : ctrls) {
+          do_periodic_remap(ctrl->channel->id, 1, false);
+        }
+      }
+    }
+
+    for(auto ctrl : ctrls) {
+      process_pending_row_replacements(ctrl->channel->id);
+    }
+
     bool is_active = false;
     for(auto ctrl : ctrls) {
       is_active = is_active || ctrl->is_active();
@@ -462,6 +489,23 @@ class Memory : public MemoryBase {
   bool send(Request& req) {
     compute_req_addr(req);
     return enqueue_req_to_ctrl(req, req.coreid);
+  }
+
+  void warmup_process_req(Request& req) {
+    if(remap_policy != RemapPolicy::None) {
+      req.addr_vec.resize(addr_bits.size());
+      set_req_addr_vec(req.addr, req.addr_vec);
+      int channel = req.addr_vec[int(T::Level::Channel)];
+      if(track_os_pages) {
+        update_os_page_info(req, channel);
+      }
+    }
+  }
+
+  void warmup_perform_periodic_copy(const int num_rows_to_remap) {
+    for(size_t ch = 0; ch < ctrls.size(); ch++) {
+      do_periodic_remap(ch, num_rows_to_remap, true);
+    }
   }
 
   int pending_requests() {
@@ -586,6 +630,19 @@ class Memory : public MemoryBase {
     MAX,
   } remap_copy_granularity = CopyGranularity::Line;
 
+  enum class CopyTime {
+    Periodic,
+    Whenever,
+    MAX,
+  } remap_copy_time = CopyTime::Whenever;
+
+  enum class PeriodicCopySelectPolicy {
+    CoreAccessFrac,
+    TotalAccessFrac,
+    MAX,
+  } remap_periodic_copy_select_policy =
+    PeriodicCopySelectPolicy::CoreAccessFrac;
+
   struct OsPageInfo {
     uint64_t lines_seen;
     uint64_t lines_written;
@@ -611,6 +668,7 @@ class Memory : public MemoryBase {
   int         addr_remap_max_allocated_pages_per_core = INT_MAX;
   bool        remap_to_partitioned_rows;
   vector<int> channel_xor_bits_pos;
+  vector<int> row_channel_xor_bits_pos;
   vector<int> frame_index_channel_xor_bits_pos;
 
   unordered_map<int, long> global_ch_to_oldest_unfilled_row;
@@ -622,9 +680,52 @@ class Memory : public MemoryBase {
 
   unordered_map<int, unordered_map<long, unordered_map<int, vector<long>>>>
     ch_to_row_to_ch_freebits_parity_to_avail_frames;
-
   unordered_map<int, unordered_map<long, std::pair<long, uint64_t>>>
     ch_to_page_index_remapping;
+
+  int row_start_pos                                = -1;
+  int frame_index_start_pos                        = -1;
+  int log2_num_frames_per_row                      = -1;
+  int num_frames_per_row                           = -1;
+  int addr_remap_num_reserved_rows                 = -1;
+  int addr_remap_dram_cycles_between_periodic_copy = -1;
+  struct AllocatedRowInfo {
+    int  coreid;
+    long reserved_row;
+  };
+  struct CandidatePageInfo {
+    long access_count;
+  };
+  struct PendingFrameReplacementInfo {
+    int          nonrow_index_bits;
+    bool         orig_frame_index_valid;
+    long         orig_frame_index;
+    bool         new_frame_index_valid;
+    long         new_frame_index;
+    uint64_t     new_frame_new_lines_on_page_mask;
+    vector<long> pending_writeback_reads, pending_writeback_writes,
+      pending_fill_reads, pending_fill_writes;
+  };
+  struct PendingRowReplacementInfo {
+    long                                reserved_row;
+    int                                 old_coreid;
+    int                                 new_coreid;
+    bool                                during_warmup;
+    vector<PendingFrameReplacementInfo> pending_frame_replacements;
+  };
+  unordered_map<int, vector<long>>            ch_to_free_rows;
+  unordered_map<int, deque<AllocatedRowInfo>> ch_to_allocated_row_info_in_order;
+  unordered_map<int, unordered_map<int, long>> ch_to_core_to_interval_accesses;
+  unordered_map<int, unordered_map<long, long>>
+    ch_to_reserved_row_to_interval_accesses;
+  unordered_map<int, unordered_map<long, unordered_map<int, long>>>
+    ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index;
+  unordered_map<
+    int, unordered_map<
+           int, unordered_map<int, unordered_map<long, CandidatePageInfo>>>>
+    ch_to_core_to_nonrow_index_bits_to_page_index_to_candidate_info;
+  unordered_map<int, vector<PendingRowReplacementInfo>>
+    ch_to_pending_row_replacements;
 
   bool enqueue_req_to_ctrl(Request& req, const int coreid) {
     int channel = req.addr_vec[int(T::Level::Channel)];
@@ -660,11 +761,28 @@ class Memory : public MemoryBase {
     return false;
   }
 
-  void assert_remapped_addr_proc_id(const long addr, const int coreid) {
-    if(remap_to_partitioned_rows) {
+  void assert_coreid_in_remapped_addr(const long addr, const int coreid) {
+    if((CopyTime::Whenever == remap_copy_time) && remap_to_partitioned_rows) {
       assert(get_coreid_from_addr(addr) == num_cores + coreid);
     } else {
       assert(get_coreid_from_addr(addr) == num_cores);
+    }
+  }
+
+  void verify_remapped_addr(const int channel, const long addr,
+                            const long orig_addr, const int coreid) {
+    assert_coreid_in_remapped_addr(addr, coreid);
+
+    if(CopyTime::Periodic == remap_copy_time) {
+      const long reserved_row      = get_row_from_addr(addr);
+      const long orig_frame_index  = (orig_addr >> os_page_offset_bits);
+      const long new_frame_index   = (addr >> os_page_offset_bits);
+      const int  nonrow_index_bits = get_nonrow_index_bits_from_page_index(
+        new_frame_index);
+      assert(ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
+               .at(channel)
+               .at(reserved_row)
+               .at(nonrow_index_bits) == orig_frame_index);
     }
   }
   uint64_t map_addr_to_new_frame(const long addr, const long new_frame) {
@@ -793,6 +911,30 @@ class Memory : public MemoryBase {
     }
   }
 
+  CopyTime parse_addr_remap_copy_time(const Config& configs) {
+    if("Whenever" == configs["addr_remap_copy_time"]) {
+      return CopyTime::Whenever;
+    } else if("Periodic" == configs["addr_remap_copy_time"]) {
+      return CopyTime::Periodic;
+    } else {
+      assert(false);
+      return CopyTime::MAX;
+    }
+  }
+
+  PeriodicCopySelectPolicy parse_addr_remap_periodic_copy_select_policy(
+    const Config& configs) {
+    if("CoreAccessFrac" == configs["addr_remap_periodic_copy_select_policy"]) {
+      return PeriodicCopySelectPolicy::CoreAccessFrac;
+    } else if("TotalAccessFrac" ==
+              configs["addr_remap_periodic_copy_select_policy"]) {
+      return PeriodicCopySelectPolicy::TotalAccessFrac;
+    } else {
+      assert(false);
+      return PeriodicCopySelectPolicy::MAX;
+    }
+  }
+
   int slice_row_addr(long addr, int& bits_sliced) {
     addr_bits_start_pos[int(T::Level::Row)] = bits_sliced;
     // for the row addr, if use_rest_of_addr_as_row_addr is on, then we use
@@ -836,34 +978,52 @@ class Memory : public MemoryBase {
       ch_to_row_to_ch_freebits_parity_to_avail_frames[channel][row][1].empty());
   }
 
-  void remap_if_alt_frame_exists(Request& req) {
+  bool line_is_remapped(bool& page_is_remapped, const int orig_channel,
+                        const long orig_frame_index,
+                        const long line_on_page_bit) {
+    if(ch_to_page_index_remapping.count(orig_channel)) {
+      if(ch_to_page_index_remapping.at(orig_channel).count(orig_frame_index)) {
+        page_is_remapped           = true;
+        uint64_t copied_lines_mask = ch_to_page_index_remapping.at(orig_channel)
+                                       .at(orig_frame_index)
+                                       .second;
+        if(copied_lines_mask & line_on_page_bit) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  void assert_req_is_unmapped_noncopy_new_access(const Request& req) {
     assert(!req.is_copy);
     assert(!req.is_remapped);
     assert(req.is_first_command);
     assert(is_read_or_write_req(req));
+  }
+
+  void remap_if_alt_frame_exists(Request& req) {
+    assert_req_is_unmapped_noncopy_new_access(req);
+
     vector<int> orig_addr_vec(addr_bits.size());
     set_req_addr_vec(req.addr, orig_addr_vec);
+    int orig_channel = orig_addr_vec[int(T::Level::Channel)];
 
-    long orig_frame_index;
-    long line_on_page_bit;
+    long orig_frame_index, line_on_page_bit;
+    bool frame_remapped = false;
     get_page_index_offset_bit(req.addr, orig_frame_index, line_on_page_bit);
-    int channel = orig_addr_vec[int(T::Level::Channel)];
-    if(ch_to_page_index_remapping.count(channel)) {
-      if(ch_to_page_index_remapping.at(channel).count(orig_frame_index)) {
-        uint64_t copied_lines_mask =
-          ch_to_page_index_remapping.at(channel).at(orig_frame_index).second;
-        if((copied_lines_mask & line_on_page_bit) ||
-           req.type == Request::Type::WRITE) {
-          req.addr = map_addr_to_new_frame(
-            req.addr,
-            ch_to_page_index_remapping.at(channel).at(orig_frame_index).first);
-          assert_remapped_addr_proc_id(req.addr, req.coreid);
-          set_req_addr_vec(req.addr, req.addr_vec);
-          assert(req.addr_vec[int(T::Level::Channel)] ==
-                 orig_addr_vec[int(T::Level::Channel)]);
-          req.is_remapped = true;
-        }
-      }
+    bool line_remapped = line_is_remapped(frame_remapped, orig_channel,
+                                          orig_frame_index, line_on_page_bit);
+    if(line_remapped ||
+       (frame_remapped && (req.type == Request::Type::WRITE))) {
+      req.addr = map_addr_to_new_frame(
+        req.addr,
+        ch_to_page_index_remapping.at(orig_channel).at(orig_frame_index).first);
+      verify_remapped_addr(orig_channel, req.addr, req.orig_addr, req.coreid);
+      set_req_addr_vec(req.addr, req.addr_vec);
+      assert(req.addr_vec[int(T::Level::Channel)] == orig_channel);
+      req.is_remapped = true;
     }
   }
 
@@ -926,8 +1086,9 @@ class Memory : public MemoryBase {
     stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid, 0);
   }
 
-  void remap_and_copy(const int channel, const long frame_index,
-                      const long line_on_page_bit, const Request& orig_req) {
+  void remap_and_copy_whenever(const int channel, const long frame_index,
+                               const long     line_on_page_bit,
+                               const Request& orig_req) {
     if(0 == ch_to_page_index_remapping.count(channel)) {
       ch_to_page_index_remapping[channel] =
         unordered_map<long, std::pair<long, uint64_t>>();
@@ -949,7 +1110,8 @@ class Memory : public MemoryBase {
     const long new_frame_index =
       ch_to_page_index_remapping[channel][frame_index].first;
     const long new_addr = map_addr_to_new_frame(orig_req.addr, new_frame_index);
-    assert_remapped_addr_proc_id(new_addr, orig_req.coreid);
+    verify_remapped_addr(channel, new_addr, orig_req.orig_addr,
+                         orig_req.coreid);
 
     switch(remap_copy_mode) {
       case CopyMode::Free:
@@ -1112,20 +1274,636 @@ class Memory : public MemoryBase {
         os_page_tracking_map.at(page_index).access_count++;
 
         if(remap_policy != RemapPolicy::None) {
-          if(-1 != addr_remap_page_reuse_threshold) {
-            if(os_page_tracking_map.at(page_index).reuse_count >
-               addr_remap_page_reuse_threshold) {
-              remap_and_copy(channel, page_index, line_on_page_bit, req);
+          if(CopyTime::Whenever == remap_copy_time) {
+            if(-1 != addr_remap_page_reuse_threshold) {
+              if(os_page_tracking_map.at(page_index).reuse_count >
+                 addr_remap_page_reuse_threshold) {
+                remap_and_copy_whenever(channel, page_index, line_on_page_bit,
+                                        req);
+              }
+            } else if(-1 != addr_remap_page_access_threshold) {
+              if(os_page_tracking_map.at(page_index).access_count >
+                 addr_remap_page_access_threshold) {
+                remap_and_copy_whenever(channel, page_index, line_on_page_bit,
+                                        req);
+              }
             }
-          } else if(-1 != addr_remap_page_access_threshold) {
-            if(os_page_tracking_map.at(page_index).access_count >
-               addr_remap_page_access_threshold) {
-              remap_and_copy(channel, page_index, line_on_page_bit, req);
-            }
+          } else if(CopyTime::Periodic == remap_copy_time) {
+            update_remap_candidates_and_interval_accesses(
+              channel, req.coreid, req.orig_addr, page_index, line_on_page_bit);
+          } else {
+            assert(false);
           }
         }
       }
     }
+  }
+
+  long get_row_from_addr(const long addr) {
+    const long frame_index = (addr >> os_page_offset_bits);
+    const long row_address = (frame_index >> log2_num_frames_per_row);
+    return row_address;
+  }
+
+  int get_nonrow_index_bits_from_page_index(const long page_index) {
+    long page_index_non_const = page_index;
+    int  nonrow_index_bits    = slice_lower_bits(page_index_non_const,
+                                             log2_num_frames_per_row);
+    return nonrow_index_bits;
+  }
+
+  long gen_frame_from_reserved_row_and_nonrow_index_bits(
+    const long reserved_row, const int nonrow_index_bits) {
+    const long row_component = (reserved_row << log2_num_frames_per_row);
+    const long final_frame   = row_component | nonrow_index_bits;
+    return final_frame;
+  }
+
+  void update_reserved_row_interval_accesses(const int channel, const long addr,
+                                             const long orig_page_index) {
+    const long remapped_addr = map_addr_to_new_frame(
+      addr, ch_to_page_index_remapping.at(channel).at(orig_page_index).first);
+    assert(get_coreid_from_addr(remapped_addr) == num_cores);
+    const long reserved_row = get_row_from_addr(remapped_addr);
+    assert(
+      ch_to_reserved_row_to_interval_accesses.at(channel).count(reserved_row));
+    const int orig_page_index_nonrow_index_bits =
+      get_nonrow_index_bits_from_page_index(orig_page_index);
+    assert(ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
+             .at(channel)
+             .at(reserved_row)
+             .at(orig_page_index_nonrow_index_bits) == orig_page_index);
+    ch_to_reserved_row_to_interval_accesses.at(channel).at(reserved_row)++;
+  }
+
+  void update_candidate_info(const int channel, const int coreid,
+                             const long orig_page_index) {
+    int nonrow_index_bits = get_nonrow_index_bits_from_page_index(
+      orig_page_index);
+    unordered_map<long, CandidatePageInfo>& page_index_to_candidate_info_map =
+      ch_to_core_to_nonrow_index_bits_to_page_index_to_candidate_info
+        .at(channel)
+        .at(coreid)
+        .at(nonrow_index_bits);
+    if(page_index_to_candidate_info_map.count(orig_page_index) == 0) {
+      page_index_to_candidate_info_map[orig_page_index] = CandidatePageInfo();
+    }
+    page_index_to_candidate_info_map.at(orig_page_index).access_count++;
+  }
+
+  void update_remap_candidates_and_interval_accesses(
+    const int channel, const int coreid, const long addr,
+    const long orig_page_index, const long line_on_page_bit) {
+    ch_to_core_to_interval_accesses[channel][coreid]++;
+
+    bool page_remapped = false;
+    line_is_remapped(page_remapped, channel, orig_page_index, line_on_page_bit);
+    if(page_remapped) {
+      update_reserved_row_interval_accesses(channel, addr, orig_page_index);
+    } else {
+      update_candidate_info(channel, coreid, orig_page_index);
+    }
+  }
+
+  vector<long> get_txs_that_belong_to_channel(const int  channel,
+                                              const long page_index) {
+    const int    num_tx_in_frame_log2         = (os_page_offset_bits - tx_bits);
+    const int    num_tx_in_frame              = (1 << num_tx_in_frame_log2);
+    const int    tx_size                      = (1 << tx_bits);
+    vector<long> addrs_that_belong_to_channel = vector<long>();
+    vector<int>  dummy_addr_vec(addr_bits.size());
+
+    for(int line_in_frame = 0; line_in_frame < num_tx_in_frame;
+        line_in_frame++) {
+      long addr = (page_index << os_page_offset_bits) +
+                  (line_in_frame * tx_size);
+      set_req_addr_vec(addr, dummy_addr_vec);
+      if(channel == dummy_addr_vec[int(T::Level::Channel)]) {
+        addrs_that_belong_to_channel.push_back(addr);
+      }
+    }
+    return addrs_that_belong_to_channel;
+  }
+
+  long get_row_to_allocate(const int channel,
+                           bool&     allocating_already_empty_row,
+                           int&      coreid_of_row_to_be_allocated) {
+    long                row_to_allocate;
+    const vector<long>& free_rows = ch_to_free_rows.at(channel);
+    if(free_rows.empty()) {
+      const deque<AllocatedRowInfo>& allocated_rows =
+        ch_to_allocated_row_info_in_order.at(channel);
+      assert(!allocated_rows.empty());
+      row_to_allocate               = allocated_rows.front().reserved_row;
+      coreid_of_row_to_be_allocated = allocated_rows.front().coreid;
+      assert((coreid_of_row_to_be_allocated > 0) &&
+             (coreid_of_row_to_be_allocated < num_cores));
+      allocating_already_empty_row = false;
+    } else {
+      row_to_allocate              = free_rows.back();
+      allocating_already_empty_row = true;
+    }
+
+    return row_to_allocate;
+  }
+
+  void finalize_row_to_allocate(const int channel, const long row_to_allocate,
+                                const int  coreid_of_row_being_allocated,
+                                const bool allocating_already_empty_row) {
+    if(allocating_already_empty_row) {
+      assert(row_to_allocate == ch_to_free_rows.at(channel).back());
+      ch_to_free_rows.at(channel).pop_back();
+    } else {
+      assert(
+        row_to_allocate ==
+        ch_to_allocated_row_info_in_order.at(channel).front().reserved_row);
+      assert(coreid_of_row_being_allocated ==
+             ch_to_allocated_row_info_in_order.at(channel).front().coreid);
+      ch_to_allocated_row_info_in_order.at(channel).pop_front();
+    }
+  }
+
+  void finalize_chosen_candidates(
+    const int channel, const int chosen_candidate_coreid,
+    const unordered_map<int, long>&
+      nonrow_index_bits_to_chosen_candidate_page) {
+    unordered_map<int, unordered_map<long, CandidatePageInfo>>&
+      nonrow_index_bits_to_page_index_to_candidate_info =
+        ch_to_core_to_nonrow_index_bits_to_page_index_to_candidate_info
+          .at(channel)
+          .at(chosen_candidate_coreid);
+    for(const auto& nonrow_index_bits_chosen_candidate_page :
+        nonrow_index_bits_to_chosen_candidate_page) {
+      const int nonrow_index_bits =
+        nonrow_index_bits_chosen_candidate_page.first;
+      const long chosen_candidate_page =
+        nonrow_index_bits_chosen_candidate_page.second;
+      assert(
+        nonrow_index_bits_to_page_index_to_candidate_info.at(nonrow_index_bits)
+          .count(chosen_candidate_page));
+      nonrow_index_bits_to_page_index_to_candidate_info.at(nonrow_index_bits)
+        .erase(chosen_candidate_page);
+    }
+  }
+
+  long get_candidate_row_accesses_for_core(
+    const int channel, const int core,
+    unordered_map<int, long>& nonrow_index_bits_to_chosen_candidate_page,
+    const int                 required_row_channel_xor) {
+    long total_candidate_row_accesses = 0;
+    const unordered_map<int, unordered_map<long, CandidatePageInfo>>&
+      nonrow_index_bits_to_page_index_to_candidate_info =
+        ch_to_core_to_nonrow_index_bits_to_page_index_to_candidate_info
+          .at(channel)
+          .at(core);
+    for(auto& nonrow_index_bits_and_accessed_pages_map :
+        nonrow_index_bits_to_page_index_to_candidate_info) {
+      const int nonrow_index_bits =
+        nonrow_index_bits_and_accessed_pages_map.first;
+      const unordered_map<long, CandidatePageInfo>& accessed_pages_map =
+        nonrow_index_bits_and_accessed_pages_map.second;
+      long most_accesses_so_far           = 0;
+      long page_with_most_accesses_so_far = 0;
+      for(auto& accessed_page : accessed_pages_map) {
+        const long page     = accessed_page.first;
+        const long accesses = accessed_page.second.access_count;
+
+        const int row_channel_xor_for_page =
+          get_row_channel_xor_from_frame_index(page);
+        if(row_channel_xor_bits_pos.empty() ||
+           (row_channel_xor_for_page == required_row_channel_xor)) {
+          if(accesses > most_accesses_so_far) {
+            most_accesses_so_far           = accesses;
+            page_with_most_accesses_so_far = page;
+          }
+        }
+      }
+      total_candidate_row_accesses += most_accesses_so_far;
+      if(most_accesses_so_far > 0) {
+        nonrow_index_bits_to_chosen_candidate_page[nonrow_index_bits] =
+          page_with_most_accesses_so_far;
+      }
+    }
+
+    return total_candidate_row_accesses;
+  }
+
+  long get_current_row_accesses(const int channel, const long row_to_allocate,
+                                const bool row_currently_empty) {
+    if(row_currently_empty) {
+      return 0;
+    } else {
+      return ch_to_reserved_row_to_interval_accesses.at(channel).at(
+        row_to_allocate);
+    }
+  }
+
+  double get_row_score(const int channel, const long accesses,
+                       const int coreid) {
+    long denominator = 0;
+    if(-1 == coreid) {
+      assert(0 == accesses);
+      return 0;
+    }
+
+    if(remap_periodic_copy_select_policy ==
+       PeriodicCopySelectPolicy::CoreAccessFrac) {
+      denominator = ch_to_core_to_interval_accesses.at(channel).at(coreid);
+    } else if(remap_periodic_copy_select_policy ==
+              PeriodicCopySelectPolicy::TotalAccessFrac) {
+      denominator = 1;
+    } else {
+      assert(false);
+    }
+
+    if(denominator != 0)
+      return double(accesses) / denominator;
+    else {
+      return 0;
+    }
+  }
+
+  PendingFrameReplacementInfo create_pending_frame_replacement_info(
+    const int channel, const int nonrow_index_bits,
+    const bool orig_frame_exists, const long orig_frame_index,
+    const bool new_frame_exists, const long new_frame_index) {
+    PendingFrameReplacementInfo pending_frame_replacement_info;
+    pending_frame_replacement_info.nonrow_index_bits      = nonrow_index_bits;
+    pending_frame_replacement_info.orig_frame_index_valid = orig_frame_exists;
+    pending_frame_replacement_info.orig_frame_index       = orig_frame_index;
+    pending_frame_replacement_info.new_frame_index_valid  = new_frame_exists;
+    pending_frame_replacement_info.new_frame_index        = new_frame_index;
+    if(orig_frame_exists) {
+      pending_frame_replacement_info.pending_writeback_reads =
+        get_txs_that_belong_to_channel(channel, orig_frame_index);
+    }
+    if(new_frame_exists) {
+      pending_frame_replacement_info.pending_fill_reads =
+        get_txs_that_belong_to_channel(channel, new_frame_index);
+      pending_frame_replacement_info.new_frame_new_lines_on_page_mask = 0;
+      for(const long fill_addr :
+          pending_frame_replacement_info.pending_fill_reads) {
+        long page_index, line_on_page_bit;
+        get_page_index_offset_bit(fill_addr, page_index, line_on_page_bit);
+        assert(new_frame_index == page_index);
+        pending_frame_replacement_info.new_frame_new_lines_on_page_mask |=
+          line_on_page_bit;
+      }
+    }
+    return pending_frame_replacement_info;
+  }
+
+  PendingRowReplacementInfo create_pending_row_replacement_info(
+    const int channel, const long row_being_replaced, const int old_coreid,
+    const int new_coreid,
+    const unordered_map<int, long>&
+      nonrow_index_bits_to_chosen_candidate_page) {
+    PendingRowReplacementInfo pending_row_replacement_info;
+    pending_row_replacement_info.reserved_row = row_being_replaced;
+    pending_row_replacement_info.old_coreid   = old_coreid;
+    pending_row_replacement_info.new_coreid   = new_coreid;
+    pending_row_replacement_info.pending_frame_replacements =
+      vector<PendingFrameReplacementInfo>();
+    const unordered_map<int, long>&
+      existing_nonrow_index_bits_to_remapped_pages_index =
+        ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
+          .at(channel)
+          .at(row_being_replaced);
+    for(int nonrow_index_bits = 0; nonrow_index_bits < num_frames_per_row;
+        nonrow_index_bits++) {
+      bool existing_frame_exists = false;
+      bool new_frame_exists      = false;
+      long existing_frame_index = 0, new_frame_index = 0;
+
+      if(existing_nonrow_index_bits_to_remapped_pages_index.count(
+           nonrow_index_bits)) {
+        existing_frame_exists = true;
+        existing_frame_index =
+          existing_nonrow_index_bits_to_remapped_pages_index.at(
+            nonrow_index_bits);
+      }
+      if(nonrow_index_bits_to_chosen_candidate_page.count(nonrow_index_bits)) {
+        new_frame_exists = true;
+        new_frame_index  = nonrow_index_bits_to_chosen_candidate_page.at(
+          nonrow_index_bits);
+      }
+
+      if(existing_frame_exists || new_frame_index) {
+        pending_row_replacement_info.pending_frame_replacements.push_back(
+          create_pending_frame_replacement_info(
+            channel, nonrow_index_bits, existing_frame_exists,
+            existing_frame_index, new_frame_exists, new_frame_index));
+      }
+    }
+    return pending_row_replacement_info;
+  }
+
+  unordered_map<int, long> process_all_candidates(
+    const int channel, const double current_row_score, int& core_selected,
+    const int required_row_channel_xor) {
+    core_selected = -1;
+    vector<unordered_map<int, long>> all_cores_chosen_pages =
+      vector<unordered_map<int, long>>(num_cores);
+    double best_candidate_score_so_far = 0;
+
+    for(int core = 0; core < num_cores; core++) {
+      all_cores_chosen_pages[core] = unordered_map<int, long>();
+      long total_accesses          = get_candidate_row_accesses_for_core(
+        channel, core, all_cores_chosen_pages[core], required_row_channel_xor);
+      double candidate_row_score = get_row_score(channel, total_accesses, core);
+      if((candidate_row_score > current_row_score) &&
+         (candidate_row_score > best_candidate_score_so_far)) {
+        best_candidate_score_so_far = candidate_row_score;
+        core_selected               = core;
+      }
+    }
+
+    if(-1 != core_selected)
+      return all_cores_chosen_pages[core_selected];
+    else
+      return unordered_map<int, long>();
+  }
+
+  int get_row_channel_xor_from_addr_without_tx(
+    const long addr_without_tx_bits) {
+    std::bitset<sizeof(addr_without_tx_bits) * CHAR_BIT> addr_bitset(
+      addr_without_tx_bits);
+    int result = 0;
+    for(auto row_channel_xor_bit_pos : row_channel_xor_bits_pos) {
+      result ^= addr_bitset[row_channel_xor_bit_pos];
+    }
+    return result;
+  }
+
+  int get_row_channel_xor_from_row_addr(const long row_addr) {
+    assert(log2_num_frames_per_row > 0);
+    assert(os_page_offset_bits > 0);
+    assert(tx_bits > 0);
+    const long addr_without_tx_bits = (row_addr
+                                       << (log2_num_frames_per_row +
+                                           os_page_offset_bits - tx_bits));
+    return get_row_channel_xor_from_addr_without_tx(addr_without_tx_bits);
+  }
+
+  int get_row_channel_xor_from_frame_index(const long frame_index) {
+    assert(os_page_offset_bits > 0);
+    assert(tx_bits > 0);
+    const long addr_without_tx_bits = (frame_index
+                                       << (os_page_offset_bits - tx_bits));
+    return get_row_channel_xor_from_addr_without_tx(addr_without_tx_bits);
+  }
+
+  void clear_interval_accesses_and_candidate_infos(const int channel) {
+    for(int core = 0; core < num_cores; core++) {
+      ch_to_core_to_interval_accesses.at(channel).at(core) = 0;
+
+      for(int nonrow_index = 0; nonrow_index < num_frames_per_row;
+          nonrow_index++) {
+        ch_to_core_to_nonrow_index_bits_to_page_index_to_candidate_info
+          [channel][core][nonrow_index] =
+            unordered_map<long, CandidatePageInfo>();
+      }
+    }
+    for(auto& reserved_row_interval_accesses :
+        ch_to_reserved_row_to_interval_accesses.at(channel)) {
+      reserved_row_interval_accesses.second = 0;
+    }
+  }
+
+  bool pending_frame_replacement_done(
+    const PendingFrameReplacementInfo& frame_replacement_info) {
+    return (frame_replacement_info.pending_writeback_reads.empty() &&
+            frame_replacement_info.pending_writeback_writes.empty() &&
+            frame_replacement_info.pending_fill_reads.empty() &&
+            frame_replacement_info.pending_fill_writes.empty());
+  }
+
+  void undo_frame_remapping(const int channel, const long reserved_row,
+                            const int  nonrow_index_bits,
+                            const long frame_to_undo) {
+    assert(ch_to_page_index_remapping.at(channel).count(frame_to_undo));
+    ch_to_page_index_remapping.at(channel).erase(frame_to_undo);
+    assert(ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
+             .at(channel)
+             .at(reserved_row)
+             .at(nonrow_index_bits) == frame_to_undo);
+    ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
+      .at(channel)
+      .at(reserved_row)
+      .erase(nonrow_index_bits);
+  }
+
+  void remap_frame(const int channel, const long reserved_row,
+                   const int nonrow_index_bits, const long frame_to_remap,
+                   const uint64_t new_mask) {
+    assert(0 == ch_to_page_index_remapping.at(channel).count(frame_to_remap));
+    const long new_dst_frame =
+      gen_frame_from_reserved_row_and_nonrow_index_bits(reserved_row,
+                                                        nonrow_index_bits);
+    ch_to_page_index_remapping.at(channel)[frame_to_remap] = std::make_pair(
+      new_dst_frame, new_mask);
+    assert(0 ==
+           ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
+             .at(channel)
+             .at(reserved_row)
+             .count(nonrow_index_bits));
+    ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
+      .at(channel)
+      .at(reserved_row)[nonrow_index_bits] = frame_to_remap;
+  }
+
+  Request gen_copy_request(const long orig_addr, const long cache_frame,
+                           const bool remap_to_cache_frame, const int coreid,
+                           const Request::Type type) {
+    Request req;
+    req.is_first_command = true;
+    req.orig_addr        = orig_addr;
+    if(remap_to_cache_frame) {
+      req.addr        = map_addr_to_new_frame(orig_addr, cache_frame);
+      req.is_remapped = true;
+    } else {
+      req.addr        = orig_addr;
+      req.is_remapped = false;
+    }
+    req.coreid    = coreid;
+    req.is_demand = false;
+    req.is_copy   = true;
+    req.type      = type;
+
+    req.addr_vec.resize(addr_bits.size());
+    set_req_addr_vec(req.addr, req.addr_vec);
+
+    return req;
+  }
+
+  bool check_if_transaction_accepted(Request& req) {
+    if(CopyMode::Free == remap_copy_mode)
+      return true;
+    else if(CopyMode::Real == remap_copy_mode) {
+      assert(req.is_copy);
+      return enqueue_req_to_ctrl(req, req.coreid);
+    } else {
+      assert(false);
+      return false;
+    }
+  }
+
+  void process_pending_transactions(
+    vector<long>& src_transactions, vector<long>& dst_transactions,
+    const bool dst_exists, const long cache_frame, const Request::Type src_type,
+    const bool map_src_to_cache_frame, const int src_coreid) {
+    while(!src_transactions.empty()) {
+      const long orig_addr   = src_transactions.back();
+      Request    src_request = gen_copy_request(
+        orig_addr, cache_frame, map_src_to_cache_frame, src_coreid, src_type);
+      if(check_if_transaction_accepted(src_request)) {
+        src_transactions.pop_back();
+        if(dst_exists) {
+          dst_transactions.push_back(orig_addr);
+        }
+      } else {
+        return;
+      }
+    }
+  }
+
+  bool process_pending_frame_replacement(
+    const int channel, const long reserved_row, const bool during_warmup,
+    const int old_coreid, const int new_coreid,
+    PendingFrameReplacementInfo& frame_replacement_info) {
+    assert(!pending_frame_replacement_done(frame_replacement_info));
+    const long cache_frame = gen_frame_from_reserved_row_and_nonrow_index_bits(
+      reserved_row, frame_replacement_info.nonrow_index_bits);
+    if(frame_replacement_info.orig_frame_index_valid) {
+      if(!frame_replacement_info.pending_writeback_reads.empty()) {
+        process_pending_transactions(
+          frame_replacement_info.pending_writeback_reads,
+          frame_replacement_info.pending_writeback_writes, true, cache_frame,
+          Request::Type::READ, true, old_coreid);
+      } else if(!frame_replacement_info.pending_writeback_writes.empty()) {
+        vector<long> dummy = vector<long>();
+        process_pending_transactions(
+          frame_replacement_info.pending_writeback_writes, dummy, false,
+          cache_frame, Request::Type::WRITE, false, old_coreid);
+        assert(dummy.empty());
+        if(frame_replacement_info.pending_writeback_writes.empty()) {
+          undo_frame_remapping(channel, reserved_row,
+                               frame_replacement_info.nonrow_index_bits,
+                               frame_replacement_info.orig_frame_index);
+        }
+      }
+    }
+
+    if(frame_replacement_info.new_frame_index_valid) {
+      if(!frame_replacement_info.pending_fill_reads.empty()) {
+        process_pending_transactions(frame_replacement_info.pending_fill_reads,
+                                     frame_replacement_info.pending_fill_writes,
+                                     true, cache_frame, Request::Type::READ,
+                                     false, new_coreid);
+      } else if(!frame_replacement_info.pending_fill_writes.empty()) {
+        vector<long> dummy = vector<long>();
+        process_pending_transactions(frame_replacement_info.pending_fill_writes,
+                                     dummy, false, cache_frame,
+                                     Request::Type::WRITE, true, new_coreid);
+        assert(dummy.empty());
+        if(frame_replacement_info.pending_fill_writes.empty()) {
+          remap_frame(channel, reserved_row,
+                      frame_replacement_info.nonrow_index_bits,
+                      frame_replacement_info.new_frame_index,
+                      frame_replacement_info.new_frame_new_lines_on_page_mask);
+        }
+      }
+    }
+
+    return pending_frame_replacement_done(frame_replacement_info);
+  }
+
+  bool process_single_pending_row_replacement(
+    const int channel, PendingRowReplacementInfo& row_replacement_info) {
+    assert(!row_replacement_info.pending_frame_replacements.empty());
+    bool can_pop = process_pending_frame_replacement(
+      channel, row_replacement_info.reserved_row,
+      row_replacement_info.during_warmup, row_replacement_info.old_coreid,
+      row_replacement_info.new_coreid,
+      row_replacement_info.pending_frame_replacements.back());
+    if(can_pop) {
+      row_replacement_info.pending_frame_replacements.pop_back();
+    }
+    return row_replacement_info.pending_frame_replacements.empty();
+  }
+
+  void process_pending_row_replacements(const int channel) {
+    if((remap_policy == RemapPolicy::None) ||
+       (remap_copy_time != CopyTime::Periodic))
+      return;
+
+    if(!ch_to_pending_row_replacements.at(channel).empty()) {
+      bool row_replacement_done = process_single_pending_row_replacement(
+        channel, ch_to_pending_row_replacements.at(channel).back());
+
+      if(row_replacement_done) {
+        AllocatedRowInfo allocated_row_info;
+        allocated_row_info.coreid =
+          ch_to_pending_row_replacements.at(channel).back().new_coreid;
+        allocated_row_info.reserved_row =
+          ch_to_pending_row_replacements.at(channel).back().reserved_row;
+        ch_to_allocated_row_info_in_order.at(channel).push_back(
+          allocated_row_info);
+        ch_to_pending_row_replacements.at(channel).pop_back();
+      }
+    } else {
+      assert((ch_to_free_rows.at(channel).size() +
+              ch_to_allocated_row_info_in_order.at(channel).size()) ==
+             uint(addr_remap_num_reserved_rows));
+    }
+  }
+
+  void do_periodic_remap(const int channel, const int num_rows_to_allocate,
+                         const bool during_warmup) {
+    assert(CopyTime::Periodic == remap_copy_time);
+    for(int rows_allocated = 0; rows_allocated < num_rows_to_allocate;
+        rows_allocated++) {
+      bool allocating_already_empty_row;
+      int  coreid_of_row_being_allocated = -1;
+      long row_to_allocate               = get_row_to_allocate(
+        channel, allocating_already_empty_row, coreid_of_row_being_allocated);
+      long current_row_accesses = get_current_row_accesses(
+        channel, row_to_allocate, allocating_already_empty_row);
+      double current_row_score = get_row_score(channel, current_row_accesses,
+                                               coreid_of_row_being_allocated);
+      int    required_row_channel_xor = get_row_channel_xor_from_row_addr(
+        row_to_allocate);
+
+      int                      chosen_candidate_coreid = -1;
+      unordered_map<int, long> nonrow_index_bits_to_chosen_candidate_page =
+        process_all_candidates(channel, current_row_score,
+                               chosen_candidate_coreid,
+                               required_row_channel_xor);
+
+      if(!nonrow_index_bits_to_chosen_candidate_page.empty()) {
+        finalize_row_to_allocate(channel, row_to_allocate,
+                                 coreid_of_row_being_allocated,
+                                 allocating_already_empty_row);
+
+        finalize_chosen_candidates(channel, chosen_candidate_coreid,
+                                   nonrow_index_bits_to_chosen_candidate_page);
+
+
+        PendingRowReplacementInfo pending_row_replacement =
+          create_pending_row_replacement_info(
+            channel, row_to_allocate, coreid_of_row_being_allocated,
+            chosen_candidate_coreid,
+            nonrow_index_bits_to_chosen_candidate_page);
+        pending_row_replacement.during_warmup = during_warmup;
+        ch_to_pending_row_replacements.at(channel).push_back(
+          pending_row_replacement);
+      }
+    }
+
+    clear_interval_accesses_and_candidate_infos(channel);
+    // TODO: make sure relevant stats are updated, and think about which new
+    // stats should be created
+    // TODO: think about adding other asserts
   }
 
   void check_if_threshold_satisfied(int channel, vector<long>& vec, long i,
@@ -1142,6 +1920,64 @@ class Memory : public MemoryBase {
         num_pages_stat[channel] = (i + 1);
 
         done = true;
+      }
+    }
+  }
+
+  void setup_for_remap_copy_periodic(int* sz) {
+    assert(addr_remap_num_reserved_rows > 0);
+    assert(remap_to_partitioned_rows);
+    assert(num_frames_per_row > 0);
+    for(int ch = 0; ch < sz[int(T::Level::Channel)]; ch++) {
+      ch_to_page_index_remapping[ch] =
+        unordered_map<long, std::pair<long, uint64_t>>();
+      ch_to_free_rows[ch]                         = vector<long>();
+      ch_to_allocated_row_info_in_order[ch]       = deque<AllocatedRowInfo>();
+      ch_to_core_to_interval_accesses[ch]         = unordered_map<int, long>();
+      ch_to_reserved_row_to_interval_accesses[ch] = unordered_map<long, long>();
+      ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index[ch] =
+        unordered_map<long, unordered_map<int, long>>();
+      ch_to_core_to_nonrow_index_bits_to_page_index_to_candidate_info[ch] =
+        unordered_map<
+          int, unordered_map<int, unordered_map<long, CandidatePageInfo>>>();
+      ch_to_pending_row_replacements[ch] = vector<PendingRowReplacementInfo>();
+
+      const long first_reserved_row = compute_first_reserved_row(0);
+      for(long row_i = 0; row_i < addr_remap_num_reserved_rows; row_i++) {
+        const long reserved_row = first_reserved_row + row_i;
+        ch_to_free_rows[ch].push_back(reserved_row);
+        ch_to_reserved_row_to_interval_accesses[ch][reserved_row] = 0;
+        ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
+          [ch][reserved_row] = unordered_map<int, long>();
+      }
+      for(int core = 0; core < num_cores; core++) {
+        ch_to_core_to_interval_accesses[ch][core] = 0;
+        ch_to_core_to_nonrow_index_bits_to_page_index_to_candidate_info
+          [ch][core] =
+            unordered_map<int, unordered_map<long, CandidatePageInfo>>();
+        for(int nonrow_index = 0; nonrow_index < num_frames_per_row;
+            nonrow_index++) {
+          ch_to_core_to_nonrow_index_bits_to_page_index_to_candidate_info
+            [ch][core][nonrow_index] = unordered_map<long, CandidatePageInfo>();
+        }
+      }
+    }
+  }
+
+  void setup_for_remap_copy_whenever(int* sz) {
+    for(int ch = 0; ch < sz[int(T::Level::Channel)]; ch++) {
+      if(remap_to_partitioned_rows) {
+        for(int core = 0; core < num_cores; core++) {
+          const long first_reserved_row = compute_first_reserved_row(core);
+          core_to_ch_to_oldest_unfilled_row[core][ch] = first_reserved_row;
+          core_to_ch_to_newest_unfilled_row[core][ch] = first_reserved_row;
+          populate_frames_freelist_for_ch_row(ch, first_reserved_row, core);
+        }
+      } else {
+        const long first_reserved_row        = compute_first_reserved_row(0);
+        global_ch_to_oldest_unfilled_row[ch] = first_reserved_row;
+        global_ch_to_newest_unfilled_row[ch] = first_reserved_row;
+        populate_frames_freelist_for_ch_row(ch, first_reserved_row, 0);
       }
     }
   }
@@ -1219,7 +2055,7 @@ class Memory : public MemoryBase {
       }
     }
   }
-};
+};  // namespace ramulator
 
 template <>
 void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,

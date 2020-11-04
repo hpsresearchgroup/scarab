@@ -87,9 +87,13 @@ class Config {
     {"addr_remap_policy", "None"},
     {"addr_remap_copy_mode", "Real"},
     {"addr_remap_copy_granularity", "Line"},
+    {"addr_remap_copy_time", "Whenever"},
+    {"addr_remap_periodic_copy_select_policy", "CoreAccessFrac"},
     {"addr_remap_page_access_threshold", "-1"},
     {"addr_remap_page_reuse_threshold", "-1"},
     {"addr_remap_max_per_core_limit_mb", "-1"},
+    {"addr_remap_num_reserved_rows", "-1"},
+    {"addr_remap_dram_cycles_between_periodic_copy", "-1"},
     {"addr_remap_to_partitioned_rows", "off"}};
 
   template <typename T>

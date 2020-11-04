@@ -44,6 +44,7 @@
 #include "op_pool.h"
 #include "prefetcher/pref.param.h"
 #include "prefetcher/pref_common.h"
+#include "ramulator.h"
 #include "sim.h"
 #include "statistics.h"
 
@@ -371,19 +372,23 @@ void warmup_uncore(uns proc_id, Addr addr, Flag write) {
   } else {  // miss
     Addr repl_line_addr;
     Flag repl_line_valid;
-    get_next_repl_line(l1_cache, proc_id, addr, &repl_line_addr,
-                       &repl_line_valid);
+    l1_data = get_next_repl_line(l1_cache, proc_id, addr, &repl_line_addr,
+                                 &repl_line_valid);
     STAT_EVENT(proc_id, NORESET_L1_FILL);
     STAT_EVENT(proc_id, NORESET_L1_FILL_NONPREF);
     if(repl_line_valid) {
       uns repl_proc_id = get_proc_id_from_cmp_addr(repl_line_addr);
       STAT_EVENT(repl_proc_id, NORESET_L1_EVICT);
       STAT_EVENT(repl_proc_id, NORESET_L1_EVICT_NONPREF);
+      if(l1_data->dirty)
+        warmup_llc_miss(proc_id, repl_line_addr, TRUE);
     }
     l1_data = (L1_Data*)cache_insert(l1_cache, proc_id, addr, &dummy_line_addr,
                                      &repl_line_addr);
     l1_data->proc_id = proc_id;
     l1_data->dirty   = write;
+
+    warmup_llc_miss(proc_id, addr, FALSE);
   }
   if(L1_PART_SHADOW_WARMUP)
     cache_part_l1_warmup(proc_id, addr);

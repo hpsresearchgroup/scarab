@@ -79,6 +79,10 @@ bool ScarabWrapper::send(Request& req) {
   return mem->send(req);
 }
 
+void ScarabWrapper::warmup_process_req(Request& req) {
+  mem->warmup_process_req(req);
+}
+
 void ScarabWrapper::finish(void) {
   mem->finish();
   Stats::statlist.printall();

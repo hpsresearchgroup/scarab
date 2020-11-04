@@ -35,15 +35,6 @@ template <>
 void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
                                                        const long row,
                                                        const int  coreid) {
-  const int row_start_pos = addr_bits_start_pos[int(DDR4::Level::Row)];
-  assert(0 != row_start_pos);
-  assert(0 != tx_bits);
-
-  const int frame_index_start_pos   = os_page_offset_bits - tx_bits;
-  const int log2_num_frames_per_row = row_start_pos - frame_index_start_pos;
-  assert(log2_num_frames_per_row > 0);
-  const int num_frames_per_row = (1 << log2_num_frames_per_row);
-
   if(0 == ch_to_row_to_ch_freebits_parity_to_avail_frames.count(channel)) {
     ch_to_row_to_ch_freebits_parity_to_avail_frames[channel] =
       unordered_map<long, unordered_map<int, vector<long>>>();
@@ -75,7 +66,7 @@ void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
     if(-1 == xored_row_addr)
       xored_row_addr = addr_vec[int(DDR4::Level::Row)];
     assert(addr_vec[int(DDR4::Level::Row)] == xored_row_addr);
-    assert_remapped_addr_proc_id(addr, coreid);
+    assert_coreid_in_remapped_addr(addr, coreid);
     assert(channel_parity == addr_vec[int(DDR4::Level::Channel)]);
   }
   num_reserved_rows_allocated_by_ch[channel]++;
@@ -144,12 +135,14 @@ void Memory<DDR4>::set_skylakeddr4_addr_vec(vector<int>& addr_vec, long addr) {
          ch_start_pos + 10, ch_start_pos + 11});
       assert(frame_index_channel_xor_bits_pos.empty());
 
-      int row_start_pos = addr_bits_start_pos[int(DDR4::Level::Row)];
-      assert(row_start_pos >= 0);
-      int frame_index_start_pos = os_page_offset_bits - tx_bits;
+      int local_row_start_pos = addr_bits_start_pos[int(DDR4::Level::Row)];
+      assert(local_row_start_pos >= 0);
       for(auto channel_xor_bit_pos : channel_xor_bits_pos) {
         if(channel_xor_bit_pos >= frame_index_start_pos) {
           frame_index_channel_xor_bits_pos.push_back(channel_xor_bit_pos);
+        }
+        if(channel_xor_bit_pos >= local_row_start_pos) {
+          row_channel_xor_bits_pos.push_back(channel_xor_bit_pos);
         }
       }
     }

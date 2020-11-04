@@ -42,6 +42,7 @@ EXTERNC void ramulator_init();
 EXTERNC void ramulator_finish();
 
 EXTERNC int  ramulator_send(Mem_Req* scarab_req);
+EXTERNC void warmup_llc_miss(uns proc_id, Addr addr, Flag is_writeback);
 EXTERNC void ramulator_tick();
 
 EXTERNC int ramulator_get_chip_width();
