@@ -893,10 +893,10 @@ void power_print_mc_params(std::ofstream& out) {
    * parameters of memory controller. Improvments on MC will be added in later
    * versions.*/
   ADD_XML_PARAM(out, header, "type", 0, "1: low power; 0 high performance");
-  ADD_XML_PARAM(out, header, "mc_clock", MEMORY_FREQ_IN_MHZ,
+  ADD_XML_PARAM(out, header, "mc_clock", uint64_t(MEMORY_FREQ_IN_MHZ),
                 "McPat: DIMM IO bus clock rate MHz");
   ADD_XML_PARAM(out, header, "peak_transfer_rate",
-                MEMORY_PEAK_RATE_IN_MB_PER_SEC, "MB/S");
+                uint64_t(MEMORY_PEAK_RATE_IN_MB_PER_SEC), "MB/S");
 
   ADD_XML_PARAM(out, header, "block_size", 64, "Bytes");
 
