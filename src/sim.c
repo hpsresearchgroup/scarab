@@ -61,6 +61,7 @@
 #include "core.param.h"
 #include "debug/debug.param.h"
 #include "general.param.h"
+#include "ramulator.param.h"
 
 #include "ramulator.h"
 
@@ -122,6 +123,7 @@ static void init_model(uns mode);
 static void init_output_streams(void);
 static void process_params(void);
 static void reset_uop_mode_counters(void);
+static void perform_periodic_copy_if_necessary(const uns proc_id);
 
 static inline void    check_heartbeat(uns8 proc_id, Flag final);
 static inline Counter check_forward_progress(uns8 proc_id);
@@ -514,6 +516,23 @@ static inline void print_bogus_sim_param(uns8 proc_id) {
           cycle_count - sim_done_last_cycle_count[proc_id], ipc);
 }
 
+static void perform_periodic_copy_if_necessary(const uns proc_id) {
+  ASSERT(0, RAMULATOR_ADDR_REMAP_INSTS_BETWEEN_WARMUP_PERIODIC_COPY > 0);
+  ASSERT(0, WARMUP >= RAMULATOR_ADDR_REMAP_INSTS_BETWEEN_WARMUP_PERIODIC_COPY);
+  ASSERT(0, RAMULATOR_ADDR_REMAP_NUM_RESERVED_ROWS > 0);
+  if(0 == (inst_count[proc_id] %
+           RAMULATOR_ADDR_REMAP_INSTS_BETWEEN_WARMUP_PERIODIC_COPY)) {
+    const long num_periodic_copie_expected =
+      WARMUP / RAMULATOR_ADDR_REMAP_INSTS_BETWEEN_WARMUP_PERIODIC_COPY;
+    const int num_rows_to_copy_at_a_time =
+      RAMULATOR_ADDR_REMAP_NUM_RESERVED_ROWS / num_periodic_copie_expected;
+
+    if(num_rows_to_copy_at_a_time > 0) {
+      warmup_do_periodic_copy(num_rows_to_copy_at_a_time);
+    }
+  }
+}
+
 /**************************************************************************************/
 /* uop_sim: This is the main loop for running in uop level simulation mode.*/
 
@@ -568,6 +587,11 @@ void uop_sim() {
           switch(operating_mode) {
             case WARMUP_MODE:
               model->warmup_func(&op);
+              if((-1 !=
+                  RAMULATOR_ADDR_REMAP_INSTS_BETWEEN_WARMUP_PERIODIC_COPY) &&
+                 op.eom && ((NUM_CORES - 1) == proc_id)) {
+                perform_periodic_copy_if_necessary(proc_id);
+              }
               break;
             case SIMULATION_MODE:
               if(!sim_done[proc_id]) {

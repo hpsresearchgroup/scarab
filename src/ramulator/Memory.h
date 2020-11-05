@@ -126,6 +126,7 @@ class Memory : public MemoryBase {
   VectorStat num_copy_writes_by_ch;
 
   VectorStat num_reserved_pages_allocated_by_core;
+  VectorStat num_reserved_rows_allocated_by_core;
 
 #ifndef INTEGRATED_WITH_GEM5
   VectorStat record_read_requests;
@@ -348,6 +349,9 @@ class Memory : public MemoryBase {
     num_reserved_rows_allocated_by_ch.init(sz[int(T::Level::Channel)])
       .name("num_reserved_rows_allocated_by_ch")
       .desc("How many total reserved rows were allocated");
+    num_reserved_rows_allocated_by_core.init(num_cores)
+      .name("num_reserved_rows_allocated_by_core")
+      .desc("How many total reserved rows were allocated per core");
     num_accesses_to_reserved_rows_by_ch.init(sz[int(T::Level::Channel)])
       .name("num_accesses_to_reserved_rows_by_ch")
       .desc("How many accesses were there to reserved rows");
@@ -486,7 +490,20 @@ class Memory : public MemoryBase {
     }
   }
 
+  void copy_warmup_rows_pages_allocated_per_core() {
+    for(int coreid = 0; coreid < num_cores; coreid++) {
+      stats_callback(int(StatCallbackType::ROW_ALLOCATED), coreid,
+                     num_reserved_rows_allocated_by_core[coreid].value());
+      stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid,
+                     num_reserved_pages_allocated_by_core[coreid].value());
+    }
+  }
+
   bool send(Request& req) {
+    if(!has_copied_warmup_stats_yet) {
+      copy_warmup_rows_pages_allocated_per_core();
+      has_copied_warmup_stats_yet = true;
+    }
     compute_req_addr(req);
     return enqueue_req_to_ctrl(req, req.coreid);
   }
@@ -503,8 +520,14 @@ class Memory : public MemoryBase {
   }
 
   void warmup_perform_periodic_copy(const int num_rows_to_remap) {
-    for(size_t ch = 0; ch < ctrls.size(); ch++) {
-      do_periodic_remap(ch, num_rows_to_remap, true);
+    if((remap_policy != RemapPolicy::None) &&
+       (CopyTime::Periodic == remap_copy_time)) {
+      for(size_t ch = 0; ch < ctrls.size(); ch++) {
+        do_periodic_remap(ch, num_rows_to_remap, true);
+        while(!ch_to_pending_row_replacements.at(ch).empty()) {
+          process_pending_row_replacements(ch);
+        }
+      }
     }
   }
 
@@ -683,12 +706,13 @@ class Memory : public MemoryBase {
   unordered_map<int, unordered_map<long, std::pair<long, uint64_t>>>
     ch_to_page_index_remapping;
 
-  int row_start_pos                                = -1;
-  int frame_index_start_pos                        = -1;
-  int log2_num_frames_per_row                      = -1;
-  int num_frames_per_row                           = -1;
-  int addr_remap_num_reserved_rows                 = -1;
-  int addr_remap_dram_cycles_between_periodic_copy = -1;
+  bool has_copied_warmup_stats_yet                  = false;
+  int  row_start_pos                                = -1;
+  int  frame_index_start_pos                        = -1;
+  int  log2_num_frames_per_row                      = -1;
+  int  num_frames_per_row                           = -1;
+  int  addr_remap_num_reserved_rows                 = -1;
+  int  addr_remap_dram_cycles_between_periodic_copy = -1;
   struct AllocatedRowInfo {
     int  coreid;
     long reserved_row;
@@ -740,7 +764,7 @@ class Memory : public MemoryBase {
       if(req.type == Request::Type::READ) {
         ++num_read_requests[coreid];
         ++incoming_read_reqs_per_channel[channel];
-        if(req.is_remapped) {
+        if(req.is_remapped && !req.is_copy) {
           ++num_reads_to_reserved_rows_by_ch[channel];
           stats_callback(int(StatCallbackType::REMAPPED_DATA_ACCESS),
                          req.coreid, 0);
@@ -748,7 +772,7 @@ class Memory : public MemoryBase {
       }
       if(req.type == Request::Type::WRITE) {
         ++num_write_requests[coreid];
-        if(req.is_remapped) {
+        if(req.is_remapped && !req.is_copy) {
           ++num_writes_to_reserved_rows_by_ch[channel];
           stats_callback(int(StatCallbackType::REMAPPED_DATA_ACCESS),
                          req.coreid, 0);
@@ -1083,7 +1107,7 @@ class Memory : public MemoryBase {
       new_frame_index, 0);
     num_reserved_pages_allocated_by_ch[channel]++;
     num_reserved_pages_allocated_by_core[coreid]++;
-    stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid, 0);
+    stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid, 1);
   }
 
   void remap_and_copy_whenever(const int channel, const long frame_index,
@@ -1388,38 +1412,38 @@ class Memory : public MemoryBase {
   long get_row_to_allocate(const int channel,
                            bool&     allocating_already_empty_row,
                            int&      coreid_of_row_to_be_allocated) {
-    long                row_to_allocate;
-    const vector<long>& free_rows = ch_to_free_rows.at(channel);
+    long          row_to_allocate;
+    vector<long>& free_rows = ch_to_free_rows.at(channel);
     if(free_rows.empty()) {
-      const deque<AllocatedRowInfo>& allocated_rows =
+      deque<AllocatedRowInfo>& allocated_rows =
         ch_to_allocated_row_info_in_order.at(channel);
       assert(!allocated_rows.empty());
       row_to_allocate               = allocated_rows.front().reserved_row;
       coreid_of_row_to_be_allocated = allocated_rows.front().coreid;
-      assert((coreid_of_row_to_be_allocated > 0) &&
-             (coreid_of_row_to_be_allocated < num_cores));
+      assert(valid_core_id(coreid_of_row_to_be_allocated));
       allocating_already_empty_row = false;
+      allocated_rows.pop_front();
     } else {
       row_to_allocate              = free_rows.back();
       allocating_already_empty_row = true;
+      free_rows.pop_back();
     }
 
     return row_to_allocate;
   }
 
-  void finalize_row_to_allocate(const int channel, const long row_to_allocate,
-                                const int  coreid_of_row_being_allocated,
-                                const bool allocating_already_empty_row) {
+  void reinsert_unreallocated_row(const int  channel,
+                                  const long row_being_allocated,
+                                  const int  coreid_of_row_being_replaced,
+                                  const bool allocating_already_empty_row) {
     if(allocating_already_empty_row) {
-      assert(row_to_allocate == ch_to_free_rows.at(channel).back());
-      ch_to_free_rows.at(channel).pop_back();
+      ch_to_free_rows.at(channel).push_back(row_being_allocated);
     } else {
-      assert(
-        row_to_allocate ==
-        ch_to_allocated_row_info_in_order.at(channel).front().reserved_row);
-      assert(coreid_of_row_being_allocated ==
-             ch_to_allocated_row_info_in_order.at(channel).front().coreid);
-      ch_to_allocated_row_info_in_order.at(channel).pop_front();
+      AllocatedRowInfo allocated_row_info;
+      allocated_row_info.reserved_row = row_being_allocated;
+      allocated_row_info.coreid       = coreid_of_row_being_replaced;
+      ch_to_allocated_row_info_in_order.at(channel).push_back(
+        allocated_row_info);
     }
   }
 
@@ -1443,6 +1467,42 @@ class Memory : public MemoryBase {
           .count(chosen_candidate_page));
       nonrow_index_bits_to_page_index_to_candidate_info.at(nonrow_index_bits)
         .erase(chosen_candidate_page);
+    }
+  }
+
+  void update_num_reserved_pages_stat(const int channel, const int coreid,
+                                      const size_t delta,
+                                      const bool   subtracting) {
+    assert(delta > 0);
+    assert(delta <= size_t(num_frames_per_row));
+    assert(coreid != -1);
+
+    if(subtracting) {
+      num_reserved_pages_allocated_by_ch[channel] -= delta;
+      assert(num_reserved_pages_allocated_by_ch[channel].value() >= 0);
+      num_reserved_pages_allocated_by_core[coreid] -= delta;
+      assert(num_reserved_pages_allocated_by_core[coreid].value() >= 0);
+      stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid, -delta);
+    } else {
+      const long max_possible_pages_allocated = addr_remap_num_reserved_rows *
+                                                num_frames_per_row;
+      num_reserved_pages_allocated_by_ch[channel] += delta;
+      assert(num_reserved_pages_allocated_by_ch[channel].value() <=
+             max_possible_pages_allocated);
+      num_reserved_pages_allocated_by_core[coreid] += delta;
+      assert(num_reserved_pages_allocated_by_core[coreid].value() <=
+             max_possible_pages_allocated);
+      stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid, delta);
+    }
+  }
+
+  void update_num_reserved_rows_stat(const int coreid, const bool subtracting) {
+    if(subtracting) {
+      num_reserved_rows_allocated_by_core[coreid]--;
+      stats_callback(int(StatCallbackType::ROW_ALLOCATED), coreid, -1);
+    } else {
+      num_reserved_rows_allocated_by_core[coreid]++;
+      stats_callback(int(StatCallbackType::ROW_ALLOCATED), coreid, 1);
     }
   }
 
@@ -1470,11 +1530,13 @@ class Memory : public MemoryBase {
 
         const int row_channel_xor_for_page =
           get_row_channel_xor_from_frame_index(page);
-        if(row_channel_xor_bits_pos.empty() ||
-           (row_channel_xor_for_page == required_row_channel_xor)) {
-          if(accesses > most_accesses_so_far) {
-            most_accesses_so_far           = accesses;
-            page_with_most_accesses_so_far = page;
+        if(0 == ch_to_page_index_remapping.at(channel).count(page)) {
+          if(row_channel_xor_bits_pos.empty() ||
+             (row_channel_xor_for_page == required_row_channel_xor)) {
+            if(accesses > most_accesses_so_far) {
+              most_accesses_so_far           = accesses;
+              page_with_most_accesses_so_far = page;
+            }
           }
         }
       }
@@ -1598,9 +1660,13 @@ class Memory : public MemoryBase {
     return pending_row_replacement_info;
   }
 
+  bool valid_core_id(const int core_id) {
+    return ((core_id >= 0) && (core_id < num_cores));
+  }
+
   unordered_map<int, long> process_all_candidates(
     const int channel, const double current_row_score, int& core_selected,
-    const int required_row_channel_xor) {
+    const int required_row_channel_xor, bool& candidates_available) {
     core_selected = -1;
     vector<unordered_map<int, long>> all_cores_chosen_pages =
       vector<unordered_map<int, long>>(num_cores);
@@ -1610,15 +1676,20 @@ class Memory : public MemoryBase {
       all_cores_chosen_pages[core] = unordered_map<int, long>();
       long total_accesses          = get_candidate_row_accesses_for_core(
         channel, core, all_cores_chosen_pages[core], required_row_channel_xor);
+      if(total_accesses > 0)
+        candidates_available = true;
       double candidate_row_score = get_row_score(channel, total_accesses, core);
-      if((candidate_row_score > current_row_score) &&
-         (candidate_row_score > best_candidate_score_so_far)) {
+      if(candidate_row_score > best_candidate_score_so_far) {
         best_candidate_score_so_far = candidate_row_score;
         core_selected               = core;
       }
     }
 
-    if(-1 != core_selected)
+    if(candidates_available) {
+      assert(valid_core_id(core_selected));
+    }
+
+    if(best_candidate_score_so_far > current_row_score)
       return all_cores_chosen_pages[core_selected];
     else
       return unordered_map<int, long>();
@@ -1748,15 +1819,34 @@ class Memory : public MemoryBase {
     }
   }
 
+  void update_copy_read_write_stats(const int channel, const int coreid,
+                                    const Request::Type type) {
+    if(Request::Type::READ == type) {
+      num_copy_reads_by_ch[channel]++;
+      stats_callback(int(StatCallbackType::PAGE_REMAPPING_COPY_READ), coreid,
+                     1);
+    } else if(Request::Type::WRITE == type) {
+      num_copy_writes_by_ch[channel]++;
+      stats_callback(int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE), coreid,
+                     1);
+    } else {
+      assert(false);
+    }
+  }
+
   void process_pending_transactions(
-    vector<long>& src_transactions, vector<long>& dst_transactions,
-    const bool dst_exists, const long cache_frame, const Request::Type src_type,
+    const int channel, const bool during_warmup, vector<long>& src_transactions,
+    vector<long>& dst_transactions, const bool dst_exists,
+    const long cache_frame, const Request::Type src_type,
     const bool map_src_to_cache_frame, const int src_coreid) {
     while(!src_transactions.empty()) {
-      const long orig_addr   = src_transactions.back();
-      Request    src_request = gen_copy_request(
+      const long orig_addr = src_transactions.back();
+      assert(get_coreid_from_addr(orig_addr) == src_coreid);
+      Request src_request = gen_copy_request(
         orig_addr, cache_frame, map_src_to_cache_frame, src_coreid, src_type);
-      if(check_if_transaction_accepted(src_request)) {
+      assert(channel == src_request.addr_vec[int(T::Level::Channel)]);
+      if(during_warmup || check_if_transaction_accepted(src_request)) {
+        update_copy_read_write_stats(channel, src_coreid, src_type);
         src_transactions.pop_back();
         if(dst_exists) {
           dst_transactions.push_back(orig_addr);
@@ -1777,12 +1867,14 @@ class Memory : public MemoryBase {
     if(frame_replacement_info.orig_frame_index_valid) {
       if(!frame_replacement_info.pending_writeback_reads.empty()) {
         process_pending_transactions(
+          channel, during_warmup,
           frame_replacement_info.pending_writeback_reads,
           frame_replacement_info.pending_writeback_writes, true, cache_frame,
           Request::Type::READ, true, old_coreid);
       } else if(!frame_replacement_info.pending_writeback_writes.empty()) {
         vector<long> dummy = vector<long>();
         process_pending_transactions(
+          channel, during_warmup,
           frame_replacement_info.pending_writeback_writes, dummy, false,
           cache_frame, Request::Type::WRITE, false, old_coreid);
         assert(dummy.empty());
@@ -1796,15 +1888,15 @@ class Memory : public MemoryBase {
 
     if(frame_replacement_info.new_frame_index_valid) {
       if(!frame_replacement_info.pending_fill_reads.empty()) {
-        process_pending_transactions(frame_replacement_info.pending_fill_reads,
-                                     frame_replacement_info.pending_fill_writes,
-                                     true, cache_frame, Request::Type::READ,
-                                     false, new_coreid);
+        process_pending_transactions(
+          channel, during_warmup, frame_replacement_info.pending_fill_reads,
+          frame_replacement_info.pending_fill_writes, true, cache_frame,
+          Request::Type::READ, false, new_coreid);
       } else if(!frame_replacement_info.pending_fill_writes.empty()) {
         vector<long> dummy = vector<long>();
-        process_pending_transactions(frame_replacement_info.pending_fill_writes,
-                                     dummy, false, cache_frame,
-                                     Request::Type::WRITE, true, new_coreid);
+        process_pending_transactions(
+          channel, during_warmup, frame_replacement_info.pending_fill_writes,
+          dummy, false, cache_frame, Request::Type::WRITE, true, new_coreid);
         assert(dummy.empty());
         if(frame_replacement_info.pending_fill_writes.empty()) {
           remap_frame(channel, reserved_row,
@@ -1864,39 +1956,80 @@ class Memory : public MemoryBase {
     for(int rows_allocated = 0; rows_allocated < num_rows_to_allocate;
         rows_allocated++) {
       bool allocating_already_empty_row;
-      int  coreid_of_row_being_allocated = -1;
-      long row_to_allocate               = get_row_to_allocate(
-        channel, allocating_already_empty_row, coreid_of_row_being_allocated);
+      int  coreid_of_row_being_replaced = -1;
+      long row_to_allocate              = get_row_to_allocate(
+        channel, allocating_already_empty_row, coreid_of_row_being_replaced);
       long current_row_accesses = get_current_row_accesses(
         channel, row_to_allocate, allocating_already_empty_row);
       double current_row_score = get_row_score(channel, current_row_accesses,
-                                               coreid_of_row_being_allocated);
+                                               coreid_of_row_being_replaced);
       int    required_row_channel_xor = get_row_channel_xor_from_row_addr(
         row_to_allocate);
 
       int                      chosen_candidate_coreid = -1;
+      bool                     candidates_available    = false;
       unordered_map<int, long> nonrow_index_bits_to_chosen_candidate_page =
         process_all_candidates(channel, current_row_score,
                                chosen_candidate_coreid,
-                               required_row_channel_xor);
+                               required_row_channel_xor, candidates_available);
 
       if(!nonrow_index_bits_to_chosen_candidate_page.empty()) {
-        finalize_row_to_allocate(channel, row_to_allocate,
-                                 coreid_of_row_being_allocated,
-                                 allocating_already_empty_row);
-
         finalize_chosen_candidates(channel, chosen_candidate_coreid,
                                    nonrow_index_bits_to_chosen_candidate_page);
+        const int new_row_occupancy_bin =
+          nonrow_index_bits_to_chosen_candidate_page.size() * 20 /
+          num_frames_per_row;
 
+        if(!allocating_already_empty_row) {
+          const size_t num_pages_writing_back =
+            ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
+              .at(channel)
+              .at(row_to_allocate)
+              .size();
+          update_num_reserved_pages_stat(channel, coreid_of_row_being_replaced,
+                                         num_pages_writing_back, true);
+          update_num_reserved_rows_stat(coreid_of_row_being_replaced, true);
+          stats_callback(
+            int(StatCallbackType::PERIODIC_COPY_REALLOCATED_OCCUPIED_ROW),
+            chosen_candidate_coreid, new_row_occupancy_bin);
+        } else {
+          num_reserved_rows_allocated_by_ch[channel]++;
+          assert(num_reserved_rows_allocated_by_ch[channel].value() <=
+                 addr_remap_num_reserved_rows);
+          stats_callback(
+            int(StatCallbackType::PERIODIC_COPY_ALLOCATED_FREE_ROW),
+            chosen_candidate_coreid, new_row_occupancy_bin);
+        }
+
+        const size_t num_pages_filling =
+          nonrow_index_bits_to_chosen_candidate_page.size();
+        update_num_reserved_pages_stat(channel, chosen_candidate_coreid,
+                                       num_pages_filling, false);
+        update_num_reserved_rows_stat(chosen_candidate_coreid, false);
 
         PendingRowReplacementInfo pending_row_replacement =
           create_pending_row_replacement_info(
-            channel, row_to_allocate, coreid_of_row_being_allocated,
+            channel, row_to_allocate, coreid_of_row_being_replaced,
             chosen_candidate_coreid,
             nonrow_index_bits_to_chosen_candidate_page);
         pending_row_replacement.during_warmup = during_warmup;
         ch_to_pending_row_replacements.at(channel).push_back(
           pending_row_replacement);
+      } else {
+        if(candidates_available) {
+          assert(valid_core_id(chosen_candidate_coreid));
+          stats_callback(
+            int(StatCallbackType::PERIODIC_COPY_NO_CHANGE_CANDIDATE_SCORE_LOW),
+            chosen_candidate_coreid, 0);
+        } else {
+          stats_callback(
+            int(StatCallbackType::PERIODIC_COPY_NO_CHANGE_CANDIDATE_SCORE_ZERO),
+            0, 0);
+        }
+
+        reinsert_unreallocated_row(channel, row_to_allocate,
+                                   coreid_of_row_being_replaced,
+                                   allocating_already_empty_row);
       }
     }
 

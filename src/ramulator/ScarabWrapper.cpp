@@ -83,6 +83,10 @@ void ScarabWrapper::warmup_process_req(Request& req) {
   mem->warmup_process_req(req);
 }
 
+void ScarabWrapper::warmup_perform_periodic_copy(const int num_rows_to_remap) {
+  mem->warmup_perform_periodic_copy(num_rows_to_remap);
+}
+
 void ScarabWrapper::finish(void) {
   mem->finish();
   Stats::statlist.printall();

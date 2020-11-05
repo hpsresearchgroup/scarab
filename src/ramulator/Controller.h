@@ -351,7 +351,8 @@ class Controller {
           read_latency_sum += req.depart - req.arrive;
           channel->update_serving_requests(req.addr_vec.data(), -1, clk);
         }
-        req.callback(req);
+        if(!req.is_copy)
+          req.callback(req);
         pending.pop_front();
       }
     }

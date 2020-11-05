@@ -100,6 +100,27 @@ uns get_point_in_sim_bucket(uns proc_id) {
   return point_in_sim_bucket;
 }
 
+void stat_periodic_copy_row_occupancy(const uns proc_id,
+                                      const int occupancy_bucket_index) {
+  assert(ALL_CORES_PERIODIC_COPY_ALLOCATED_ROW_OCCUPANCY_0_5_EXCL +
+           MIN2(occupancy_bucket_index, 19) >=
+         ALL_CORES_PERIODIC_COPY_ALLOCATED_ROW_OCCUPANCY_0_5_EXCL);
+  assert(ALL_CORES_PERIODIC_COPY_ALLOCATED_ROW_OCCUPANCY_0_5_EXCL +
+           MIN2(occupancy_bucket_index, 19) <=
+         ALL_CORES_PERIODIC_COPY_ALLOCATED_ROW_OCCUPANCY_95_100_INCL);
+  STAT_EVENT_ALL(ALL_CORES_PERIODIC_COPY_ALLOCATED_ROW_OCCUPANCY_0_5_EXCL +
+                 MIN2(occupancy_bucket_index, 19));
+
+  assert(PER_CORE_PERIODIC_COPY_ALLOCATED_ROW_OCCUPANCY_0_5_EXCL +
+           MIN2(occupancy_bucket_index, 19) >=
+         PER_CORE_PERIODIC_COPY_ALLOCATED_ROW_OCCUPANCY_0_5_EXCL);
+  assert(PER_CORE_PERIODIC_COPY_ALLOCATED_ROW_OCCUPANCY_0_5_EXCL +
+           MIN2(occupancy_bucket_index, 19) <=
+         PER_CORE_PERIODIC_COPY_ALLOCATED_ROW_OCCUPANCY_95_100_INCL);
+  STAT_EVENT(proc_id, PER_CORE_PERIODIC_COPY_ALLOCATED_ROW_OCCUPANCY_0_5_EXCL +
+                        MIN2(occupancy_bucket_index, 19));
+}
+
 void stats_callback(int type, uns proc_id, int bucket_index) {
   int stat_index;
 
@@ -219,8 +240,19 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
     }
 
     case int(StatCallbackType::PAGE_REMAPPED):
-      STAT_EVENT_ALL(ALL_CORES_PAGE_REMAPPED);
-      STAT_EVENT(proc_id, PER_CORE_PAGE_REMAPPED);
+      INC_STAT_EVENT_ALL(ALL_CORES_PAGE_REMAPPED, bucket_index);
+      INC_STAT_EVENT(proc_id, PER_CORE_PAGE_REMAPPED, bucket_index);
+      break;
+
+    case int(StatCallbackType::PAGE_REMAPPING_COPY_READ):
+      // using bucket_index to convey how many copies reads were performed
+      // for Free Page copies, might copy multiple lines at a time
+      INC_STAT_EVENT_ALL(ALL_CORES_REMAP_COPY_READ, bucket_index);
+      INC_STAT_EVENT(proc_id, PER_CORE_REMAP_COPY_READ, bucket_index);
+
+      STAT_EVENT(proc_id, PER_CORE_REMAP_COPY_READ_POINT_IN_SIM_0_9 +
+                            MIN2(point_in_sim_bucket, 10));
+
       break;
 
     case int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE):
@@ -254,8 +286,36 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
       break;
 
     case int(StatCallbackType::ROW_ALLOCATED):
-      STAT_EVENT_ALL(ALL_CORES_ROWS_ALLOCATED);
-      STAT_EVENT(proc_id, PER_CORE_ROWS_ALLOCATED);
+      INC_STAT_EVENT_ALL(ALL_CORES_ROWS_ALLOCATED, bucket_index);
+      INC_STAT_EVENT(proc_id, PER_CORE_ROWS_ALLOCATED, bucket_index);
+      break;
+
+    case int(StatCallbackType::PERIODIC_COPY_ALLOCATED_FREE_ROW):
+      STAT_EVENT_ALL(ALL_CORES_PERIODIC_COPY_RESULT_ALLOCATED_FREE_ROW);
+      STAT_EVENT(proc_id, PER_CORE_PERIODIC_COPY_RESULT_ALLOCATED_FREE_ROW);
+
+      stat_periodic_copy_row_occupancy(proc_id, bucket_index);
+      break;
+
+    case int(StatCallbackType::PERIODIC_COPY_REALLOCATED_OCCUPIED_ROW):
+      STAT_EVENT_ALL(ALL_CORES_PERIODIC_COPY_RESULT_REALLOCATED_OCCUPIED_ROW);
+      STAT_EVENT(proc_id,
+                 PER_CORE_PERIODIC_COPY_RESULT_REALLOCATED_OCCUPIED_ROW);
+
+      stat_periodic_copy_row_occupancy(proc_id, bucket_index);
+      break;
+
+    case int(StatCallbackType::PERIODIC_COPY_NO_CHANGE_CANDIDATE_SCORE_LOW):
+      STAT_EVENT_ALL(
+        ALL_CORES_PERIODIC_COPY_RESULT_NO_CHANGE_CANDIDATE_SCORE_LOW);
+      STAT_EVENT(proc_id,
+                 PER_CORE_PERIODIC_COPY_RESULT_NO_CHANGE_CANDIDATE_SCORE_LOW);
+      break;
+
+    case int(StatCallbackType::PERIODIC_COPY_NO_CHANGE_CANDIDATE_SCORE_ZERO):
+      STAT_EVENT_ALL(
+        ALL_CORES_PERIODIC_COPY_RESULT_NO_CHANGE_CANDIDATE_SCORE_ZERO);
+
       break;
 
     default:
@@ -415,6 +475,10 @@ void warmup_llc_miss(uns proc_id, Addr addr, Flag is_writeback) {
   Request req;
   to_ramulator_req(&scarab_req, &req);
   wrapper->warmup_process_req(req);
+}
+
+void warmup_do_periodic_copy(const int num_rows_to_remap) {
+  wrapper->warmup_perform_periodic_copy(num_rows_to_remap);
 }
 
 void enqueue_response(Request& req) {

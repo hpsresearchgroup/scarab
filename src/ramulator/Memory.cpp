@@ -70,7 +70,8 @@ void Memory<DDR4>::populate_frames_freelist_for_ch_row(const int  channel,
     assert(channel_parity == addr_vec[int(DDR4::Level::Channel)]);
   }
   num_reserved_rows_allocated_by_ch[channel]++;
-  stats_callback(int(StatCallbackType::ROW_ALLOCATED), coreid, 0);
+  num_reserved_rows_allocated_by_core[coreid]++;
+  stats_callback(int(StatCallbackType::ROW_ALLOCATED), coreid, 1);
 }
 
 template <>
