@@ -329,7 +329,6 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
                 "0 PHYREG based, 1 RSBASED. McPAT support 2 types of OoO "
                 "cores, RS based and physical reg based.");
 
-  // TODO: make sure int rs and fp rs are overlapping
   // FIXME: based on my current understanding, McPat considers both anyway. So,
   // if we use a unified RS for both int and fp, then with current setting,
   // McPat is going to consider the power twice
@@ -549,7 +548,7 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
    * <param name="global_predictor" value="4096,2"/>
    * <param name="predictor_chooser" value="4096,2"/>
    *
-   * Scarab TODO: do we need to update the params to look like this?*/
+   * Scarab: do we need to update the params to look like this?*/
   END_OF_COMPONENT(out, header);
 
   /***********************************************************************/
@@ -577,7 +576,7 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
                     "system.core" + std::to_string(core_id) + ".icache",
                     "icache", );
 
-  /* FIXME: icache cycles (scarab assumes 1, that may be too fast for McPAT,
+  /* Note: icache cycles (scarab assumes 1, that may be too fast for McPAT,
    * bug #25). */
   ADD_XML_PARAM_str(
     out, header, "icache_config",
@@ -670,7 +669,7 @@ void power_print_core_params(std::ofstream& out, uint32_t core_id) {
                     "system.core" + std::to_string(core_id) + ".BTB", "BTB", );
 
   /* all the buffer related are optional */
-  /* TODO: scarab hardcodes block_width to 1 target (8B), do we want to fix
+  /* Note: scarab hardcodes block_width to 1 target (8B), do we want to fix
    * this for power?"*/
   ADD_XML_PARAM_str(
     out, header, "BTB_config",
@@ -884,7 +883,6 @@ void power_print_mc_params(std::ofstream& out) {
   double MEMORY_FREQ_IN_MHZ             = (1e15 / RAMULATOR_TCK) / 1e6;
   double MEMORY_PEAK_RATE_IN_MB_PER_SEC = (double(BUS_WIDTH_IN_BYTES) / 1000000.0) * 2 *
                                           MEMORY_FREQ_IN_MHZ * 1e6; //MBps
-
   std::string header = "\t";
 
   ADD_XML_COMPONENT(out, header, std::string("system.mc"), std::string("mc"), );
@@ -900,13 +898,11 @@ void power_print_mc_params(std::ofstream& out) {
 
   ADD_XML_PARAM(out, header, "block_size", 64, "Bytes");
 
-  // TODO: This is the number of memory controllers, I don't know why we
-  // were setting it to 8 always?
-  ADD_XML_PARAM(out, header, "number_mcs", 1, );
-
   /* current McPAT only supports homogeneous memory controllers */
+  ADD_XML_PARAM(out, header, "number_mcs", RAMULATOR_CHANNELS, );
   ADD_XML_PARAM(out, header, "memory_channels_per_mc", 1, );
-  ADD_XML_PARAM(out, header, "number_ranks", 1, );
+  ADD_XML_PARAM(out, header, "number_ranks", RAMULATOR_RANKS, );
+
   ADD_XML_PARAM(out, header, "withPHY", 0, );  // TODO: what is this?
 
   uint32_t MEM_REQ_WINDOW_SIZE = RAMULATOR_READQ_ENTRIES +
