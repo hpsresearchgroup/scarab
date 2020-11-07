@@ -141,6 +141,10 @@ void Memory<DDR4>::set_skylakeddr4_addr_vec(vector<int>& addr_vec, long addr) {
       for(auto channel_xor_bit_pos : channel_xor_bits_pos) {
         if(channel_xor_bit_pos >= frame_index_start_pos) {
           frame_index_channel_xor_bits_pos.push_back(channel_xor_bit_pos);
+          if(channel_xor_bit_pos < local_row_start_pos) {
+            frame_index_nonrow_channel_xor_bits_pos.push_back(
+              channel_xor_bit_pos);
+          }
         }
         if(channel_xor_bit_pos >= local_row_start_pos) {
           row_channel_xor_bits_pos.push_back(channel_xor_bit_pos);

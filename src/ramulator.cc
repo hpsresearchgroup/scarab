@@ -362,6 +362,8 @@ void init_configs() {
   configs->add("addr_remap_copy_time", RAMULATOR_ADDR_REMAP_COPY_TIME);
   configs->add("addr_remap_periodic_copy_select_policy",
                RAMULATOR_ADDR_REMAP_PERIODIC_COPY_SELECT_POLICY);
+  configs->add("addr_remap_periodic_copy_candidates_org",
+               RAMULATOR_ADDR_REMAP_PERIODIC_COPY_CANDIDATES_ORG);
   configs->add("addr_remap_page_access_threshold",
                to_string(RAMULATOR_ADDR_REMAP_PAGE_ACCESS_THRESHOLD));
   configs->add("addr_remap_page_reuse_threshold",
