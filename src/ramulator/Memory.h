@@ -666,6 +666,7 @@ class Memory : public MemoryBase {
   enum class PeriodicCopySelectPolicy {
     CoreAccessFrac,
     TotalAccessFrac,
+    InverseCoreRowFrac,
     MAX,
   } remap_periodic_copy_select_policy =
     PeriodicCopySelectPolicy::CoreAccessFrac;
@@ -1000,6 +1001,9 @@ class Memory : public MemoryBase {
     } else if("TotalAccessFrac" ==
               configs["addr_remap_periodic_copy_select_policy"]) {
       return PeriodicCopySelectPolicy::TotalAccessFrac;
+    } else if("InverseCoreRowFrac" ==
+              configs["addr_remap_periodic_copy_select_policy"]) {
+      return PeriodicCopySelectPolicy::InverseCoreRowFrac;
     } else {
       assert(false);
       return PeriodicCopySelectPolicy::MAX;
@@ -1846,18 +1850,33 @@ class Memory : public MemoryBase {
       return 0;
     }
 
+    double numerator = 0;
+
     if(remap_periodic_copy_select_policy ==
        PeriodicCopySelectPolicy::CoreAccessFrac) {
+      numerator   = accesses;
       denominator = ch_to_core_to_interval_accesses.at(channel).at(coreid);
     } else if(remap_periodic_copy_select_policy ==
               PeriodicCopySelectPolicy::TotalAccessFrac) {
+      numerator   = accesses;
+      denominator = 1;
+    } else if(remap_periodic_copy_select_policy ==
+              PeriodicCopySelectPolicy::InverseCoreRowFrac) {
+      if(accesses > 0) {
+        const long num_already_allocated_rows =
+          num_reserved_rows_allocated_by_core[coreid].value();
+        assert(num_already_allocated_rows <= addr_remap_num_reserved_rows);
+        numerator = addr_remap_num_reserved_rows - num_already_allocated_rows;
+      } else {
+        numerator = 0;
+      }
       denominator = 1;
     } else {
       assert(false);
     }
 
     if(denominator != 0)
-      return double(accesses) / denominator;
+      return numerator / denominator;
     else {
       return 0;
     }
