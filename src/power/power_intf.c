@@ -73,7 +73,7 @@ static const char* model_results_filename = "power_model_results";
 /**************************************************************************************/
 /* Global Variables */
 
-static Value   values[POWER_DOMAIN_NUM_ELEMS][POWER_RESULT_NUM_ELEMS];
+static Value  values[POWER_DOMAIN_NUM_ELEMS][POWER_RESULT_NUM_ELEMS];
 static double elapsed_time;  // time elapsed in this interval, seconds
 
 /**************************************************************************************/
@@ -95,7 +95,7 @@ void power_intf_init(void) {
 
 void power_intf_calc(void) {
   double fempto_elapsed_time = (double)GET_TOTAL_STAT_EVENT(0, POWER_TIME);
-  elapsed_time = fempto_elapsed_time * 1.0e-15;
+  elapsed_time               = fempto_elapsed_time * 1.0e-15;
 
   run_power_model_exec();
   parse_power_model_results();

@@ -27,8 +27,8 @@ import os
 # Modify each temporary variable below to contain the default path for each item.
 ###################################################################################
 __pin_dir__        = "/misc/pool1/pin/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux"
-__mcpat_bin__      = "/misc/pool4/ali/workspace/tools/mcpat/mcpat"
-__cacti_bin__      = "/misc/pool4/ali/workspace/tools/cacti65/cacti"
+__mcpat_bin__      = "/misc/pool1/mcpat/mcpat_v1.0/mcpat"
+__cacti_bin__      = "/misc/pool1/mcpat/cacti65/cacti"
 __scarab_bin_dir__ = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 __scarab_sim_dir__ = os.path.dirname(__scarab_bin_dir__)
 
