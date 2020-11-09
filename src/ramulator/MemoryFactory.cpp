@@ -53,7 +53,7 @@ void MemoryFactory<HBM>::validate(int channels, int ranks, const Config& configs
 }
 
 template <>
-MemoryBase *MemoryFactory<WideIO2>::create(const Config& configs, int cacheline, void (*stats_callback)(int)) {
+MemoryBase *MemoryFactory<WideIO2>::create(const Config& configs, int cacheline, void (*stats_callback)(int, int)) {
     int channels = stoi(configs["channels"], NULL, 0);
     int ranks = stoi(configs["ranks"], NULL, 0);
     validate(channels, ranks, configs);
@@ -70,7 +70,7 @@ MemoryBase *MemoryFactory<WideIO2>::create(const Config& configs, int cacheline,
 
 
 template <>
-MemoryBase *MemoryFactory<SALP>::create(const Config& configs, int cacheline, void (*stats_callback)(int)) {
+MemoryBase *MemoryFactory<SALP>::create(const Config& configs, int cacheline, void (*stats_callback)(int, int)) {
     int channels = stoi(configs["channels"], NULL, 0);
     int ranks = stoi(configs["ranks"], NULL, 0);
     int subarrays = stoi(configs["subarrays"], NULL, 0);

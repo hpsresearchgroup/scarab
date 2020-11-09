@@ -65,20 +65,19 @@ DDR4::DDR4(const string& org_str, const string& speed_str) :
 }
 
 DDR4::DDR4(const Config& configs) {
+  org_entry   = org_table[int(org_map[configs["org"]])];
+  speed_entry = speed_table[int(speed_map[configs["speed"]])];
 
-    org_entry = org_table[int(org_map[configs["org"]])];
-    speed_entry = speed_table[int(speed_map[configs["speed"]])];
+  update_params(configs);
 
-    update_params(configs);
+  read_latency = speed_entry.nCL + speed_entry.nBL;
 
-    read_latency = speed_entry.nCL + speed_entry.nBL;
-
-    init_speed();
-    init_prereq();
-    init_rowhit();
-    init_rowopen();
-    init_lambda();
-    init_timing();
+  init_speed();
+  init_prereq();
+  init_rowhit();
+  init_rowopen();
+  init_lambda();
+  init_timing();
 }
 
 void DDR4::update_params(const Config& configs) {
@@ -120,7 +119,7 @@ void DDR4::update_params(const Config& configs) {
     org_entry.size = (ulong(org_entry.count[int(Level::BankGroup)])*
                         org_entry.count[int(Level::Bank)]*org_entry.count[int(Level::Row)]*
                         org_entry.count[int(Level::Column)]*
-                        org_entry.dq*prefetch_size)/(8*1024*1024); // calculating in MiBs
+                        org_entry.dq)/(1024*1024); // calculating in MegaBits
 }
 
 void DDR4::set_channel_number(int channel) {

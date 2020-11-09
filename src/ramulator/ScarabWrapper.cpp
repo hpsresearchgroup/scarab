@@ -38,7 +38,7 @@
 
 using namespace ramulator;
 
-static map<string, function<MemoryBase*(const Config&, int, void (*)(int))>>
+static map<string, function<MemoryBase*(const Config&, int, void (*)(int, int))>>
   name_to_func = {
     {"DDR3", &MemoryFactory<DDR3>::create},
     {"DDR4", &MemoryFactory<DDR4>::create},
@@ -56,7 +56,7 @@ static map<string, function<MemoryBase*(const Config&, int, void (*)(int))>>
 
 ScarabWrapper::ScarabWrapper(const Config&      configs,
                              const unsigned int cacheline,
-                             void (*stats_callback)(int)) {
+                             void (*stats_callback)(int,int)) {
   const string& std_name = configs["standard"];
   assert(name_to_func.find(std_name) != name_to_func.end() &&
          "unrecognized standard name");
@@ -83,10 +83,18 @@ void ScarabWrapper::finish(void) {
   Stats::statlist.printall();
 }
 
-int ScarabWrapper::get_chip_width() {
+int ScarabWrapper::get_chip_width() const {
   return mem->get_chip_width();
 }
 
-int ScarabWrapper::get_chip_size() {
+int ScarabWrapper::get_chip_size() const {
   return mem->get_chip_size();
+}
+
+int ScarabWrapper::get_num_chips() const {
+  return mem->get_num_chips();
+}
+
+int ScarabWrapper::get_chip_row_buffer_size() const {
+  return mem->get_chip_row_buffer_size();
 }

@@ -40,14 +40,16 @@ private:
     MemoryBase *mem;
 public:
     //double tCK;
-    ScarabWrapper(const Config& configs, const unsigned int cacheline, void (* stats_callback)(int));
+    ScarabWrapper(const Config& configs, const unsigned int cacheline, void (* stats_callback)(int, int));
     ~ScarabWrapper();
     void tick();
     bool send(Request req);
     void finish(void);
 
-    int get_chip_width();
-    int get_chip_size();
+    int get_chip_width() const;
+    int get_chip_size()  const;
+    int get_num_chips()  const;
+    int get_chip_row_buffer_size() const;
 };
 
 } /*namespace ramulator*/
