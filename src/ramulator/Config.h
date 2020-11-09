@@ -94,6 +94,7 @@ class Config {
     {"addr_remap_copy_granularity", "Line"},
     {"addr_remap_copy_time", "Whenever"},
     {"addr_remap_periodic_copy_select_policy", "CoreAccessFrac"},
+    {"addr_remap_periodic_copy_intracore_select_policy", "MostAccesses"},
     {"addr_remap_periodic_copy_candidates_org", "SeqBatchFreq"},
     {"addr_remap_page_access_threshold", "-1"},
     {"addr_remap_page_reuse_threshold", "-1"},

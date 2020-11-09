@@ -86,6 +86,7 @@ DEF_PARAM(ramulator_addr_remap_copy_mode        , RAMULATOR_ADDR_REMAP_COPY_MODE
 DEF_PARAM(ramulator_addr_remap_copy_granularity , RAMULATOR_ADDR_REMAP_COPY_GRANULARITY   , char*   , string , "Line", )
 DEF_PARAM(ramulator_addr_remap_copy_time , RAMULATOR_ADDR_REMAP_COPY_TIME   , char*   , string , "Whenever", )
 DEF_PARAM(ramulator_addr_remap_periodic_copy_select_policy , RAMULATOR_ADDR_REMAP_PERIODIC_COPY_SELECT_POLICY   , char*   , string , "CoreAccessFrac", )
+DEF_PARAM(ramulator_addr_remap_periodic_copy_intracore_select_policy , RAMULATOR_ADDR_REMAP_PERIODIC_COPY_INTRACORE_SELECT_POLICY   , char*   , string , "MostAccesses", )
 DEF_PARAM(ramulator_addr_remap_periodic_copy_candidates_org , RAMULATOR_ADDR_REMAP_PERIODIC_COPY_CANDIDATES_ORG   , char*   , string , "NonrowIndex_FrameFreq", )
 DEF_PARAM(ramulator_addr_remap_page_access_threshold , RAMULATOR_ADDR_REMAP_PAGE_ACCESS_THRESHOLD, int     , int    , -1  , )
 DEF_PARAM(ramulator_addr_remap_page_reuse_threshold , RAMULATOR_ADDR_REMAP_PAGE_REUSE_THRESHOLD, int     , int    , -1  , )

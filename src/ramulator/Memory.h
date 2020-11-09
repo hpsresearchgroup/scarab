@@ -184,6 +184,8 @@ class Memory : public MemoryBase {
     remap_copy_time        = parse_addr_remap_copy_time(configs);
     remap_periodic_copy_select_policy =
       parse_addr_remap_periodic_copy_select_policy(configs);
+    remap_periodic_copy_intracore_select_policy =
+      parse_addr_remap_periodic_copy_intracore_select_policy(configs);
     remap_periodic_copy_candidates_org =
       parse_addr_remap_periodic_copy_candidates_org(configs);
     track_os_pages            = configs.get_config("track_os_page_reuse");
@@ -671,6 +673,13 @@ class Memory : public MemoryBase {
   } remap_periodic_copy_select_policy =
     PeriodicCopySelectPolicy::CoreAccessFrac;
 
+  enum class PeriodicCopyIntraCoreSelectPolicy {
+    MostAccesses,
+    Oldest,
+    MAX,
+  } remap_periodic_copy_intracore_select_policy =
+    PeriodicCopyIntraCoreSelectPolicy::MostAccesses;
+
   enum class PeriodicCopyCandidatesOrg {
     NonrowIndex_FrameFreq,
     SeqBatchFreq,
@@ -1007,6 +1016,21 @@ class Memory : public MemoryBase {
     } else {
       assert(false);
       return PeriodicCopySelectPolicy::MAX;
+    }
+  }
+
+  PeriodicCopyIntraCoreSelectPolicy
+    parse_addr_remap_periodic_copy_intracore_select_policy(
+      const Config& configs) {
+    if("MostAccesses" ==
+       configs["addr_remap_periodic_copy_intracore_select_policy"]) {
+      return PeriodicCopyIntraCoreSelectPolicy::MostAccesses;
+    } else if("Oldest" ==
+              configs["addr_remap_periodic_copy_intracore_select_policy"]) {
+      return PeriodicCopyIntraCoreSelectPolicy::Oldest;
+    } else {
+      assert(false);
+      return PeriodicCopyIntraCoreSelectPolicy::MAX;
     }
   }
 
@@ -1715,30 +1739,40 @@ class Memory : public MemoryBase {
     const int channel, const int core,
     unordered_map<int, long>& nonrow_index_bits_to_chosen_candidate_page,
     const int                 rowbits_ch_xor_parity) {
-    long most_accesses_so_far             = 0;
-    int  seq_batch_with_most_accesses_idx = -1;
+    int selected_seq_batch_idx = -1;
 
     const CoreCandidateSeqBatchesInfo& core_seq_batches_info =
       ch_to_core_to_candidate_seq_batches_info.at(channel).at(core);
     assert(!core_seq_batches_info.candidate_seq_batches.empty());
 
+    long most_accesses_so_far = 0;
     for(size_t i = 0; i < core_seq_batches_info.candidate_seq_batches.size();
         i++) {
       const CandidateSeqBatchInfo& seq_batch_info =
         core_seq_batches_info.candidate_seq_batches.at(i);
       if(!seq_batch_info.already_chosen) {
-        if(seq_batch_info.access_count > most_accesses_so_far) {
-          most_accesses_so_far             = seq_batch_info.access_count;
-          seq_batch_with_most_accesses_idx = i;
+        if(remap_periodic_copy_intracore_select_policy ==
+           PeriodicCopyIntraCoreSelectPolicy::MostAccesses) {
+          if(seq_batch_info.access_count > most_accesses_so_far) {
+            most_accesses_so_far   = seq_batch_info.access_count;
+            selected_seq_batch_idx = i;
+          }
+        } else if(remap_periodic_copy_intracore_select_policy ==
+                  PeriodicCopyIntraCoreSelectPolicy::Oldest) {
+          most_accesses_so_far   = seq_batch_info.access_count;
+          selected_seq_batch_idx = i;
+          break;
+        } else {
+          assert(false);
         }
       }
     }
 
+
     if(most_accesses_so_far > 0) {
-      assert(seq_batch_with_most_accesses_idx >= 0);
+      assert(selected_seq_batch_idx >= 0);
       const CandidateSeqBatchInfo& seq_batch_info =
-        core_seq_batches_info.candidate_seq_batches.at(
-          seq_batch_with_most_accesses_idx);
+        core_seq_batches_info.candidate_seq_batches.at(selected_seq_batch_idx);
       assert(seq_batch_info.seq_frames.size() <= size_t(num_frames_per_row));
 
       array<vector<long>, 2> chosen_pages_by_framebits_ch_xor_parity;
@@ -1746,7 +1780,7 @@ class Memory : public MemoryBase {
         const long chosen_page = seq_batch_info.seq_frames.at(i);
         assert(seq_batch_info.frames_set.count(chosen_page));
         assert(core_seq_batches_info.frame_to_seq_batch_num.at(chosen_page) ==
-               size_t(seq_batch_with_most_accesses_idx));
+               size_t(selected_seq_batch_idx));
         if(0 == ch_to_pending_frame_remaps.at(channel).count(chosen_page)) {
           if(0 == ch_to_page_index_remapping.at(channel).count(chosen_page)) {
             const int framebits_ch_xor_parity = get_channel_from_frame_index(
