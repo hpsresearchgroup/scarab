@@ -330,8 +330,9 @@ def create_checkpoints_descriptor_file():
             suite_list.append(benchmark_name)
             descriptor_str += '\n'
 
-    descriptor_str += '{name} = Suite("{name}", [{bench_list}])\n'.format(
-        name=__args__.suite, bench_list=', '.join(suite_list))
+    if __args__.suite is not None:
+      descriptor_str += '{name} = Suite("{name}", [{bench_list}])\n'.format(
+          name=__args__.suite, bench_list=', '.join(suite_list))
 
     with open(__args__.output_dir + '/program_descriptor.def', 'w') as f:
         f.write(descriptor_str)

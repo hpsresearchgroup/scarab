@@ -107,7 +107,7 @@ void trace_setup(uns proc_id) {
 /* trace_next_fetch_addr */
 
 Addr trace_next_fetch_addr(uns proc_id) {
-  return next_pi[proc_id].instruction_addr;
+  return convert_to_cmp_addr(proc_id, next_pi[proc_id].instruction_addr);
 }
 
 /**************************************************************************************/
@@ -141,6 +141,10 @@ void trace_fetch_op(uns proc_id, Op* op) {
     if(!success) {
       trace_read_done[proc_id] = TRUE;
       reached_exit[proc_id]    = TRUE;
+      /* this flag is supposed to be set in uop_generator_get_uop() but there
+       * is a circular dependency on trace_read_done to be set. So, we set
+       * op->exit here. */
+      op->exit = TRUE;
     }
   }
 }

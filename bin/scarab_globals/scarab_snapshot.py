@@ -85,14 +85,26 @@ class SnapshotDefaults:
 
     @classmethod
     def record_git_info(cls, basename):
-        Command("git status --branch --long --verbose --untracked-files=all",
+        git_status_cmd = "git status --branch --long --verbose --untracked-files=all"
+        git_diff_command = "git diff --pretty"
+        Command(git_status_cmd,
                  run_dir=cls.repo_root,
                  stdout=os.path.join(basename, cls.git_status)
                ).run()
 
-        Command("git diff --pretty",
+        Command(git_diff_command,
                  run_dir=cls.repo_root,
                  stdout=os.path.join(basename, cls.git_diff)
+               ).run()
+
+        Command("git submodule foreach --recursive {}".format(git_status_cmd),
+                 run_dir=cls.repo_root,
+                 stdout=os.path.join(basename, "{}.submodule".format(cls.git_status))
+               ).run()
+
+        Command("git submodule foreach --recursive {}".format(git_diff_command),
+                 run_dir=cls.repo_root,
+                 stdout=os.path.join(basename, "{}.submodule".format(cls.git_diff))
                ).run()
 
 def create_snapshot(scarab_params, results_dir):

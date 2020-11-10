@@ -43,11 +43,11 @@ use FindBin qw($Bin); # find where this script is located
 
 die "Usage: $0 <work dir> <get voltage and frequency>\n" unless @ARGV >= 1;
 
-my $debug = 0;
 my $MCPAT_EXEC = shift;
 my $CACTI_EXEC = shift;
 my $dir = shift;
 my $get_voltage_and_freq = shift;
+my $debug = shift;
 my $file_tag = shift;
 
 sub parse_mcpat_output;
@@ -76,8 +76,12 @@ print("Running CACTI...\n");
 $rc = system("cd $dir && $CACTI_EXEC -infile $dir/$file_tag"."cacti_infile.cfg > $dir/$file_tag"."cacti_dram.out");
 die "Error running CACTI\n" if $rc;
 
+print("Parsing scarab params...\n");
 my %params = get_params($dir);
+
+print("Parsing scarab stats...\n");
 my %stats  = get_stats("$dir", 0, 1);
+
 my %values;
 
 print("Parsing McPAT output ($dir/$file_tag"."mcpat.out) and CACTI output ($dir/$file_tag"."cacti_dram.out)...\n");
@@ -126,10 +130,10 @@ sub parse_mcpat_output($$$)
     my $num_cores;
     while(<$file>) {
         my $line = $_;
-        print("Parsing McPAT Line: $line\n") if ($debug);
+        print("[parse_mcpat_output] Parsing McPat line $line") if ($debug);
         if($line =~ /Total Cores: (\d+)/) {
             $num_cores = $1;
-            print("\tFound: Total Cores\n") if ($debug);
+            print("[parse_mcpat_output] Found: Total Cores = $1\n") if ($debug);
             last;
         }
         if($line =~ /^\s*(.*\S)\s*=\s*(\S+)/) {
@@ -137,7 +141,7 @@ sub parse_mcpat_output($$$)
             my $value = $2;
             if (defined $map{$result}) {
                 $values->{"CHIP"}{$map{$result}} = $value;
-                print("\tFound: $map{$result}\n") if ($debug);
+                print("[parse_mcpat_output] Found: $result = $value\n") if ($debug);
             }
         }
     }
@@ -218,12 +222,14 @@ sub parse_cacti_dram_output($$)
 
     while(<$file>) {
         my $line = $_;
+        print("[parse_cacti_dram_output] Parsing CACTI Line: $line") if ($debug);
         last if $line =~ /Cache height/;
         if($line =~ /^\s*(.*\S)\s*:\s*(\S+)/) {
             my $result = $1;
             my $value = $2;
             if (exists $cacti_values{$result}) {
                 $cacti_values{$result} = $value;
+                print("[parse_cacti_dram_output] Found: $result = $value\n") if ($debug);
             }
         }
     }
@@ -232,23 +238,78 @@ sub parse_cacti_dram_output($$)
         die "CACTI value for $key not found\n" unless defined $cacti_values{$key};
     }
 
-    $values{"VOLTAGE"} = $cacti_values{"Voltage (V)"} if ($get_voltage_and_freq); 
-    $values{"MIN_VOLTAGE"} = $values{"VOLTAGE"} if ($get_voltage_and_freq); # for now
-    $values{"FREQUENCY"} = $params{"POWER_INTF_REF_MEMORY_FREQ"} if ($get_voltage_and_freq);
+    $values{"VOLTAGE"}     = $cacti_values{"Voltage (V)"}          if ($get_voltage_and_freq); 
+    $values{"MIN_VOLTAGE"} = $values{"VOLTAGE"}                    if ($get_voltage_and_freq); # for now
+    $values{"FREQUENCY"}   = $params{"POWER_INTF_REF_MEMORY_FREQ"} if ($get_voltage_and_freq);
+
+    my $power_dram_precharge_stat = 0;
+    my $power_dram_activate_stat  = 0;
+    my $power_dram_read_stat      = 0;
+    my $power_dram_write_stat     = 0;
+    for my $core_id (0..$params{"NUM_CORES"}-1) {
+      $power_dram_precharge_stat += $stats{"POWER_DRAM_PRECHARGE"}[$core_id];
+      $power_dram_activate_stat  += $stats{"POWER_DRAM_ACTIVATE"}[$core_id];
+      $power_dram_read_stat      += $stats{"POWER_DRAM_READ"}[$core_id];
+      $power_dram_write_stat     += $stats{"POWER_DRAM_WRITE"}[$core_id];
+    }
 
     $values{"DYNAMIC"} =
-        $cacti_values{"Precharge Energy (nJ)"} * $stats{"POWER_DRAM_PRECHARGE"}[0] +
-        $cacti_values{"Activate Energy (nJ)"}  * $stats{"POWER_DRAM_ACTIVATE"}[0]  +
-        $cacti_values{"Read Energy (nJ)"}      * $stats{"POWER_DRAM_READ"}[0]      +
-        $cacti_values{"Write Energy (nJ)"}     * $stats{"POWER_DRAM_WRITE"}[0];
-    $values{"DYNAMIC"} *= 10e-9; # convert to Joules
+        $cacti_values{"Precharge Energy (nJ)"} * $power_dram_precharge_stat +
+        $cacti_values{"Activate Energy (nJ)"}  * $power_dram_activate_stat  +
+        $cacti_values{"Read Energy (nJ)"}      * $power_dram_read_stat      +
+        $cacti_values{"Write Energy (nJ)"}     * $power_dram_write_stat;
+
+    if ($debug) {
+      print("[parse_cacti_dram_output] DRAM dynamic energy:\n");
+      my $dynamic_energy   = $values{"DYNAMIC"};
+      my $precharge_energy = $cacti_values{"Precharge Energy (nJ)"};
+      my $activate_energy  = $cacti_values{"Activate Energy (nJ)"};
+      my $read_energy      = $cacti_values{"Read Energy (nJ)"};
+      my $write_energy     = $cacti_values{"Write Energy (nJ)"};
+
+      print("$dynamic_energy nJ (DYNAMIC) =
+         $precharge_energy (Precharge Energy nJ) * $power_dram_precharge_stat (POWER_DRAM_PRECHARGE)+
+         $activate_energy  (Activate Energy nJ)  * $power_dram_activate_stat  (POWER_DRAM_ACTIVATE) +
+         $read_energy      (Read Energy nJ)      * $power_dram_read_stat      (POWER_DRAM_READ) +
+         $write_energy     (Write Energy nJ)     * $power_dram_write_stat     (POWER_DRAM_WRITE)\n");
+    }
+
+    $values{"DYNAMIC"} *= 10e-9; # convert from nJoules to Joules
+
     my $time = $stats{"POWER_CYCLE"}[0]/$params{"POWER_INTF_REF_CHIP_FREQ"};
+    if($debug) {
+      print("[parse_cacti_dram_output] time:\n");
+      my $num_cycles = $stats{"POWER_CYCLE"}[0];
+      my $core_freq  = $params{"POWER_INTF_REF_CHIP_FREQ"};
+
+      print("$time sec = $num_cycles (cycles) * $core_freq (freq Hz)\n");
+    }
+
+    if ($debug) {
+      print("[parse_cacti_dram_output] DRAM dynamic power:\n");
+      my $dynamic_energy = $values{"DYNAMIC"};
+      my $dynamic_power  = $values{"DYNAMIC"} / $time; # convert to power (Watts)
+
+      print("$dynamic_power Watts (DYNAMIC) = $dynamic_energy J / $time sec\n");
+    }
+
     $values{"DYNAMIC"} /= $time; # convert to power (Watts)
 
     $values{"STATIC"} =
         $cacti_values{"Leakage Power Open Page (mW)"} +
         $cacti_values{"Leakage Power I/O (mW)"} +
         $cacti_values{"Refresh power (mW)"};
+
+    if ($debug) {
+      print("[parse_cacti_dram_output] DRAM static power:\n");
+      my $total_leakage     = $values{"STATIC"};
+      my $open_page_leakage = $cacti_values{"Leakage Power Open Page (mW)"};
+      my $io_leakage        = $cacti_values{"Leakage Power I/O (mW)"};
+      my $refresh_leakage   = $cacti_values{"Refresh power (mW)"};
+
+      print("$total_leakage mW (STATIC) = $open_page_leakage (Leakage Power Open Page mW) + $io_leakage (Leakage Power I/O mW) + $refresh_leakage (Refresh power mW)");
+    }
+
     $values{"STATIC"} *= 10e-3; # convert to Watts
 
     return \%values;
@@ -302,6 +363,10 @@ sub get_params($@) {
             my $value = defined $specified_value ? $specified_value : $default_value;
 
             $params{$name} = $value;
+
+            if(defined $params{$name}) {
+              print("\t[get_params]: params{$name} = $params{$name}\n") if ($debug);
+            }
         }
     }
 
@@ -374,6 +439,7 @@ sub get_stats($$$@) {
                        $stats{$name} = [] if !exists $stats{$name};
                        die "Duplicate stat: $name\n" if exists $stats{$name}[$core_id];
                        $stats{$name}[$core_id] = $value;
+                       print("\t[get_stats]: stats{$name}[$core_id] = $stats{$name}[$core_id]\n") if ($debug);
                    }, $power_intf);
     return %stats;
 }

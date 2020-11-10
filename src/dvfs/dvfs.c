@@ -331,6 +331,7 @@ void dvfs_cycle(void) {
         dvfs_reconfigure_perf_pred();
       }
     }
+
     stat_mon_reset(stat_mon);
     if(!DVFS_USE_BW_SHARING && !DVFS_USE_DRAM_SHARING && !DVFS_USE_STALL_TIME &&
        !DVFS_STATIC)
@@ -406,6 +407,7 @@ static void dvfs_reconfigure_perf_pred(void) {
   if(DVFS_LOG)
     fprintf(dvfs_log, "Time: %llu\tInsts: %llu\tPredictions:", sim_time,
             inst_count[0]);
+
   for(uns i = 0; i < num_configs; ++i) {
     Config* config = &configs[i];
     double  pred_slowdown =

@@ -140,8 +140,11 @@ class ScarabRun:
   def print_progress(self):
     progress = self.job.get_progress(self.results_dir)
     progress.sort()
+    print("JOB: {name}".format(name=self.job_name))
+    print('-'*70)
     for p in progress:
       print(p)
+    print('='*70+"\n")
 
   def get_stats(self, flat=False):
     suite_stat = self.job.get_stats(self.results_dir, flat=flat)
@@ -186,9 +189,7 @@ class Executable:
 
   def get_stats(self, basename, flat=False):
     results_dir = self._results_dir(basename)
-    stat_frame = scarab_stats.StatFrame(self.name, results_dir)
-    if not flat:
-      stat_frame.apply_weight(self.weight)
+    stat_frame = scarab_stats.StatFrame(self.name, results_dir, weight=self.weight)
     return stat_frame
 
   def get_random_workload(self):
@@ -330,7 +331,9 @@ class Benchmark(Collection):
     if flat:
       return stat_collection
     else:
-      return stat_collection.accumulate().normalize().apply_weight(self.weight)
+      stat_frame = stat_collection.apply_weight(1.0).accumulate().normalize()
+      stat_frame.weight = self.weight
+      return stat_frame
 
 class Suite(Collection):
   """

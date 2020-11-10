@@ -753,13 +753,17 @@ void write_data_to_regions(pid_t child_pid) {
     }
 
     if(i == vsyscall_region_id || i == vdso_region_id || i == vvar_region_id) {
+      std::cout << "asserting regions are equal: start" << std::endl;
       assert_equal_mem(child_pid, temp_buffer,
                        (char*)checkpoint_region.range.inclusive_lower_bound,
                        region_size);
+      std::cout << "asserting regions are equal: done" << std::endl;
     } else {
+      std::cout << "doing a ptrace memcpy: start" << std::endl;
       execute_memcpy(child_pid,
                      (void*)checkpoint_region.range.inclusive_lower_bound,
                      temp_buffer, region_size);
+      std::cout << "doing a ptrace memcpy: end" << std::endl;
     }
 
     std::cout << "done\n";
@@ -782,7 +786,10 @@ void update_region_protections(pid_t child_pid) {
                     checkpoint_region.range.inclusive_lower_bound;
     int prot = checkpoint_region.prot;
     if(i != vsyscall_region_id && i != vdso_region_id) {
+      std::cout << "Running mprotect for region start: " << checkpoint_region
+                << std::endl;
       int mprotect_ret = execute_mprotect(child_pid, addr, length, prot);
+      std::cout << "Running mprotect for region done" << std::endl;
       if(mprotect_ret != 0) {
         std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
         std::cerr << "mprotect return value: " << mprotect_ret << "\n";

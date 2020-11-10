@@ -128,20 +128,20 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
 
   switch(type) {
     case int(StatCallbackType::DRAM_ACT):
-      STAT_EVENT_ALL(POWER_DRAM_ACTIVATE);
+      STAT_EVENT(proc_id, POWER_DRAM_ACTIVATE);
       break;
     case int(StatCallbackType::DRAM_PRE):
-      STAT_EVENT_ALL(POWER_DRAM_PRECHARGE);
+      STAT_EVENT(proc_id, POWER_DRAM_PRECHARGE);
       break;
     case int(StatCallbackType::DRAM_READ):
-      STAT_EVENT_ALL(POWER_DRAM_READ);
+      STAT_EVENT(proc_id, POWER_DRAM_READ);
       STAT_EVENT_ALL(ALL_CORES_DRAM_ACCESS);
       STAT_EVENT(proc_id, PER_CORE_DRAM_ACCESS);
       STAT_EVENT_ALL(ALL_CORES_DRAM_READ);
       STAT_EVENT(proc_id, PER_CORE_DRAM_READ);
       break;
     case int(StatCallbackType::DRAM_WRITE):
-      STAT_EVENT_ALL(POWER_DRAM_WRITE);
+      STAT_EVENT(proc_id, POWER_DRAM_WRITE);
       STAT_EVENT_ALL(ALL_CORES_DRAM_ACCESS);
       STAT_EVENT(proc_id, PER_CORE_DRAM_ACCESS);
       STAT_EVENT_ALL(ALL_CORES_DRAM_WRITE);
@@ -575,6 +575,13 @@ int ramulator_get_chip_size() {
   return wrapper->get_chip_size();
 }
 
+int ramulator_get_num_chips() {
+  return wrapper->get_num_chips();
+}
+
+int ramulator_get_chip_row_buffer_size() {
+  return wrapper->get_chip_row_buffer_size();
+}
 
 // Mem_Req* ramulator_search_queue(Addr addr, Mem_Req_Type type) {
 //

@@ -71,7 +71,12 @@ LPDDR3::LPDDR3(const Config& configs) {
 
   update_params(configs);
 
-  read_latency = speed_entry.nCL + speed_entry.nBL;
+  speed_entry.nRC = speed_entry.nRAS + speed_entry.nRPpb;
+
+  org_entry.size = (ulong(org_entry.count[int(Level::Bank)]) *
+                    org_entry.count[int(Level::Row)] *
+                    org_entry.count[int(Level::Column)] * org_entry.dq) /
+                   (1024 * 1024);  // calculating in MegaBits
 
   init_speed();
   init_prereq();

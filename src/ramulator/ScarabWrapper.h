@@ -48,8 +48,10 @@ class ScarabWrapper {
   void warmup_perform_periodic_copy(const int num_rows_to_remap);
   void finish(void);
 
-  int get_chip_width();
-  int get_chip_size();
+  int get_chip_width() const;
+  int get_chip_size() const;
+  int get_num_chips() const;
+  int get_chip_row_buffer_size() const;
 };
 
 } /*namespace ramulator*/
