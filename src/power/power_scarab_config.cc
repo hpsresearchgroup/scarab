@@ -171,7 +171,8 @@ void power_print_system_params(std::ofstream& out) {
   ADD_XML_PARAM(out, header, "homogeneous_L2s", 0, );
   ADD_XML_PARAM(out, header, "homogeneous_L1Directorys", 1, );
   ADD_XML_PARAM(out, header, "homogeneous_L2Directorys", 1, );
-  ADD_XML_PARAM(out, header, "homogeneous_L3s", 1, );
+  ADD_XML_PARAM(out, header, "homogeneous_L3s",
+                num_l3_caches, );  // num_l3_caches is 0 or 1
   ADD_XML_PARAM(out, header, "homogeneous_ccs", 1, "cache coherece hardware");
   ADD_XML_PARAM(out, header, "homogeneous_NoCs", 1, );
   ADD_XML_PARAM(out, header, "core_tech_node", POWER_INTF_REF_CHIP_TECH_NM,
