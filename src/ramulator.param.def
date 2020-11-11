@@ -96,6 +96,7 @@ DEF_PARAM(ramulator_addr_remap_dram_cycles_between_periodic_copy , RAMULATOR_ADD
 DEF_PARAM(ramulator_addr_remap_insts_between_warmup_periodic_copy , RAMULATOR_ADDR_REMAP_INSTS_BETWEEN_WARMUP_PERIODIC_COPY, int     , int    , -1  , )
 DEF_PARAM(ramulator_addr_remap_to_partitioned_rows,   RAMULATOR_ADDR_REMAP_TO_PARTITIONED_ROWS    , char*   , string , "off"   , )
 DEF_PARAM(ramulator_addr_remap_channels_share_tables,   RAMULATOR_ADDR_REMAP_CHANNELS_SHARE_TABLES    , char*   , string , "off"   , )
+DEF_PARAM(ramulator_addr_remap_choose_minuse_candidate,   RAMULATOR_ADDR_REMAP_CHOOSE_MINUSE_CANDIDATE    , char*   , string , "off"   , )
 // Timing parameters (TODO: make these optional. If not specified, present // values defined by RAMULATOR_SPEED should be used instead.)
 DEF_PARAM(ramulator_tCK                  , RAMULATOR_TCK                           , uns     , uns    , 833333               , ) //in femtosecs
 DEF_PARAM(ramulator_tCL                  , RAMULATOR_TCL                           , uns     , uns    , 16                   , )

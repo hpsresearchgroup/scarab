@@ -195,6 +195,8 @@ class Memory : public MemoryBase {
       "addr_remap_to_partitioned_rows");
     channels_share_tables = configs.get_config(
       "addr_remap_channels_share_tables");
+    choose_minuse_candidate = configs.get_config(
+      "addr_remap_choose_minuse_candidate");
     row_always_0 = configs.get_config("row_always_0");
     for(int ch = 0; ch < sz[0]; ch++)
       os_page_tracking_map_by_ch.push_back(
@@ -738,6 +740,7 @@ class Memory : public MemoryBase {
   int         addr_remap_max_allocated_pages_per_core = INT_MAX;
   bool        remap_to_partitioned_rows;
   bool        channels_share_tables;
+  bool        choose_minuse_candidate;
   vector<int> channel_xor_bits_pos;
   vector<int> row_channel_xor_bits_pos;
   vector<int> frame_index_channel_xor_bits_pos;
@@ -1655,20 +1658,44 @@ class Memory : public MemoryBase {
     return addrs_that_belong_to_channel;
   }
 
+  void get_victim(const int channel, int& coreid_of_row_to_be_allocated,
+                  long& row_to_allocate) {
+    deque<AllocatedRowInfo>& allocated_rows =
+      ch_to_allocated_row_info_in_order.at(channel);
+    assert(!allocated_rows.empty());
+
+    if(choose_minuse_candidate) {
+      long   min_interval_accesses_so_far = LONG_MAX;
+      size_t chosen_i                     = allocated_rows.size();
+      for(size_t i = 0; i < allocated_rows.size(); i++) {
+        const long candidate_victim_row_accesses = get_current_row_accesses(
+          channel, allocated_rows.at(i).reserved_row, false);
+        if(candidate_victim_row_accesses < min_interval_accesses_so_far) {
+          min_interval_accesses_so_far = candidate_victim_row_accesses;
+          chosen_i                     = i;
+        }
+      }
+      assert(min_interval_accesses_so_far < LONG_MAX);
+      assert(chosen_i < allocated_rows.size());
+      row_to_allocate               = allocated_rows.at(chosen_i).reserved_row;
+      coreid_of_row_to_be_allocated = allocated_rows.at(chosen_i).coreid;
+      allocated_rows.erase(allocated_rows.begin() + chosen_i);
+    } else {
+      row_to_allocate               = allocated_rows.front().reserved_row;
+      coreid_of_row_to_be_allocated = allocated_rows.front().coreid;
+      allocated_rows.pop_front();
+    }
+    assert(valid_core_id(coreid_of_row_to_be_allocated));
+  }
+
   long get_row_to_allocate(const int channel,
                            bool&     allocating_already_empty_row,
                            int&      coreid_of_row_to_be_allocated) {
     long          row_to_allocate;
     vector<long>& free_rows = ch_to_free_rows.at(channel);
     if(free_rows.empty()) {
-      deque<AllocatedRowInfo>& allocated_rows =
-        ch_to_allocated_row_info_in_order.at(channel);
-      assert(!allocated_rows.empty());
-      row_to_allocate               = allocated_rows.front().reserved_row;
-      coreid_of_row_to_be_allocated = allocated_rows.front().coreid;
-      assert(valid_core_id(coreid_of_row_to_be_allocated));
+      get_victim(channel, coreid_of_row_to_be_allocated, row_to_allocate);
       allocating_already_empty_row = false;
-      allocated_rows.pop_front();
     } else {
       row_to_allocate              = free_rows.back();
       allocating_already_empty_row = true;

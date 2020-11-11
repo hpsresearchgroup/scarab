@@ -424,6 +424,8 @@ void init_configs() {
                RAMULATOR_ADDR_REMAP_TO_PARTITIONED_ROWS);
   configs->add("addr_remap_channels_share_tables",
                RAMULATOR_ADDR_REMAP_CHANNELS_SHARE_TABLES);
+  configs->add("addr_remap_choose_minuse_candidate",
+               RAMULATOR_ADDR_REMAP_CHOOSE_MINUSE_CANDIDATE);
 
   configs->add("scheduling_policy", RAMULATOR_SCHEDULING_POLICY);
   configs->add("readq_entries", to_string(RAMULATOR_READQ_ENTRIES));

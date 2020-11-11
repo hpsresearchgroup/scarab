@@ -109,7 +109,9 @@ class Config {
     {"addr_remap_num_reserved_rows", "-1"},
     {"addr_remap_dram_cycles_between_periodic_copy", "-1"},
     {"addr_remap_to_partitioned_rows", "off"},
-    {"addr_remap_channels_share_tables", "off"}};
+    {"addr_remap_channels_share_tables", "off"},
+    {"addr_remap_choose_minuse_candidate", "off"},
+  };
 
   template <typename T>
   T get(const std::string& param_name,
