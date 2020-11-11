@@ -1837,7 +1837,8 @@ class Memory : public MemoryBase {
   long get_candidate_row_accesses_for_core_seq_batches(
     const int channel, const int core,
     unordered_map<int, long>& nonrow_index_bits_to_chosen_candidate_page,
-    const int rowbits_ch_xor_parity, int& batches_before_chosen_one) {
+    const int rowbits_ch_xor_parity, int& batches_before_chosen_one,
+    long& chosen_one_access_count) {
     int selected_seq_batch_idx = -1;
 
     const CoreCandidateSeqBatchesInfo& core_seq_batches_info =
@@ -1857,12 +1858,14 @@ class Memory : public MemoryBase {
             most_accesses_so_far      = seq_batch_info.access_count;
             selected_seq_batch_idx    = i;
             batches_before_chosen_one = valid_batches_seen_so_far;
+            chosen_one_access_count   = most_accesses_so_far;
           }
         } else if(remap_periodic_copy_intracore_select_policy ==
                   PeriodicCopyIntraCoreSelectPolicy::Oldest) {
           most_accesses_so_far      = seq_batch_info.access_count;
           selected_seq_batch_idx    = i;
           batches_before_chosen_one = valid_batches_seen_so_far;
+          chosen_one_access_count   = most_accesses_so_far;
           break;
         } else {
           assert(false);
@@ -2127,6 +2130,7 @@ class Memory : public MemoryBase {
     double      best_candidate_score_so_far              = 0;
     vector<int> all_cores_batches_seen_before_chosen_one = vector<int>(
       num_cores, 0);
+    vector<long> all_cores_chosen_one_access_count = vector<long>(num_cores, 0);
 
     for(int core = 0; core < num_cores; core++) {
       all_cores_chosen_pages[core] = unordered_map<int, long>();
@@ -2140,7 +2144,8 @@ class Memory : public MemoryBase {
                 PeriodicCopyCandidatesOrg::SeqBatchFreq) {
         total_accesses = get_candidate_row_accesses_for_core_seq_batches(
           channel, core, all_cores_chosen_pages[core], required_row_channel_xor,
-          all_cores_batches_seen_before_chosen_one.at(core));
+          all_cores_batches_seen_before_chosen_one.at(core),
+          all_cores_chosen_one_access_count.at(core));
       } else {
         assert(false);
       }
@@ -2161,6 +2166,9 @@ class Memory : public MemoryBase {
       stats_callback(
         int(StatCallbackType::ROW_PICKED), core_selected,
         all_cores_batches_seen_before_chosen_one.at(core_selected));
+      stats_callback(int(StatCallbackType::ROW_PICKED_ACCESS_COUNT),
+                     core_selected,
+                     all_cores_chosen_one_access_count.at(core_selected));
       return all_cores_chosen_pages[core_selected];
     } else
       return unordered_map<int, long>();

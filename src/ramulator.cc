@@ -325,6 +325,13 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
                      bucket_index);
       break;
 
+    case int(StatCallbackType::ROW_PICKED_ACCESS_COUNT):
+      INC_STAT_EVENT_ALL(NORESET_ALL_CORES_CHOSEN_SEQ_BATCH_ACCESS_SUM,
+                         bucket_index);
+      INC_STAT_EVENT(proc_id, NORESET_PER_CORE_CHOSEN_SEQ_BATCH_ACCESS_SUM,
+                     bucket_index);
+      break;
+
     case int(StatCallbackType::SHADOW_CACHE_INSERT_DIRECT_MAPPED):
       assert((bucket_index >= 0) && (bucket_index <= 10));
       STAT_EVENT_ALL(NORESET_ALL_CORES_DIRECT_MAPPED_100PCT + bucket_index);
