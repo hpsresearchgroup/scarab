@@ -422,6 +422,8 @@ void init_configs() {
     to_string(RAMULATOR_ADDR_REMAP_DRAM_CYCLES_BETWEEN_PERIODIC_COPY));
   configs->add("addr_remap_to_partitioned_rows",
                RAMULATOR_ADDR_REMAP_TO_PARTITIONED_ROWS);
+  configs->add("addr_remap_channels_share_tables",
+               RAMULATOR_ADDR_REMAP_CHANNELS_SHARE_TABLES);
 
   configs->add("scheduling_policy", RAMULATOR_SCHEDULING_POLICY);
   configs->add("readq_entries", to_string(RAMULATOR_READQ_ENTRIES));

@@ -193,6 +193,8 @@ class Memory : public MemoryBase {
     track_os_pages            = configs.get_config("track_os_page_reuse");
     remap_to_partitioned_rows = configs.get_config(
       "addr_remap_to_partitioned_rows");
+    channels_share_tables = configs.get_config(
+      "addr_remap_channels_share_tables");
     row_always_0 = configs.get_config("row_always_0");
     for(int ch = 0; ch < sz[0]; ch++)
       os_page_tracking_map_by_ch.push_back(
@@ -470,14 +472,22 @@ class Memory : public MemoryBase {
     if(addr_remap_dram_cycles_between_periodic_copy > 0) {
       if(0 ==
          (dram_cycles_so_far % addr_remap_dram_cycles_between_periodic_copy)) {
-        for(auto ctrl : ctrls) {
-          do_periodic_remap(ctrl->channel->id, 1, false);
+        if(channels_share_tables) {
+          do_periodic_remap(0, 1, false);
+        } else {
+          for(auto ctrl : ctrls) {
+            do_periodic_remap(ctrl->channel->id, 1, false);
+          }
         }
       }
     }
 
-    for(auto ctrl : ctrls) {
-      process_pending_row_replacements(ctrl->channel->id);
+    if(channels_share_tables) {
+      process_pending_row_replacements(0);
+    } else {
+      for(auto ctrl : ctrls) {
+        process_pending_row_replacements(ctrl->channel->id);
+      }
     }
 
     bool is_active = false;
@@ -543,7 +553,8 @@ class Memory : public MemoryBase {
   void warmup_perform_periodic_copy(const int num_rows_to_remap) {
     if((remap_policy != RemapPolicy::None) &&
        (CopyTime::Periodic == remap_copy_time)) {
-      for(size_t ch = 0; ch < ctrls.size(); ch++) {
+      size_t channel_limit = channels_share_tables ? 1 : ctrls.size();
+      for(size_t ch = 0; ch < channel_limit; ch++) {
         do_periodic_remap(ch, num_rows_to_remap, true);
         while(!ch_to_pending_row_replacements.at(ch).empty()) {
           process_pending_row_replacements(ch);
@@ -726,6 +737,7 @@ class Memory : public MemoryBase {
   int         addr_remap_page_reuse_threshold         = -1;
   int         addr_remap_max_allocated_pages_per_core = INT_MAX;
   bool        remap_to_partitioned_rows;
+  bool        channels_share_tables;
   vector<int> channel_xor_bits_pos;
   vector<int> row_channel_xor_bits_pos;
   vector<int> frame_index_channel_xor_bits_pos;
@@ -881,7 +893,7 @@ class Memory : public MemoryBase {
       const int  nonrow_index_bits = get_nonrow_index_bits_from_page_index(
         new_frame_index);
       assert(ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
-               .at(channel)
+               .at(get_channel_for_accessing_tables(channel))
                .at(reserved_row)
                .at(nonrow_index_bits) == orig_frame_index);
     }
@@ -1125,10 +1137,14 @@ class Memory : public MemoryBase {
   bool line_is_remapped(bool& page_is_remapped, const int orig_channel,
                         const long orig_frame_index,
                         const long line_on_page_bit) {
-    if(ch_to_page_index_remapping.count(orig_channel)) {
-      if(ch_to_page_index_remapping.at(orig_channel).count(orig_frame_index)) {
+    const int channel_for_accessing_tables = get_channel_for_accessing_tables(
+      orig_channel);
+    if(ch_to_page_index_remapping.count(channel_for_accessing_tables)) {
+      if(ch_to_page_index_remapping.at(channel_for_accessing_tables)
+           .count(orig_frame_index)) {
         page_is_remapped           = true;
-        uint64_t copied_lines_mask = ch_to_page_index_remapping.at(orig_channel)
+        uint64_t copied_lines_mask = ch_to_page_index_remapping
+                                       .at(channel_for_accessing_tables)
                                        .at(orig_frame_index)
                                        .second;
         if(copied_lines_mask & line_on_page_bit) {
@@ -1147,6 +1163,13 @@ class Memory : public MemoryBase {
     assert(is_read_or_write_req(req));
   }
 
+  int get_channel_for_accessing_tables(const int orig_channel) {
+    const int channel_for_accessing_tables = channels_share_tables ?
+                                               0 :
+                                               orig_channel;
+    return channel_for_accessing_tables;
+  }
+
   void remap_if_alt_frame_exists(Request& req) {
     assert_req_is_unmapped_noncopy_new_access(req);
 
@@ -1162,11 +1185,14 @@ class Memory : public MemoryBase {
     if(line_remapped ||
        (frame_remapped && (req.type == Request::Type::WRITE))) {
       req.addr = map_addr_to_new_frame(
-        req.addr,
-        ch_to_page_index_remapping.at(orig_channel).at(orig_frame_index).first);
+        req.addr, ch_to_page_index_remapping
+                    .at(get_channel_for_accessing_tables(orig_channel))
+                    .at(orig_frame_index)
+                    .first);
       verify_remapped_addr(orig_channel, req.addr, req.orig_addr, req.coreid);
       set_req_addr_vec(req.addr, req.addr_vec);
-      assert(req.addr_vec[int(T::Level::Channel)] == orig_channel);
+      if(!channels_share_tables)
+        assert(req.addr_vec[int(T::Level::Channel)] == orig_channel);
       req.is_remapped = true;
     }
   }
@@ -1465,28 +1491,36 @@ class Memory : public MemoryBase {
 
   void update_reserved_row_interval_accesses(const int channel, const long addr,
                                              const long orig_page_index) {
+    const int channel_for_accessing_tables = get_channel_for_accessing_tables(
+      channel);
     const long remapped_addr = map_addr_to_new_frame(
-      addr, ch_to_page_index_remapping.at(channel).at(orig_page_index).first);
+      addr, ch_to_page_index_remapping.at(channel_for_accessing_tables)
+              .at(orig_page_index)
+              .first);
     assert(get_coreid_from_addr(remapped_addr) == num_cores);
     const long reserved_row = get_row_from_addr(remapped_addr);
     assert(
-      ch_to_reserved_row_to_interval_accesses.at(channel).count(reserved_row));
+      ch_to_reserved_row_to_interval_accesses.at(channel_for_accessing_tables)
+        .count(reserved_row));
     if(remap_periodic_copy_candidates_org ==
        PeriodicCopyCandidatesOrg::NonrowIndex_FrameFreq) {
       const int orig_page_index_nonrow_index_bits =
         get_nonrow_index_bits_from_page_index(orig_page_index);
       assert(ch_to_reserved_row_to_nonrow_index_bits_to_remapped_src_page_index
-               .at(channel)
+               .at(channel_for_accessing_tables)
                .at(reserved_row)
                .at(orig_page_index_nonrow_index_bits) == orig_page_index);
     }
-    ch_to_reserved_row_to_interval_accesses.at(channel).at(reserved_row)++;
+    ch_to_reserved_row_to_interval_accesses.at(channel_for_accessing_tables)
+      .at(reserved_row)++;
   }
 
   void update_seq_batches_candidate_info(const int channel, const int coreid,
                                          const long orig_page_index) {
     CoreCandidateSeqBatchesInfo& core_seq_batches_info =
-      ch_to_core_to_candidate_seq_batches_info.at(channel).at(coreid);
+      ch_to_core_to_candidate_seq_batches_info
+        .at(get_channel_for_accessing_tables(channel))
+        .at(coreid);
     assert(!core_seq_batches_info.candidate_seq_batches.empty());
 
     if(core_seq_batches_info.frame_to_seq_batch_num.count(orig_page_index)) {
@@ -1499,8 +1533,10 @@ class Memory : public MemoryBase {
       assert(!seq_batch_info.already_chosen);
       seq_batch_info.access_count++;
     } else {
-      const int framebits_ch_xor_parity = get_channel_from_frame_index(
+      int framebits_ch_xor_parity = get_channel_from_frame_index(
         orig_page_index);
+      if(channels_share_tables)
+        framebits_ch_xor_parity = 0;
 
       size_t& insert_ptr =
         core_seq_batches_info.insert_ptr_by_framebits_ch_xor_parity.at(
@@ -1512,7 +1548,9 @@ class Memory : public MemoryBase {
              current_seq_batch_info.frames_set.size());
       assert(current_seq_batch_info.seq_frames.size() <
              size_t(num_frames_per_row));
-      const int num_channels = ch_to_core_to_candidate_seq_batches_info.size();
+      int num_channels = ch_to_core_to_candidate_seq_batches_info.size();
+      if(channels_share_tables)
+        num_channels = 1;
       const size_t max_frames_per_parity = size_t(num_frames_per_row) /
                                            num_channels;
       int& parity_seen = current_seq_batch_info.framebits_ch_xor_parity_seen.at(
@@ -1549,7 +1587,7 @@ class Memory : public MemoryBase {
       orig_page_index);
     unordered_map<long, CandidatePageInfo>& page_index_to_candidate_info_map =
       ch_to_core_to_nonrow_index_bits_to_page_index_to_candidate_info
-        .at(channel)
+        .at(get_channel_for_accessing_tables(channel))
         .at(coreid)
         .at(nonrow_index_bits);
     if(page_index_to_candidate_info_map.count(orig_page_index) == 0) {
@@ -1561,7 +1599,8 @@ class Memory : public MemoryBase {
   void update_remap_candidates_and_interval_accesses(
     const int channel, const int coreid, const long addr,
     const long orig_page_index, const long line_on_page_bit) {
-    ch_to_core_to_interval_accesses[channel][coreid]++;
+    ch_to_core_to_interval_accesses[get_channel_for_accessing_tables(channel)]
+                                   [coreid]++;
 
     bool page_remapped = false;
     line_is_remapped(page_remapped, channel, orig_page_index, line_on_page_bit);
@@ -1579,6 +1618,21 @@ class Memory : public MemoryBase {
         assert(false);
       }
     }
+  }
+
+  vector<long> get_txs_that_belong_to_all_channels(const long page_index) {
+    const int    num_tx_in_frame_log2 = (os_page_offset_bits - tx_bits);
+    const int    num_tx_in_frame      = (1 << num_tx_in_frame_log2);
+    const int    tx_size              = (1 << tx_bits);
+    vector<long> addrs_that_belong_to_all_channel = vector<long>();
+
+    for(int line_in_frame = 0; line_in_frame < num_tx_in_frame;
+        line_in_frame++) {
+      long addr = (page_index << os_page_offset_bits) +
+                  (line_in_frame * tx_size);
+      addrs_that_belong_to_all_channel.push_back(addr);
+    }
+    return addrs_that_belong_to_all_channel;
   }
 
   vector<long> get_txs_that_belong_to_channel(const int  channel,
@@ -1805,25 +1859,35 @@ class Memory : public MemoryBase {
                size_t(selected_seq_batch_idx));
         if(0 == ch_to_pending_frame_remaps.at(channel).count(chosen_page)) {
           if(0 == ch_to_page_index_remapping.at(channel).count(chosen_page)) {
-            const int framebits_ch_xor_parity = get_channel_from_frame_index(
+            int framebits_ch_xor_parity = get_channel_from_frame_index(
               chosen_page);
+            if(channels_share_tables)
+              framebits_ch_xor_parity = 0;
             chosen_pages_by_framebits_ch_xor_parity.at(framebits_ch_xor_parity)
               .push_back(chosen_page);
           }
         }
       }
 
-      const int num_channels = ch_to_core_to_candidate_seq_batches_info.size();
+      int num_channels = ch_to_core_to_candidate_seq_batches_info.size();
+      if(channels_share_tables)
+        num_channels = 1;
       const size_t max_frames_per_parity = size_t(num_frames_per_row) /
                                            num_channels;
       assert(chosen_pages_by_framebits_ch_xor_parity.at(0).size() <=
              max_frames_per_parity);
       assert(chosen_pages_by_framebits_ch_xor_parity.at(1).size() <=
              max_frames_per_parity);
+      if(channels_share_tables) {
+        assert(0 == chosen_pages_by_framebits_ch_xor_parity.at(1).size());
+      }
 
       for(size_t i = 0; i < size_t(num_frames_per_row); i++) {
-        const int required_framebits_ch_xor_parity =
+        int required_framebits_ch_xor_parity =
           get_channel_parity_from_nonrow_frame_index(i) ^ rowbits_ch_xor_parity;
+        if(channels_share_tables) {
+          required_framebits_ch_xor_parity = 0;
+        }
 
         vector<long>& vector_with_required_parity =
           chosen_pages_by_framebits_ch_xor_parity.at(
@@ -1949,12 +2013,22 @@ class Memory : public MemoryBase {
     pending_frame_replacement_info.new_frame_index_valid  = new_frame_exists;
     pending_frame_replacement_info.new_frame_index        = new_frame_index;
     if(orig_frame_exists) {
-      pending_frame_replacement_info.pending_writeback_reads =
-        get_txs_that_belong_to_channel(channel, orig_frame_index);
+      if(channels_share_tables) {
+        pending_frame_replacement_info.pending_writeback_reads =
+          get_txs_that_belong_to_all_channels(orig_frame_index);
+      } else {
+        pending_frame_replacement_info.pending_writeback_reads =
+          get_txs_that_belong_to_channel(channel, orig_frame_index);
+      }
     }
     if(new_frame_exists) {
-      pending_frame_replacement_info.pending_fill_reads =
-        get_txs_that_belong_to_channel(channel, new_frame_index);
+      if(channels_share_tables) {
+        pending_frame_replacement_info.pending_fill_reads =
+          get_txs_that_belong_to_all_channels(new_frame_index);
+      } else {
+        pending_frame_replacement_info.pending_fill_reads =
+          get_txs_that_belong_to_channel(channel, new_frame_index);
+      }
       pending_frame_replacement_info.new_frame_new_lines_on_page_mask = 0;
       for(const long fill_addr :
           pending_frame_replacement_info.pending_fill_reads) {
@@ -2221,7 +2295,8 @@ class Memory : public MemoryBase {
       assert(get_coreid_from_addr(orig_addr) == src_coreid);
       Request src_request = gen_copy_request(
         orig_addr, cache_frame, map_src_to_cache_frame, src_coreid, src_type);
-      assert(channel == src_request.addr_vec[int(T::Level::Channel)]);
+      if(!channels_share_tables)
+        assert(channel == src_request.addr_vec[int(T::Level::Channel)]);
       if(during_warmup || check_if_transaction_accepted(src_request)) {
         update_copy_read_write_stats(channel, src_coreid, src_type);
         src_transactions.pop_back();
