@@ -743,6 +743,10 @@ class Memory : public MemoryBase {
   unordered_map<int, unordered_map<long, std::pair<long, uint64_t>>>
     ch_to_page_index_remapping;
 
+  unordered_map<int, unordered_map<int, unordered_map<long, vector<long>>>>
+            associativity_to_ch_to_cache_index_to_pageindex_vector;
+  const int max_associativity = 32;
+
   bool has_copied_warmup_stats_yet                  = false;
   int  row_start_pos                                = -1;
   int  frame_index_start_pos                        = -1;
@@ -750,6 +754,7 @@ class Memory : public MemoryBase {
   int  num_frames_per_row                           = -1;
   int  addr_remap_num_reserved_rows                 = -1;
   int  addr_remap_dram_cycles_between_periodic_copy = -1;
+  long max_possible_pages_allocated                 = 0;
   struct AllocatedRowInfo {
     int  coreid;
     long reserved_row;
@@ -1728,8 +1733,6 @@ class Memory : public MemoryBase {
       assert(num_reserved_pages_allocated_by_core[coreid].value() >= 0);
       stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid, -delta);
     } else {
-      const long max_possible_pages_allocated = addr_remap_num_reserved_rows *
-                                                num_frames_per_row;
       num_reserved_pages_allocated_by_ch[channel] += delta;
       assert(num_reserved_pages_allocated_by_ch[channel].value() <=
              max_possible_pages_allocated);
@@ -1753,14 +1756,15 @@ class Memory : public MemoryBase {
   long get_candidate_row_accesses_for_core_seq_batches(
     const int channel, const int core,
     unordered_map<int, long>& nonrow_index_bits_to_chosen_candidate_page,
-    const int                 rowbits_ch_xor_parity) {
+    const int rowbits_ch_xor_parity, int& batches_before_chosen_one) {
     int selected_seq_batch_idx = -1;
 
     const CoreCandidateSeqBatchesInfo& core_seq_batches_info =
       ch_to_core_to_candidate_seq_batches_info.at(channel).at(core);
     assert(!core_seq_batches_info.candidate_seq_batches.empty());
 
-    long most_accesses_so_far = 0;
+    long most_accesses_so_far      = 0;
+    int  valid_batches_seen_so_far = 0;
     for(size_t i = 0; i < core_seq_batches_info.candidate_seq_batches.size();
         i++) {
       const CandidateSeqBatchInfo& seq_batch_info =
@@ -1769,17 +1773,20 @@ class Memory : public MemoryBase {
         if(remap_periodic_copy_intracore_select_policy ==
            PeriodicCopyIntraCoreSelectPolicy::MostAccesses) {
           if(seq_batch_info.access_count > most_accesses_so_far) {
-            most_accesses_so_far   = seq_batch_info.access_count;
-            selected_seq_batch_idx = i;
+            most_accesses_so_far      = seq_batch_info.access_count;
+            selected_seq_batch_idx    = i;
+            batches_before_chosen_one = valid_batches_seen_so_far;
           }
         } else if(remap_periodic_copy_intracore_select_policy ==
                   PeriodicCopyIntraCoreSelectPolicy::Oldest) {
-          most_accesses_so_far   = seq_batch_info.access_count;
-          selected_seq_batch_idx = i;
+          most_accesses_so_far      = seq_batch_info.access_count;
+          selected_seq_batch_idx    = i;
+          batches_before_chosen_one = valid_batches_seen_so_far;
           break;
         } else {
           assert(false);
         }
+        valid_batches_seen_so_far++;
       }
     }
 
@@ -2016,7 +2023,9 @@ class Memory : public MemoryBase {
     core_selected = -1;
     vector<unordered_map<int, long>> all_cores_chosen_pages =
       vector<unordered_map<int, long>>(num_cores);
-    double best_candidate_score_so_far = 0;
+    double      best_candidate_score_so_far              = 0;
+    vector<int> all_cores_batches_seen_before_chosen_one = vector<int>(
+      num_cores, 0);
 
     for(int core = 0; core < num_cores; core++) {
       all_cores_chosen_pages[core] = unordered_map<int, long>();
@@ -2029,8 +2038,8 @@ class Memory : public MemoryBase {
       } else if(remap_periodic_copy_candidates_org ==
                 PeriodicCopyCandidatesOrg::SeqBatchFreq) {
         total_accesses = get_candidate_row_accesses_for_core_seq_batches(
-          channel, core, all_cores_chosen_pages[core],
-          required_row_channel_xor);
+          channel, core, all_cores_chosen_pages[core], required_row_channel_xor,
+          all_cores_batches_seen_before_chosen_one.at(core));
       } else {
         assert(false);
       }
@@ -2047,9 +2056,12 @@ class Memory : public MemoryBase {
       assert(valid_core_id(core_selected));
     }
 
-    if(best_candidate_score_so_far > current_row_score)
+    if(best_candidate_score_so_far > current_row_score) {
+      stats_callback(
+        int(StatCallbackType::ROW_PICKED), core_selected,
+        all_cores_batches_seen_before_chosen_one.at(core_selected));
       return all_cores_chosen_pages[core_selected];
-    else
+    } else
       return unordered_map<int, long>();
   }
 
@@ -2123,6 +2135,7 @@ class Memory : public MemoryBase {
       .at(channel)
       .at(reserved_row)
       .erase(nonrow_index_bits);
+    remove_from_all_associativities(frame_to_undo, channel);
   }
 
   void remap_frame(const int channel, const long reserved_row,
@@ -2144,6 +2157,7 @@ class Memory : public MemoryBase {
       .at(channel)
       .at(reserved_row)[nonrow_index_bits] = frame_to_remap;
     ch_to_pending_frame_remaps.at(channel).erase(frame_to_remap);
+    insert_into_all_associativities(frame_to_remap, channel);
   }
 
   Request gen_copy_request(const long orig_addr, const long cache_frame,
@@ -2433,10 +2447,105 @@ class Memory : public MemoryBase {
     }
   }
 
+  void remove_from_shadow_cache(const long page_frame_index, const int channel,
+                                const int associativity) {
+    const long    cacheindex = get_cacheindex(associativity, page_frame_index);
+    vector<long>& pageindex_vector =
+      associativity_to_ch_to_cache_index_to_pageindex_vector.at(associativity)
+        .at(channel)
+        .at(cacheindex);
+
+    vector<long>::iterator itr = find(pageindex_vector.begin(),
+                                      pageindex_vector.end(), page_frame_index);
+    assert(itr != pageindex_vector.cend());
+    pageindex_vector.erase(itr);
+  }
+
+  void remove_from_all_associativities(const long page_frame_index,
+                                       const int  channel) {
+    for(int associativity = 1; associativity <= max_associativity;
+        associativity *= 2) {
+      remove_from_shadow_cache(page_frame_index, channel, associativity);
+    }
+  }
+
+  int insert_into_shadow_cache(const long page_frame_index, const int channel,
+                               const int associativity) {
+    const long    cacheindex = get_cacheindex(associativity, page_frame_index);
+    vector<long>& pageindex_vector =
+      associativity_to_ch_to_cache_index_to_pageindex_vector.at(associativity)
+        .at(channel)
+        .at(cacheindex);
+
+    assert(find(pageindex_vector.begin(), pageindex_vector.end(),
+                page_frame_index) == pageindex_vector.end());
+    const double ratio  = double(pageindex_vector.size()) / associativity;
+    int          bucket = (ratio < 1) ? 0 : (ratio - 1) / 0.1;
+
+    pageindex_vector.push_back(page_frame_index);
+    if(bucket > 10)
+      bucket = 10;
+    return bucket;
+  }
+
+  void insert_into_all_associativities(const long page_frame_index,
+                                       const int  channel) {
+    const int direct_mapped_callback_type = int(
+      StatCallbackType::SHADOW_CACHE_INSERT_DIRECT_MAPPED);
+    int delta_from_direct_mapped = 0;
+    for(int associativity = 1; associativity <= max_associativity;
+        associativity *= 2) {
+      const int bucket   = insert_into_shadow_cache(page_frame_index, channel,
+                                                  associativity);
+      const int stat_int = direct_mapped_callback_type +
+                           delta_from_direct_mapped;
+      assert((stat_int >=
+              int(StatCallbackType::SHADOW_CACHE_INSERT_DIRECT_MAPPED)) &&
+             (stat_int <= int(StatCallbackType::SHADOW_CACHE_INSERT_ASSOC32)));
+      stats_callback(
+        stat_int, get_coreid_from_addr(page_frame_index << os_page_offset_bits),
+        bucket);
+      delta_from_direct_mapped++;
+    }
+  }
+
+  long get_num_sets(const int associativity) {
+    return max_possible_pages_allocated / associativity;
+  }
+
+  long get_cacheindex(const int associatiity, const long page_frame_index) {
+    const long num_sets_mask = get_num_sets(associatiity) - 1;
+    return (page_frame_index & num_sets_mask);
+  }
+
+  void setup_shadow_page_remappings(const int num_channels) {
+    for(int associativity = 1; associativity <= max_associativity;
+        associativity *= 2) {
+      associativity_to_ch_to_cache_index_to_pageindex_vector[associativity] =
+        unordered_map<int, unordered_map<long, vector<long>>>();
+
+      const long num_sets = get_num_sets(associativity);
+      for(int channel = 0; channel < num_channels; channel++) {
+        associativity_to_ch_to_cache_index_to_pageindex_vector.at(
+          associativity)[channel] = unordered_map<long, vector<long>>();
+        for(int cache_index = 0; cache_index < num_sets; cache_index++) {
+          associativity_to_ch_to_cache_index_to_pageindex_vector
+            .at(associativity)
+            .at(channel)[cache_index] = vector<long>();
+        }
+      }
+    }
+  }
+
   void setup_for_remap_copy_periodic(int* sz) {
     assert(addr_remap_num_reserved_rows > 0);
     assert(remap_to_partitioned_rows);
     assert(num_frames_per_row > 0);
+
+    max_possible_pages_allocated = addr_remap_num_reserved_rows *
+                                   num_frames_per_row;
+
+    setup_shadow_page_remappings(sz[int(T::Level::Channel)]);
     for(int ch = 0; ch < sz[int(T::Level::Channel)]; ch++) {
       ch_to_page_index_remapping[ch] =
         unordered_map<long, std::pair<long, uint64_t>>();

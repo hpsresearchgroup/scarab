@@ -315,7 +315,50 @@ void stats_callback(int type, uns proc_id, int bucket_index) {
     case int(StatCallbackType::PERIODIC_COPY_NO_CHANGE_CANDIDATE_SCORE_ZERO):
       STAT_EVENT_ALL(
         ALL_CORES_PERIODIC_COPY_RESULT_NO_CHANGE_CANDIDATE_SCORE_ZERO);
+      break;
 
+    case int(StatCallbackType::ROW_PICKED):
+      STAT_EVENT_ALL(NORESET_ALL_CORES_ROW_CHOSEN_COUNT);
+      INC_STAT_EVENT_ALL(NORESET_ALL_CORES_SEQ_BATCH_BEFORE_SUM, bucket_index);
+      STAT_EVENT(proc_id, NORESET_PER_CORE_ROW_CHOSEN_COUNT);
+      INC_STAT_EVENT(proc_id, NORESET_PER_CORE_SEQ_BATCH_BEFORE_SUM,
+                     bucket_index);
+      break;
+
+    case int(StatCallbackType::SHADOW_CACHE_INSERT_DIRECT_MAPPED):
+      assert((bucket_index >= 0) && (bucket_index <= 10));
+      STAT_EVENT_ALL(NORESET_ALL_CORES_DIRECT_MAPPED_100PCT + bucket_index);
+      STAT_EVENT(proc_id, NORESET_PER_CORE_DIRECT_MAPPED_100PCT + bucket_index);
+      break;
+
+    case int(StatCallbackType::SHADOW_CACHE_INSERT_ASSOC2):
+      assert((bucket_index >= 0) && (bucket_index <= 10));
+      STAT_EVENT_ALL(NORESET_ALL_CORES_ASSOC2_100PCT + bucket_index);
+      STAT_EVENT(proc_id, NORESET_PER_CORE_ASSOC2_100PCT + bucket_index);
+      break;
+
+    case int(StatCallbackType::SHADOW_CACHE_INSERT_ASSOC4):
+      assert((bucket_index >= 0) && (bucket_index <= 10));
+      STAT_EVENT_ALL(NORESET_ALL_CORES_ASSOC4_100PCT + bucket_index);
+      STAT_EVENT(proc_id, NORESET_PER_CORE_ASSOC4_100PCT + bucket_index);
+      break;
+
+    case int(StatCallbackType::SHADOW_CACHE_INSERT_ASSOC8):
+      assert((bucket_index >= 0) && (bucket_index <= 10));
+      STAT_EVENT_ALL(NORESET_ALL_CORES_ASSOC8_100PCT + bucket_index);
+      STAT_EVENT(proc_id, NORESET_PER_CORE_ASSOC8_100PCT + bucket_index);
+      break;
+
+    case int(StatCallbackType::SHADOW_CACHE_INSERT_ASSOC16):
+      assert((bucket_index >= 0) && (bucket_index <= 10));
+      STAT_EVENT_ALL(NORESET_ALL_CORES_ASSOC16_100PCT + bucket_index);
+      STAT_EVENT(proc_id, NORESET_PER_CORE_ASSOC16_100PCT + bucket_index);
+      break;
+
+    case int(StatCallbackType::SHADOW_CACHE_INSERT_ASSOC32):
+      assert((bucket_index >= 0) && (bucket_index <= 10));
+      STAT_EVENT_ALL(NORESET_ALL_CORES_ASSOC32_100PCT + bucket_index);
+      STAT_EVENT(proc_id, NORESET_PER_CORE_ASSOC32_100PCT + bucket_index);
       break;
 
     default:
