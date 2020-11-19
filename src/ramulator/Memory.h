@@ -2385,11 +2385,15 @@ class Memory : public MemoryBase {
           channel, during_warmup, frame_replacement_info.pending_fill_writes,
           dummy, false, cache_frame, Request::Type::WRITE, true, new_coreid);
         assert(dummy.empty());
-        if(frame_replacement_info.pending_fill_writes.empty()) {
-          remap_frame(channel, reserved_row,
-                      frame_replacement_info.nonrow_index_bits,
-                      frame_replacement_info.new_frame_index,
-                      frame_replacement_info.new_frame_new_lines_on_page_mask);
+        // only remap frame after for sure old frame remapping has been undone
+        if(frame_replacement_info.pending_writeback_reads.empty() &&
+           frame_replacement_info.pending_writeback_writes.empty()) {
+          if(frame_replacement_info.pending_fill_writes.empty()) {
+            remap_frame(
+              channel, reserved_row, frame_replacement_info.nonrow_index_bits,
+              frame_replacement_info.new_frame_index,
+              frame_replacement_info.new_frame_new_lines_on_page_mask);
+          }
         }
       }
     }
