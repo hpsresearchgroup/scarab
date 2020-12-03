@@ -227,9 +227,6 @@ void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
         update_repl_policy(cache, line, set, ii, FALSE);
       }
 
-      if(update_repl)
-        update_repl_policy(cache, line, set, ii, FALSE);
-
       return line->data;
     }
   }
