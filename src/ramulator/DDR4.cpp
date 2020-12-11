@@ -144,6 +144,9 @@ void DDR4::update_params(const Config& configs) {
   if(configs.contains("tWTRL")) {
     speed_entry.nWTRL = configs.get_int("tWTRL");
   }
+  if(configs.contains("tRTRS")) {
+    speed_entry.nRTRS = configs.get_int("tRTRS");
+  }
   if(configs.contains("tRCD")) {
     speed_entry.nRCD = configs.get_int("tRCD");
   }

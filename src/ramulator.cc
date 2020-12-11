@@ -452,6 +452,7 @@ void init_configs() {
   configs->add("tWTR", to_string(RAMULATOR_TWTR));
   configs->add("tWTRS", to_string(RAMULATOR_TWTRS));
   configs->add("tWTRL", to_string(RAMULATOR_TWTRL));
+  configs->add("tRTRS", to_string(RAMULATOR_TRTRS));
   configs->add("tRP", to_string(RAMULATOR_TRP));
   configs->add("tRPpb", to_string(RAMULATOR_TRPpb));
   configs->add("tRPab", to_string(RAMULATOR_TRPab));
