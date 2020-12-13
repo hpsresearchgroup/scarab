@@ -221,6 +221,8 @@ class Memory : public MemoryBase {
     addr_remap_num_reserved_rows = configs.get_int(
       "addr_remap_num_reserved_rows");
 
+    os_page_offset_bits = calc_log2(configs.get_int("va_page_size_bytes"));
+
     addr_remap_dram_cycles_between_periodic_copy = configs.get_int(
       "addr_remap_dram_cycles_between_periodic_copy");
 
@@ -393,7 +395,7 @@ class Memory : public MemoryBase {
 #endif
     if(remap_policy != RemapPolicy::None) {
       // has to come before initial call to set_req_ddr_vec
-      frame_index_start_pos = os_page_offset_bits - tx_bits;
+      frame_index_start_pos = get_num_tx_in_frame_log2();
       vector<int> dummy_addr_vec(addr_bits.size());
       set_req_addr_vec(
         0, dummy_addr_vec);  // just to initialize addr_bits_start_pos
@@ -716,11 +718,11 @@ class Memory : public MemoryBase {
     PeriodicCopyCandidatesOrg::NonrowIndex_FrameFreq;
 
   struct OsPageInfo {
-    uint64_t lines_seen;
-    uint64_t lines_written;
-    long     reuse_count;
-    long     prev_written_reuse_count;
-    long     access_count;
+    vector<bool> lines_seen;
+    vector<bool> lines_written;
+    long         reuse_count;
+    long         prev_written_reuse_count;
+    long         access_count;
   };
   std::vector<std::unordered_map<long, OsPageInfo>> os_page_tracking_map_by_ch;
   bool                                              track_os_pages;
@@ -729,7 +731,7 @@ class Memory : public MemoryBase {
 
   bool use_rest_of_addr_as_row_addr;
 
-  const int os_page_offset_bits  = 12;
+  int       os_page_offset_bits;
   const int coreid_start_bit_pos = 58;
 
   vector<int> addr_bits_start_pos;
@@ -755,7 +757,8 @@ class Memory : public MemoryBase {
 
   unordered_map<int, unordered_map<long, unordered_map<int, vector<long>>>>
     ch_to_row_to_ch_freebits_parity_to_avail_frames;
-  unordered_map<int, unordered_map<long, std::pair<long, uint64_t>>>
+
+  unordered_map<int, unordered_map<long, std::pair<long, vector<bool>>>>
     ch_to_page_index_remapping;
 
   unordered_map<int, unordered_map<int, unordered_map<long, vector<long>>>>
@@ -815,7 +818,7 @@ class Memory : public MemoryBase {
     long         orig_frame_index;
     bool         new_frame_index_valid;
     long         new_frame_index;
-    uint64_t     new_frame_new_lines_on_page_mask;
+    vector<bool> new_frame_new_lines_on_page_mask;
     vector<long> pending_writeback_reads, pending_writeback_writes,
       pending_fill_reads, pending_fill_writes;
   };
@@ -905,9 +908,7 @@ class Memory : public MemoryBase {
     return (new_frame << os_page_offset_bits) |
            (addr & ((uint64_t(1) << os_page_offset_bits) - 1));
   }
-  long get_line_on_page_bit(const uint line_on_page) {
-    return (((long)1) << line_on_page);
-  }
+
   int get_coreid_from_addr(long addr) { return (addr >> coreid_start_bit_pos); }
   int calc_log2(int val) {
     int n = 0;
@@ -1138,19 +1139,18 @@ class Memory : public MemoryBase {
   }
 
   bool line_is_remapped(bool& page_is_remapped, const int orig_channel,
-                        const long orig_frame_index,
-                        const long line_on_page_bit) {
+                        const long orig_frame_index, const uint line_pos) {
     const int channel_for_accessing_tables = get_channel_for_accessing_tables(
       orig_channel);
     if(ch_to_page_index_remapping.count(channel_for_accessing_tables)) {
       if(ch_to_page_index_remapping.at(channel_for_accessing_tables)
            .count(orig_frame_index)) {
-        page_is_remapped           = true;
-        uint64_t copied_lines_mask = ch_to_page_index_remapping
-                                       .at(channel_for_accessing_tables)
-                                       .at(orig_frame_index)
-                                       .second;
-        if(copied_lines_mask & line_on_page_bit) {
+        page_is_remapped               = true;
+        vector<bool> copied_lines_mask = ch_to_page_index_remapping
+                                           .at(channel_for_accessing_tables)
+                                           .at(orig_frame_index)
+                                           .second;
+        if(copied_lines_mask.at(line_pos)) {
           return true;
         }
       }
@@ -1180,11 +1180,12 @@ class Memory : public MemoryBase {
     set_req_addr_vec(req.addr, orig_addr_vec);
     int orig_channel = orig_addr_vec[int(T::Level::Channel)];
 
-    long orig_frame_index, line_on_page_bit;
+    long orig_frame_index;
+    uint line_pos;
     bool frame_remapped = false;
-    get_page_index_offset_bit(req.addr, orig_frame_index, line_on_page_bit);
+    get_page_index_offset_bit(req.addr, orig_frame_index, line_pos);
     bool line_remapped = line_is_remapped(frame_remapped, orig_channel,
-                                          orig_frame_index, line_on_page_bit);
+                                          orig_frame_index, line_pos);
     if(line_remapped ||
        (frame_remapped && (req.type == Request::Type::WRITE))) {
       req.addr = map_addr_to_new_frame(
@@ -1253,18 +1254,17 @@ class Memory : public MemoryBase {
                                      newest_unfilled_row);
 
     ch_to_page_index_remapping[channel][frame_index] = std::make_pair(
-      new_frame_index, 0);
+      new_frame_index, vector<bool>(get_num_tx_in_frame(), false));
     num_reserved_pages_allocated_by_ch[channel]++;
     num_reserved_pages_allocated_by_core[coreid]++;
     stats_callback(int(StatCallbackType::PAGE_REMAPPED), coreid, 1);
   }
 
   void remap_and_copy_whenever(const int channel, const long frame_index,
-                               const long     line_on_page_bit,
-                               const Request& orig_req) {
+                               const uint line_pos, const Request& orig_req) {
     if(0 == ch_to_page_index_remapping.count(channel)) {
       ch_to_page_index_remapping[channel] =
-        unordered_map<long, std::pair<long, uint64_t>>();
+        unordered_map<long, std::pair<long, vector<bool>>>();
     }
 
     if(0 == ch_to_page_index_remapping[channel].count(frame_index)) {
@@ -1277,7 +1277,7 @@ class Memory : public MemoryBase {
     }
 
     // actually copy the line(s)
-    uint64_t copied_lines_mask =
+    vector<bool> copied_lines_mask =
       ch_to_page_index_remapping[channel][frame_index].second;
 
     const long new_frame_index =
@@ -1289,9 +1289,9 @@ class Memory : public MemoryBase {
     switch(remap_copy_mode) {
       case CopyMode::Free:
         if(CopyGranularity::Line == remap_copy_granularity) {
-          if(0 == (copied_lines_mask & line_on_page_bit)) {
-            ch_to_page_index_remapping[channel][frame_index].second |=
-              line_on_page_bit;
+          if(false == (copied_lines_mask.at(line_pos))) {
+            ch_to_page_index_remapping[channel][frame_index].second.at(
+              line_pos) = true;
 
             if(orig_req.type == Request::Type::WRITE) {
               if(orig_req.is_remapped) {
@@ -1307,8 +1307,8 @@ class Memory : public MemoryBase {
               assert(false);
           }
         } else if(CopyGranularity::Page == remap_copy_granularity) {
-          if(0 == copied_lines_mask) {
-            int num_tx_in_frame_ch_slice_log2 = (os_page_offset_bits - tx_bits);
+          if(false == (copied_lines_mask.at(line_pos))) {
+            int num_tx_in_frame_ch_slice_log2 = get_num_tx_in_frame_log2();
             if(addr_bits[int(T::Level::Channel)] > 0) {
               // make sure some of the channel bits come from the page offset
               // bits, which means each page will be interleaved across the
@@ -1320,8 +1320,11 @@ class Memory : public MemoryBase {
               assert(num_tx_in_frame_ch_slice_log2 > 0);
             }
 
-            ch_to_page_index_remapping[channel][frame_index].second =
-              UINT64_MAX;
+            const uint num_tx_in_frame = get_num_tx_in_frame();
+            for(uint i = 0; i < num_tx_in_frame; i++) {
+              ch_to_page_index_remapping[channel][frame_index].second.at(
+                i) = true;
+            }
 
             const int num_tx_in_frame_ch_slice =
               (1 << num_tx_in_frame_ch_slice_log2);
@@ -1337,7 +1340,7 @@ class Memory : public MemoryBase {
 
       case CopyMode::Real:
         if(CopyGranularity::Line == remap_copy_granularity) {
-          if(0 == (copied_lines_mask & line_on_page_bit)) {
+          if(false == (copied_lines_mask.at(line_pos))) {
             if(orig_req.type == Request::Type::READ) {
               Request copy_req;
               copy_req.is_first_command = true;
@@ -1353,8 +1356,8 @@ class Memory : public MemoryBase {
               copy_req.type        = Request::Type::WRITE;
 
               if(enqueue_req_to_ctrl(copy_req, copy_req.coreid)) {
-                ch_to_page_index_remapping[channel][frame_index].second |=
-                  line_on_page_bit;
+                ch_to_page_index_remapping[channel][frame_index].second.at(
+                  line_pos) = true;
                 num_copy_writes_by_ch[channel]++;
                 stats_callback(int(StatCallbackType::PAGE_REMAPPING_COPY_WRITE),
                                orig_req.coreid, 1);
@@ -1362,8 +1365,8 @@ class Memory : public MemoryBase {
                 return;
               }
             } else if(orig_req.type == Request::Type::WRITE) {
-              ch_to_page_index_remapping[channel][frame_index].second |=
-                line_on_page_bit;
+              ch_to_page_index_remapping[channel][frame_index].second.at(
+                line_pos) = true;
               if(orig_req.is_remapped) {
                 assert(orig_req.addr == new_addr);
               }
@@ -1383,8 +1386,8 @@ class Memory : public MemoryBase {
         break;
     }
 
-    assert(0 != (ch_to_page_index_remapping[channel][frame_index].second &
-                 line_on_page_bit));
+    assert(
+      ch_to_page_index_remapping[channel][frame_index].second.at(line_pos));
   }
 
   long compute_first_reserved_row(const int coreid) {
@@ -1400,14 +1403,11 @@ class Memory : public MemoryBase {
     return first_reserved_row;
   }
 
-  void get_page_index_offset_bit(long addr, long& page_index,
-                                 long& line_on_page_bit) {
-    const uint page_offset  = slice_lower_bits(addr, os_page_offset_bits);
-    page_index              = addr;
-    const uint line_on_page = page_offset >> 6;
-    assert(line_on_page < (sizeof(OsPageInfo().lines_seen) * CHAR_BIT));
-    assert(line_on_page < (sizeof(OsPageInfo().lines_written) * CHAR_BIT));
-    line_on_page_bit = get_line_on_page_bit(line_on_page);
+  void get_page_index_offset_bit(long addr, long& page_index, uint& line_pos) {
+    const uint page_offset = slice_lower_bits(addr, os_page_offset_bits);
+    page_index             = addr;
+    line_pos               = page_offset >> 6;
+    assert(line_pos < get_num_tx_in_frame());
   }
 
   bool is_read_or_write_req(const Request& req) {
@@ -1419,30 +1419,34 @@ class Memory : public MemoryBase {
     if(!req.is_copy) {
       if(is_read_or_write_req(req)) {
         long page_index;
-        long line_on_page_bit;
-        get_page_index_offset_bit(req.orig_addr, page_index, line_on_page_bit);
+        uint line_pos;
+        get_page_index_offset_bit(req.orig_addr, page_index, line_pos);
 
         std::unordered_map<long, OsPageInfo>& os_page_tracking_map =
           os_page_tracking_map_by_ch[channel];
 
-        if(0 == os_page_tracking_map.count(page_index))
-          os_page_tracking_map[page_index] = OsPageInfo();
+        if(0 == os_page_tracking_map.count(page_index)) {
+          os_page_tracking_map[page_index]               = OsPageInfo();
+          os_page_tracking_map.at(page_index).lines_seen = vector<bool>(
+            get_num_tx_in_frame(), false);
+          os_page_tracking_map.at(page_index).lines_written = vector<bool>(
+            get_num_tx_in_frame(), false);
+        }
 
-        if(line_on_page_bit & os_page_tracking_map.at(page_index).lines_seen) {
+        if(os_page_tracking_map.at(page_index).lines_seen.at(line_pos)) {
           os_page_tracking_map.at(page_index).reuse_count++;
           stats_callback(int(StatCallbackType::DRAM_ORACLE_REUSE), req.coreid,
                          0 /* TODO: use this to pass retired_inst_window*/);
         }
-        if(line_on_page_bit &
-           os_page_tracking_map.at(page_index).lines_written) {
+        if(os_page_tracking_map.at(page_index).lines_written.at(line_pos)) {
           os_page_tracking_map.at(page_index).prev_written_reuse_count++;
           stats_callback(int(StatCallbackType::DRAM_ORACLE_PREV_WRITTEN_REUSE),
                          req.coreid,
                          0 /* TODO: use this to pass retired_inst_window*/);
         }
-        os_page_tracking_map.at(page_index).lines_seen |= line_on_page_bit;
+        os_page_tracking_map.at(page_index).lines_seen.at(line_pos) = true;
         if(req.type == Request::Type::WRITE) {
-          os_page_tracking_map.at(page_index).lines_written |= line_on_page_bit;
+          os_page_tracking_map.at(page_index).lines_written.at(line_pos) = true;
         }
         os_page_tracking_map.at(page_index).access_count++;
 
@@ -1451,19 +1455,17 @@ class Memory : public MemoryBase {
             if(-1 != addr_remap_page_reuse_threshold) {
               if(os_page_tracking_map.at(page_index).reuse_count >
                  addr_remap_page_reuse_threshold) {
-                remap_and_copy_whenever(channel, page_index, line_on_page_bit,
-                                        req);
+                remap_and_copy_whenever(channel, page_index, line_pos, req);
               }
             } else if(-1 != addr_remap_page_access_threshold) {
               if(os_page_tracking_map.at(page_index).access_count >
                  addr_remap_page_access_threshold) {
-                remap_and_copy_whenever(channel, page_index, line_on_page_bit,
-                                        req);
+                remap_and_copy_whenever(channel, page_index, line_pos, req);
               }
             }
           } else if(CopyTime::Periodic == remap_copy_time) {
             update_remap_candidates_and_interval_accesses(
-              channel, req.coreid, req.orig_addr, page_index, line_on_page_bit);
+              channel, req.coreid, req.orig_addr, page_index, line_pos);
           } else {
             assert(false);
           }
@@ -1599,14 +1601,16 @@ class Memory : public MemoryBase {
     page_index_to_candidate_info_map.at(orig_page_index).access_count++;
   }
 
-  void update_remap_candidates_and_interval_accesses(
-    const int channel, const int coreid, const long addr,
-    const long orig_page_index, const long line_on_page_bit) {
+  void update_remap_candidates_and_interval_accesses(const int  channel,
+                                                     const int  coreid,
+                                                     const long addr,
+                                                     const long orig_page_index,
+                                                     const uint line_pos) {
     ch_to_core_to_interval_accesses[get_channel_for_accessing_tables(channel)]
                                    [coreid]++;
 
     bool page_remapped = false;
-    line_is_remapped(page_remapped, channel, orig_page_index, line_on_page_bit);
+    line_is_remapped(page_remapped, channel, orig_page_index, line_pos);
     if(page_remapped) {
       update_reserved_row_interval_accesses(channel, addr, orig_page_index);
     } else {
@@ -1623,10 +1627,21 @@ class Memory : public MemoryBase {
     }
   }
 
+  uint get_num_tx_in_frame_log2() {
+    const int num_tx_in_frame_log2 = (os_page_offset_bits - tx_bits);
+    return num_tx_in_frame_log2;
+  }
+
+  uint get_num_tx_in_frame() {
+    const int num_tx_in_frame_log2 = get_num_tx_in_frame_log2();
+    const int num_tx_in_frame      = (1 << num_tx_in_frame_log2);
+
+    return num_tx_in_frame;
+  }
+
   vector<long> get_txs_that_belong_to_all_channels(const long page_index) {
-    const int    num_tx_in_frame_log2 = (os_page_offset_bits - tx_bits);
-    const int    num_tx_in_frame      = (1 << num_tx_in_frame_log2);
-    const int    tx_size              = (1 << tx_bits);
+    const int    num_tx_in_frame                  = get_num_tx_in_frame();
+    const int    tx_size                          = (1 << tx_bits);
     vector<long> addrs_that_belong_to_all_channel = vector<long>();
 
     for(int line_in_frame = 0; line_in_frame < num_tx_in_frame;
@@ -1640,8 +1655,7 @@ class Memory : public MemoryBase {
 
   vector<long> get_txs_that_belong_to_channel(const int  channel,
                                               const long page_index) {
-    const int    num_tx_in_frame_log2         = (os_page_offset_bits - tx_bits);
-    const int    num_tx_in_frame              = (1 << num_tx_in_frame_log2);
+    const int    num_tx_in_frame              = get_num_tx_in_frame();
     const int    tx_size                      = (1 << tx_bits);
     vector<long> addrs_that_belong_to_channel = vector<long>();
     vector<int>  dummy_addr_vec(addr_bits.size());
@@ -2059,14 +2073,16 @@ class Memory : public MemoryBase {
         pending_frame_replacement_info.pending_fill_reads =
           get_txs_that_belong_to_channel(channel, new_frame_index);
       }
-      pending_frame_replacement_info.new_frame_new_lines_on_page_mask = 0;
+      pending_frame_replacement_info.new_frame_new_lines_on_page_mask =
+        vector<bool>(get_num_tx_in_frame(), false);
       for(const long fill_addr :
           pending_frame_replacement_info.pending_fill_reads) {
-        long page_index, line_on_page_bit;
-        get_page_index_offset_bit(fill_addr, page_index, line_on_page_bit);
+        long page_index;
+        uint line_pos;
+        get_page_index_offset_bit(fill_addr, page_index, line_pos);
         assert(new_frame_index == page_index);
-        pending_frame_replacement_info.new_frame_new_lines_on_page_mask |=
-          line_on_page_bit;
+        pending_frame_replacement_info.new_frame_new_lines_on_page_mask.at(
+          line_pos) = true;
       }
     }
     return pending_frame_replacement_info;
@@ -2191,7 +2207,7 @@ class Memory : public MemoryBase {
     assert(tx_bits > 0);
     const long addr_without_tx_bits = (row_addr
                                        << (log2_num_frames_per_row +
-                                           os_page_offset_bits - tx_bits));
+                                           get_num_tx_in_frame_log2()));
     return get_row_channel_xor_from_addr_without_tx(addr_without_tx_bits);
   }
 
@@ -2199,7 +2215,7 @@ class Memory : public MemoryBase {
     assert(os_page_offset_bits > 0);
     assert(tx_bits > 0);
     const long addr_without_tx_bits = (frame_index
-                                       << (os_page_offset_bits - tx_bits));
+                                       << get_num_tx_in_frame_log2());
     return get_row_channel_xor_from_addr_without_tx(addr_without_tx_bits);
   }
 
@@ -2249,7 +2265,7 @@ class Memory : public MemoryBase {
 
   void remap_frame(const int channel, const long reserved_row,
                    const int nonrow_index_bits, const long frame_to_remap,
-                   const uint64_t new_mask) {
+                   const vector<bool> new_mask) {
     assert(0 == ch_to_page_index_remapping.at(channel).count(frame_to_remap));
     assert(ch_to_pending_frame_remaps.at(channel).count(frame_to_remap));
     const long new_dst_frame =
@@ -2662,7 +2678,7 @@ class Memory : public MemoryBase {
     setup_shadow_page_remappings(sz[int(T::Level::Channel)]);
     for(int ch = 0; ch < sz[int(T::Level::Channel)]; ch++) {
       ch_to_page_index_remapping[ch] =
-        unordered_map<long, std::pair<long, uint64_t>>();
+        unordered_map<long, std::pair<long, vector<bool>>>();
       ch_to_free_rows[ch]                         = vector<long>();
       ch_to_allocated_row_info_in_order[ch]       = deque<AllocatedRowInfo>();
       ch_to_core_to_interval_accesses[ch]         = unordered_map<int, long>();

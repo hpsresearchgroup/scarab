@@ -424,6 +424,7 @@ void init_configs() {
                to_string(RAMULATOR_ADDR_REMAP_MAX_PER_CORE_LIMIT_MB));
   configs->add("addr_remap_num_reserved_rows",
                to_string(RAMULATOR_ADDR_REMAP_NUM_RESERVED_ROWS));
+  configs->add("va_page_size_bytes", to_string(VA_PAGE_SIZE_BYTES));
   configs->add(
     "addr_remap_dram_cycles_between_periodic_copy",
     to_string(RAMULATOR_ADDR_REMAP_DRAM_CYCLES_BETWEEN_PERIODIC_COPY));
