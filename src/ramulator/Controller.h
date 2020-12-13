@@ -125,11 +125,11 @@ public:
     bool print_cmd_trace = false;
 
     // callback function for passing stats to Scarab when an event occurs
-    void (*stats_callback)(int) = nullptr;
+    void (*stats_callback)(int, int) = nullptr;
 
 
     /* Constructor */
-    Controller(const Config& configs, DRAM<T>* channel, void (*_stats_callback)(int)) :
+    Controller(const Config& configs, DRAM<T>* channel, void (*_stats_callback)(int,int)) :
         channel(channel),
         scheduler(new Scheduler<T>(this, configs)),
         rowpolicy(new RowPolicy<T>(this)),
@@ -421,7 +421,7 @@ public:
             auto cmd = T::Command::PRE;
             vector<int> victim = rowpolicy->get_victim(cmd);
             if (!victim.empty()){
-                issue_cmd(cmd, victim);
+                issue_cmd(cmd, victim, 0);
             }
             return;  // nothing more to be done this cycle
         }
@@ -462,7 +462,7 @@ public:
 
         // issue command on behalf of request
         auto cmd = get_first_cmd(req);
-        issue_cmd(cmd, get_addr_vec(cmd, req));
+        issue_cmd(cmd, get_addr_vec(cmd, req), req->coreid);
 
         // check whether this is the last command (which finishes the request)
         //if (cmd != channel->spec->translate[int(req->type)]){
@@ -615,23 +615,23 @@ private:
 
     }
 
-    void issue_cmd(typename T::Command cmd, const vector<int>& addr_vec)
+    void issue_cmd(typename T::Command cmd, const vector<int>& addr_vec, int coreid)
     {
         cmd_issue_autoprecharge(cmd, addr_vec);
         assert(is_ready(cmd, addr_vec));
         channel->update(cmd, addr_vec.data(), clk);
 
         if(channel->spec->is_opening(cmd))
-            stats_callback(int(StatCallbackType::DRAM_ACT));
+            stats_callback(coreid, int(StatCallbackType::DRAM_ACT));
 
         if(channel->spec->is_closing(cmd))
-            stats_callback(int(StatCallbackType::DRAM_PRE));
+            stats_callback(coreid, int(StatCallbackType::DRAM_PRE));
         
         if(channel->spec->is_reading(cmd))
-            stats_callback(int(StatCallbackType::DRAM_READ));
+            stats_callback(coreid, int(StatCallbackType::DRAM_READ));
 
         if(channel->spec->is_writing(cmd))
-            stats_callback(int(StatCallbackType::DRAM_WRITE));
+            stats_callback(coreid, int(StatCallbackType::DRAM_WRITE));
 
 
         if(cmd == T::Command::PRE){

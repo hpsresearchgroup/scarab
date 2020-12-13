@@ -52,7 +52,7 @@ class MemoryBase{
 public:
     MemoryBase() {}
     virtual ~MemoryBase() {}
-    virtual double clk_ns() = 0;
+    virtual double clk_ns() const = 0;
     virtual void tick() = 0;
     virtual bool send(Request req) = 0;
     virtual int pending_requests() = 0;
@@ -62,8 +62,11 @@ public:
     virtual void set_high_writeq_watermark(const float watermark) = 0;
     virtual void set_low_writeq_watermark(const float watermark) = 0;
 
-    virtual int get_chip_width() = 0;
-    virtual int get_chip_size() = 0;
+    virtual int get_chip_width() const = 0;
+    virtual int get_chip_size()  const = 0;
+    virtual int get_num_chips()  const = 0;
+    virtual int get_chip_row_buffer_size() const = 0;
+
     // virtual int get_tCK() = 0;
     // virtual int get_nCL() = 0;
     // virtual int get_nCCD() = 0;
@@ -286,17 +289,27 @@ public:
         delete spec;
     }
 
-    double clk_ns()
-    {
+    double clk_ns() const {
         return spec->speed_entry.tCK;
     }
 
-    int get_chip_width() {
+    int get_chip_width() const {
         return spec->org_entry.dq;
     }
 
-    int get_chip_size() {
+    int get_chip_size() const {
         return spec->org_entry.size;
+    }
+
+    int get_num_chips() const {
+      uint64_t dram_capacity_bytes = max_address;
+      uint64_t chip_capacity_bytes = (uint64_t(get_chip_size()) * 1024 * 1024) / 8; // MegaBits to Bytes
+      //cout << "dram_capacity_bytes: " << dram_capacity_bytes << ", chip_capacity_bytes: " << chip_capacity_bytes << endl;
+      return dram_capacity_bytes / chip_capacity_bytes;
+    }
+
+    int get_chip_row_buffer_size() const {
+      return spec->org_entry.count[int(T::Level::Column)] * spec->org_entry.dq;
     }
 
     void record_core(int coreid) {

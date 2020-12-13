@@ -169,7 +169,6 @@ void power_calc_instruction_window_size(Reservation_Station* rs) {
       break;
   }
 
-
   if(connected_to_fp) {
     POWER_TOTAL_FP_RS_SIZE += rs->size;
   }

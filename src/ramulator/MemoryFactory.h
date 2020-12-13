@@ -60,7 +60,7 @@ class MemoryFactory {
 
   static Memory<T>* populate_memory(const Config& configs, T* spec,
                                     int channels, int ranks,
-                                    void (*stats_callback)(int)) {
+                                    void (*stats_callback)(int, int)) {
     // int& default_ranks = spec->org_entry.count[int(T::Level::Rank)];
     // int& default_channels = spec->org_entry.count[int(T::Level::Channel)];
 
@@ -82,14 +82,14 @@ class MemoryFactory {
   }
 
   static MemoryBase* create(const Config& configs, int cacheline,
-                            void (*stats_callback)(int)) {
+                            void (*stats_callback)(int, int)) {
     int channels = stoi(configs["channels"], NULL, 0);
     int ranks    = stoi(configs["ranks"], NULL, 0);
 
     validate(channels, ranks, configs);
 
-    // const string& org_name = configs["org"];
-    // const string& speed_name = configs["speed"];
+    //const string& org_name = configs["org"];
+    //const string& speed_name = configs["speed"];
 
     // T *spec = new T(org_name, speed_name);
     T* spec = new T(configs);
@@ -103,10 +103,10 @@ class MemoryFactory {
 
 template <>
 MemoryBase* MemoryFactory<WideIO2>::create(const Config& configs, int cacheline,
-                                           void (*stats_callback)(int));
+                                           void (*stats_callback)(int, int));
 template <>
 MemoryBase* MemoryFactory<SALP>::create(const Config& configs, int cacheline,
-                                        void (*stats_callback)(int));
+                                        void (*stats_callback)(int, int));
 
 } /*namespace ramulator*/
 

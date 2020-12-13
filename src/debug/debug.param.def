@@ -104,6 +104,7 @@ DEF_PARAM( debug_l2l1pref                          , DEBUG_L2L1PREF             
 
 DEF_PARAM( debug_perf_pred                         , DEBUG_PERF_PRED                      , Flag    , Flag      , FALSE   ,       )
 
+DEF_PARAM( debug_power_utils                       , DEBUG_POWER_UTILS                    , Flag    , Flag      , FALSE   ,       )
 DEF_PARAM( debug_dvfs                              , DEBUG_DVFS                           , Flag    , Flag      , FALSE   ,       )
 
 DEF_PARAM( debug_trace_read                        , DEBUG_TRACE_READ                     , Flag    , Flag      , FALSE   ,       )

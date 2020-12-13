@@ -421,7 +421,7 @@ Counter get_accum_stat_event(Stat_Enum name) {
     return 0;
 
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    accum += global_stat_array[proc_id][name].count;
+    accum += global_stat_array[proc_id][name].total_count;
   }
 
   return accum;
