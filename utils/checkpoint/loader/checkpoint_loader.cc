@@ -405,7 +405,9 @@ int attach_pin_to_child(pid_t child_pid) {
                  << " -pid " << std::dec << child_pid << " -t " << pintool_path
                  << " -rip 0x" << std::hex << get_checkpoint_start_rip()
                  << " -socket_path " << socket_path << " -core_id " << std::dec
-                 << core_id;
+                 << core_id
+    //<< " -debug_print_start_uid 24774000"
+    ;
   std::string pin_command_str = pin_command_ss.str();
 
   debug("PIN COMMAND: %s", pin_command_str.c_str());

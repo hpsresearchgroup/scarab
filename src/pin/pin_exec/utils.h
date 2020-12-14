@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <unordered_map>
 
+#include "../pin_lib/gather_scatter_addresses.h"
+
 #undef UNUSED
 #undef WARNING
 
@@ -34,7 +36,7 @@
 #undef UNUSED
 #undef WARNING
 
-#define ADDR_MASK(x) ((x)&0x0000FFFFFFFFFFFFULL)
+#define ADDR_MASK(x) ((x)&0x0000FFFFFFFFFFFFUL)
 
 #ifdef DEBUG_PRINT
 #define DBG_PRINT(uid, start_print_uid, end_print_uid, ...)  \
@@ -65,6 +67,89 @@
       exit(15);                                                             \
     }                                                                       \
   } while(0)
+
+class Mem_Writes_Info {
+ public:
+  Mem_Writes_Info() : type(Type::NO_WRITE) {}
+
+  Mem_Writes_Info(ADDRINT addr, uint32_t size) :
+      type(Type::ONE_WRITE), single_write_addr(addr), single_write_size(size) {}
+
+  Mem_Writes_Info(const PIN_MULTI_MEM_ACCESS_INFO* const multi_mem_access_info,
+                  CONTEXT* ctxt, bool is_scatter) :
+      type(is_scatter ? Type::MULTI_WRITE_SCATTER : Type::MULTI_WRITE),
+      multi_mem_access_info(multi_mem_access_info),
+      scatter_maskon_mem_access_info(
+        produce_scatter_access_info(multi_mem_access_info, ctxt, is_scatter)) {}
+
+  uint32_t get_num_mem_writes() {
+    switch(type) {
+      case Type::NO_WRITE:
+        return 0;
+      case Type::ONE_WRITE:
+        return 1;
+      case Type::MULTI_WRITE:
+        return multi_mem_access_info->numberOfMemops;
+      case Type::MULTI_WRITE_SCATTER:
+        return scatter_maskon_mem_access_info.size();
+    }
+    ASSERTM(0, false, "Bad Mem Write Info");
+    return 0;
+  }
+
+  template <typename F>
+  void for_each_mem(F&& func) const {
+    switch(type) {
+      case Type::NO_WRITE:
+        break;
+      case Type::ONE_WRITE:
+        func(single_write_addr, single_write_size);
+        break;
+      case Type::MULTI_WRITE:
+        for(uint32_t i = 0; i < multi_mem_access_info->numberOfMemops; ++i) {
+          func(multi_mem_access_info->memop[i].memoryAddress,
+               multi_mem_access_info->memop[i].bytesAccessed);
+        }
+        break;
+      case Type::MULTI_WRITE_SCATTER:
+        for(const auto& mem_info : scatter_maskon_mem_access_info) {
+          func(mem_info.memoryAddress, mem_info.bytesAccessed);
+        }
+        break;
+    }
+  }
+
+ private:
+  enum class Type {
+    NO_WRITE,
+    ONE_WRITE,
+    MULTI_WRITE,
+    MULTI_WRITE_SCATTER,
+  };
+
+  const Type                             type;
+  const ADDRINT                          single_write_addr     = 0;
+  const uint32_t                         single_write_size     = 0;
+  const PIN_MULTI_MEM_ACCESS_INFO* const multi_mem_access_info = nullptr;
+  const std::vector<PIN_MEM_ACCESS_INFO> scatter_maskon_mem_access_info;
+
+  static std::vector<PIN_MEM_ACCESS_INFO> produce_scatter_access_info(
+    const PIN_MULTI_MEM_ACCESS_INFO* multi_mem_info, CONTEXT* ctxt,
+    bool is_scatter) {
+    std::vector<PIN_MEM_ACCESS_INFO> scatter_mem_infos;
+    if(is_scatter) {
+      // don't care about stores in lanes that are disabled by k mask
+      for(auto mem_access :
+          get_gather_scatter_mem_access_infos_from_gather_scatter_info(
+            ctxt, multi_mem_info)) {
+        if(mem_access.maskOn) {
+          scatter_mem_infos.push_back(mem_access);
+        }
+      }
+    }
+    return scatter_mem_infos;
+  }
+};
 
 struct MemState {
   ADDRINT mem_addr;
@@ -107,17 +192,24 @@ struct ProcState {
   bool      unretireable_instruction;
   bool      wrongpath;
   bool      wrongpath_nop_mode;
+  bool      is_syscall;
   ADDRINT   wpnm_eip;
 
   ProcState() : mem_state_list(NULL), num_mem_state(0) {}
 
-  void init(UINT64 _uid, bool _u_i, bool _wrongpath, bool _wrongpath_nop_mode,
-            ADDRINT _wpnm_eip, UINT _num_mem_state) {
+  void update(CONTEXT* _ctxt, UINT64 _uid, bool _u_i, bool _wrongpath,
+              bool _wrongpath_nop_mode, ADDRINT _wpnm_eip,
+              Mem_Writes_Info _mem_writes_info, bool _is_syscall) {
     uid                      = _uid;
     unretireable_instruction = _u_i;
     wrongpath                = _wrongpath;
     wrongpath_nop_mode       = _wrongpath_nop_mode;
     wpnm_eip                 = _wpnm_eip;
+    is_syscall               = _is_syscall;
+
+    PIN_SaveContext(_ctxt, &ctxt);
+
+    uint32_t _num_mem_state = _mem_writes_info.get_num_mem_writes();
 
     if(_num_mem_state > num_mem_state) {
       if(NULL != mem_state_list) {
@@ -128,6 +220,14 @@ struct ProcState {
     }
 
     num_mem_state = _num_mem_state;
+
+    int i = 0;
+    _mem_writes_info.for_each_mem([&i, this](ADDRINT addr, uint32_t size) {
+      ADDRINT masked_addr = ADDR_MASK(addr);
+      mem_state_list[i].init(masked_addr, size);
+      PIN_SafeCopy(mem_state_list[i].mem_data_ptr, (void*)masked_addr, size);
+      ++i;
+    });
   }
 
   ~ProcState() {
@@ -257,6 +357,95 @@ class Address_Tracker {
   // Using std::unordered_map instead of std::unordered_set because PinCRT is
   // incomplete.
   std::unordered_map<ADDRINT, bool> tracked_addresses;
+};
+
+class Pintool_State {
+ public:
+  Pintool_State() { clear_changing_control_flow(); }
+
+  // ***********************  Getters  **********************
+  bool skip_further_processing() {
+    return should_change_control_flow() || is_on_wrongpath_nop_mode();
+  }
+
+  bool should_change_control_flow() { return should_change_control_flow_; }
+
+  bool should_skip_next_instruction() { return should_skip_next_instruction_; }
+
+  bool should_insert_dummy_exception_br() {
+    return should_insert_dummy_exception_br_;
+  }
+
+  uint64_t get_next_inst_uid() { return uid_ctr++; }
+
+  uint64_t get_curr_inst_uid() { return uid_ctr; }
+
+  CONTEXT* get_context_for_changing_control_flow() { return &next_ctxt_; }
+
+  bool is_on_wrongpath() { return on_wrongpath_; }
+  bool is_on_wrongpath_nop_mode() {
+    return wrongpath_nop_mode_reason_ != WPNM_NOT_IN_WPNM;
+  }
+  Wrongpath_Nop_Mode_Reason get_wrongpath_nop_mode_reason() {
+    return wrongpath_nop_mode_reason_;
+  }
+
+  uint64_t get_next_rip() { return next_rip_; }
+
+  uint64_t get_rightpath_exception_rip() { return rightpath_exception_rip_; }
+  uint64_t get_rightpath_exception_next_rip() {
+    return rightpath_exception_next_rip_;
+  }
+
+  // ***********************  Setters  **********************
+  void clear_changing_control_flow() {
+    should_change_control_flow_   = false;
+    should_skip_next_instruction_ = false;
+  }
+
+  void set_next_rip(uint64_t next_rip) { next_rip_ = next_rip; }
+
+  void set_next_state_for_changing_control_flow(const CONTEXT* next_ctxt,
+                                                bool           redirect_rip,
+                                                uint64_t       next_rip,
+                                                bool skip_next_instruction) {
+    should_change_control_flow_ = true;
+    PIN_SaveContext(next_ctxt, &next_ctxt_);
+    if(redirect_rip) {
+      PIN_SetContextReg(&next_ctxt_, REG_INST_PTR, next_rip);
+    }
+    should_skip_next_instruction_ = skip_next_instruction;
+  }
+
+  void set_wrongpath(bool on_wrongpath) { on_wrongpath_ = on_wrongpath; }
+  void set_wrongpath_nop_mode(
+    Wrongpath_Nop_Mode_Reason wrongpath_nop_mode_reason, uint64_t next_rip) {
+    wrongpath_nop_mode_reason_ = wrongpath_nop_mode_reason;
+    next_rip_                  = ADDR_MASK(next_rip);
+  }
+
+  void clear_rightpath_exception() {
+    should_insert_dummy_exception_br_ = false;
+  }
+  void set_rightpath_exception(uint64_t rip, uint64_t next_rip) {
+    should_insert_dummy_exception_br_ = true;
+    rightpath_exception_rip_          = rip;
+    rightpath_exception_next_rip_     = next_rip;
+  }
+
+ private:
+  bool    should_change_control_flow_       = false;
+  bool    should_skip_next_instruction_     = false;
+  bool    should_insert_dummy_exception_br_ = false;
+  CONTEXT next_ctxt_;
+
+  uint64_t rightpath_exception_rip_;
+  uint64_t rightpath_exception_next_rip_;
+  uint64_t uid_ctr = 0;
+
+  bool                      on_wrongpath_              = false;
+  Wrongpath_Nop_Mode_Reason wrongpath_nop_mode_reason_ = WPNM_NOT_IN_WPNM;
+  uint64_t                  next_rip_                  = 0;
 };
 
 

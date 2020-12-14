@@ -32,9 +32,6 @@
  * compressed_op interface
  **********************************************************/
 
-// pin skips (fast_forward_count - 1) instructions
-uint64_t fast_forward_count = 0;
-
 Flag is_sentinal_op(compressed_op* cop) {
   return cop->is_sentinel == 1;
 }

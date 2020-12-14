@@ -52,9 +52,6 @@
 /* ===================================================================== */
 /* ===================================================================== */
 
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "",
-                            "specify file name for pintool output");
-
 KNOB<string> KnobSocketPath(KNOB_MODE_WRITEONCE, "pintool", "socket_path",
                             "./pin_exec_driven_fe_socket.temp",
                             "specify socket path to communicate with Scarab");
@@ -121,6 +118,11 @@ void insert_check_for_magic_instructions(const INS& ins) {
   }
 }
 
+void insert_exception_handler_followup(const INS& ins) {
+  INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)exception_handler_followup,
+                 IARG_CONTEXT, IARG_END);
+}
+
 void insert_processing_for_syscalls(const INS& ins) {
   INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(process_syscall), IARG_INST_PTR,
                  IARG_SYSCALL_NUMBER, IARG_SYSARG_VALUE, 0, IARG_SYSARG_VALUE,
@@ -164,21 +166,29 @@ void insert_checks_for_control_flow(const INS& ins) {
 
 void insert_processing_for_nonsyscall_instructions(const INS& ins) {
   if(!INS_IsMemoryWrite(ins)) {
-    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_no_mem, IARG_CONTEXT,
+    INS_InsertCall(ins, IPOINT_BEFORE,
+                   (AFUNPTR)process_instruction_no_mem_write, IARG_CONTEXT,
                    IARG_END);
   } else {
     if(INS_hasKnownMemorySize(ins)) {
       // Single memory op
-      INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_one_mem,
-                     IARG_CONTEXT, IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE,
-                     IARG_END);
+      INS_InsertCall(ins, IPOINT_BEFORE,
+                     (AFUNPTR)process_instruction_one_mem_write, IARG_CONTEXT,
+                     IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_END);
     } else {
       // Multiple memory ops
-      INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)before_ins_multi_mem,
-                     IARG_CONTEXT, IARG_MULTI_MEMORYACCESS_EA, IARG_BOOL,
-                     INS_IsVscatter(ins), IARG_END);
+      INS_InsertCall(ins, IPOINT_BEFORE,
+                     (AFUNPTR)process_instruction_multi_mem_write, IARG_CONTEXT,
+                     IARG_MULTI_MEMORYACCESS_EA, IARG_BOOL, INS_IsVscatter(ins),
+                     IARG_END);
     }
   }
+}
+
+void insert_conditional_function_change_pintool_control_flow(const INS& ins) {
+  INS_InsertCall(ins, IPOINT_BEFORE,
+                 (AFUNPTR)change_pintool_control_flow_if_needed, IARG_CONTEXT,
+                 IARG_END);
 }
 
 void instrumentation_func_per_trace(TRACE trace, void* v) {
@@ -191,7 +201,8 @@ void instrumentation_func_per_trace(TRACE trace, void* v) {
     }
   }
 
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+            dbg_print_end_uid,
             "Instrumenting Trace at address 0x%p. Instructions:\n%s\n",
             (void*)TRACE_Address(trace), instructions_ss.str().c_str());
 #endif
@@ -211,53 +222,60 @@ void instrumentation_func_per_instruction(INS ins, void* v) {
   if(!started) {
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)redirect, IARG_CONTEXT,
                    IARG_END);
-  } else {
-    if(!hyper_ff) {
-      instrumented_rip_tracker.insert(INS_Address(ins));
+    return;
+  }
 
-      DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                "Instrument from Instruction() eip=%" PRIx64 "\n",
-                (uint64_t)INS_Address(ins));
-
-      insert_logging(ins);
-      insert_check_for_magic_instructions(ins);
-
-      // Inserting functions to create a compressed op
-      pin_decoder_insert_analysis_functions(ins);
-
-      if(INS_IsSyscall(ins) || is_ifetch_barrier(ins)) {
-        insert_processing_for_syscalls(ins);
-      } else {
-        insert_checks_for_control_flow(ins);
-        insert_processing_for_nonsyscall_instructions(ins);
-      }
+  if(hyper_ff) {
+    return;
+  }
 
 #ifdef DEBUG_PRINT
-      stringstream ss;
-      if(INS_IsDirectBranchOrCall(ins)) {
-        ss << "0x" << hex << INS_DirectBranchOrCallTargetAddress(ins);
-      } else {
-        ss << "(not a direct branch or call)";
-      }
-
-      DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-                "Leaving Instrument from Instruction() eip=%" PRIx64
-                ", %s, direct target: %s\n",
-                (uint64_t)INS_Address(ins), INS_Mnemonic(ins).c_str(),
-                ss.str().c_str());
-#endif
-    }
+  stringstream ss;
+  if(INS_IsDirectBranchOrCall(ins)) {
+    ss << "0x" << hex << INS_DirectBranchOrCallTargetAddress(ins);
+  } else {
+    ss << "(not a direct branch or call)";
   }
+
+  DBG_PRINT(
+    pintool_state.get_curr_inst_uid(), dbg_print_start_uid, dbg_print_end_uid,
+    "Leaving Instrument from Instruction() eip=%" PRIx64
+    ", %s, direct target: %s\n",
+    (uint64_t)INS_Address(ins), INS_Mnemonic(ins).c_str(), ss.str().c_str());
+#endif
+
+  instrumented_rip_tracker.insert(INS_Address(ins));
+
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+            dbg_print_end_uid,
+            "Instrument from Instruction() eip=%" PRIx64 "\n",
+            (uint64_t)INS_Address(ins));
+
+  insert_logging(ins);
+  insert_check_for_magic_instructions(ins);
+  insert_exception_handler_followup(ins);
+
+  // Inserting functions to create a compressed op
+  pin_decoder_insert_analysis_functions(ins);
+
+  if(INS_IsSyscall(ins) || is_ifetch_barrier(ins)) {
+    insert_processing_for_syscalls(ins);
+  } else {
+    insert_checks_for_control_flow(ins);
+    insert_processing_for_nonsyscall_instructions(ins);
+  }
+
+  insert_conditional_function_change_pintool_control_flow(ins);
 }
 
 }  // namespace
 
 void Fini(INT32 code, void* v) {
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-            "Fini reached, app exit code=%d\n.", code);
-  *out << "End of program reached, disconnect from Scarab.\n" << endl;
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+            dbg_print_end_uid, "Fini reached, app exit code=%d\n.", code);
+  std::cout << "End of program reached, disconnect from Scarab.\n" << endl;
   scarab->disconnect();
-  *out << "Pintool Fini Reached.\n" << endl;
+  std::cout << "Pintool Fini Reached.\n" << endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -290,31 +308,26 @@ int main(int argc, char* argv[]) {
   dbg_print_start_uid = KnobDebugPrintStartUid.Value();
   dbg_print_end_uid   = KnobDebugPrintEndUid.Value();
 
+  max_buffer_size = KnobMaxBufferSize.Value();
+
   register_signal_handlers();
 
   hyper_ff = false;
   if(hyper_fast_forward_count > 0) {
     hyper_ff = true;
-    *out << "Entering Hyper Fast Forward Mode: " << hyper_fast_forward_count
-         << " ins remaining" << endl;
+    std::cout << "Entering Hyper Fast Forward Mode: "
+              << hyper_fast_forward_count << " ins remaining" << endl;
   } else if(fast_forward_count > 0) {
     if(fast_forward_to_pin_start) {
-      *out << "Entering Fast Forward Mode: looking for start instruction"
-           << endl;
+      std::cout << "Entering Fast Forward Mode: looking for start instruction"
+                << endl;
     } else {
-      *out << "Entering Fast Forward Mode: " << fast_forward_count
-           << " ins remaining" << endl;
+      std::cout << "Entering Fast Forward Mode: " << fast_forward_count
+                << " ins remaining" << endl;
     }
   }
 
-  max_buffer_size = KnobMaxBufferSize.Value();
-  string fileName = KnobOutputFile.Value();
-
-  if(!fileName.empty()) {
-    out = new std::ofstream(fileName.c_str());
-  }
-
-  pin_decoder_init(true, out);
+  pin_decoder_init(true, &std::cout);
 
   // Register function to be called to instrument traces
   TRACE_AddInstrumentFunction(instrumentation_func_per_trace, 0);

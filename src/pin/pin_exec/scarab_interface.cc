@@ -24,11 +24,11 @@
 Scarab_To_Pin_Msg get_scarab_cmd() {
   Scarab_To_Pin_Msg cmd;
 
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-            "START: Receiving from Scarab\n");
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+            dbg_print_end_uid, "START: Receiving from Scarab\n");
   cmd = scarab->receive<Scarab_To_Pin_Msg>();
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-            "END: %d Received from Scarab\n", cmd.type);
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+            dbg_print_end_uid, "END: %d Received from Scarab\n", cmd.type);
 
   return cmd;
 }
@@ -46,11 +46,11 @@ bool scarab_buffer_full() {
 
 void scarab_send_buffer() {
   Message<ScarabOpBuffer_type> message = scarab_op_buffer;
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-            "START: Sending message to Scarab.\n");
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+            dbg_print_end_uid, "START: Sending message to Scarab.\n");
   scarab->send(message);
-  DBG_PRINT(uid_ctr, dbg_print_start_uid, dbg_print_end_uid,
-            "END: Sending message to Scarab.\n");
+  DBG_PRINT(pintool_state.get_curr_inst_uid(), dbg_print_start_uid,
+            dbg_print_end_uid, "END: Sending message to Scarab.\n");
   scarab_op_buffer.clear();
 }
 

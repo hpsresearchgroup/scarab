@@ -30,35 +30,28 @@ void process_syscall(ADDRINT ip, ADDRINT num, ADDRINT arg0, ADDRINT arg1,
                      ADDRINT arg2, ADDRINT arg3, ADDRINT arg4, ADDRINT arg5,
                      CONTEXT* ctxt, bool real_syscall);
 
-void save_context(CONTEXT* ctxt);
+void process_instruction_no_mem_write(CONTEXT* ctxt);
 
-void check_if_region_written_to(ADDRINT write_addr);
+void process_instruction_one_mem_write(CONTEXT* ctxt, ADDRINT write_addr,
+                                       UINT32 write_size);
 
-void save_mem(ADDRINT write_addr, UINT32 write_size, UINT write_index);
+void process_instruction_multi_mem_write(
+  CONTEXT* ctxt, PIN_MULTI_MEM_ACCESS_INFO* mem_access_info, bool is_scatter);
 
-void undo_mem(const ProcState& undo_state);
-
-void finish_before_ins_all(CONTEXT* ctxt, bool from_syscall);
-
-void add_right_path_exec_br(CONTEXT* ctxt);
-
-void before_ins_no_mem(CONTEXT* ctxt);
-
-void before_ins_one_mem(CONTEXT* ctxt, ADDRINT write_addr, UINT32 write_size);
-
-void before_ins_multi_mem(CONTEXT*                   ctxt,
-                          PIN_MULTI_MEM_ACCESS_INFO* mem_access_info_from_pin,
-                          bool                       is_scatter);
+void change_pintool_control_flow_if_needed(CONTEXT* ctxt);
 
 void redirect(CONTEXT* ctx);
 
-void logging(ADDRINT n_eip, ADDRINT curr_eip, BOOL check_next_addr, BOOL taken);
+void logging(ADDRINT next_rip, ADDRINT curr_rip, bool check_next_addr,
+             bool taken);
+
+void exception_handler_followup(CONTEXT* ctxt);
 
 void check_ret_control_ins(ADDRINT read_addr, UINT32 read_size, CONTEXT* ctxt);
 
-void check_nonret_control_ins(BOOL taken, ADDRINT target_addr);
+void check_nonret_control_ins(bool taken, ADDRINT target_addr);
 
-void check_nonret_control_mem_target(BOOL taken, ADDRINT addr, UINT32 ld_size);
+void check_nonret_control_mem_target(bool taken, ADDRINT addr, UINT32 ld_size);
 
 void handle_scarab_marker(ADDRINT op);
 
