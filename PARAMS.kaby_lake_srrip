@@ -1,0 +1,227 @@
+# File         : PARAMS.kaby_lake
+# Date         : 03/06/19
+# Description  : Kaby Lake Configuration
+# 
+# Based on documentation found here:
+# https://en.wikichip.org/wiki/intel/microarchitectures/kaby_lake
+
+## Simulation Parameters
+--mode                          full
+--model                         cmp
+--sim_limit                     none
+
+## Core Parameters
+
+# Femptoseconds, 3.2GHz, used for energy estimates.
+--chip_cycle_time               312500
+
+
+### Fetch Stage
+--fetch_off_path_ops            1
+--fetch_across_cache_lines      1
+
+# Will break the packet upon a taken branch.
+--fetch_break_on_taken          1
+
+# Number of bubble cycles to wait after taken branch.
+--fetch_taken_bubble_cycles     0
+
+
+#### ICache
+--icache_size                   32768
+--icache_assoc                  4
+--icache_line_size              64
+
+### Branch Predictor
+--extra_recovery_cycles         0                         # Number of cycles before the fetching of the first instructions after recovery.
+--extra_redirect_cycles         0                         # Number of cycles before the fetching of the first instructions after redirect.
+--cfs_per_cycle                 6                         # Number of branches that can be predicted in a single cycle
+--bp_update_at_retire           0                         # Update the BP at retire. If false, update at the end of exec.
+--update_bp_off_path            1                         # Allow off path ops to update branch predictor state (e.g., ops when they complete exec stage).
+--bp_mech                       tagescl                   
+
+
+#### BTB
+
+# BTB model to use.
+--btb_mech                      generic
+--btb_entries                   4096
+--btb_assoc                     4
+
+# Allow the BTB to be updated by off path ops. 
+--btb_off_path_writes           1
+
+
+#### CRS
+
+# Enable return stack
+--enable_crs                    1
+--crs_entries                   32
+--crs_realistic                 1
+
+### iBP
+--enable_ibp                    1                         # Enable the indirect branch predictor
+--ibtb_mech                     tc_tagged                 
+                                                          # iBTB Model. tc_tagless, tc_tagged, tc_hybrid.
+--ibtb_off_path_writes          1                         # Allow off path ops to update the ibtb.
+--tc_entries                    4096
+--tc_assoc                      4
+
+### Decode Stage
+--decode_cycles                 5
+
+
+### Map Stage
+--map_cycles                    5
+
+
+### Issue Stage
+
+# Max number of instructions to be fetched, decoded, renamed, and issued per cycle.
+--issue_width                   6
+
+--rs_fill_width                 0
+--rs_sizes                      97
+--rs_connections                0
+--fu_types                      0 0 0 0 0 0 0 0
+
+
+### Exec Stage
+
+### DCache
+--dcache_size 	 	        32768
+--dcache_read_ports             2
+--dcache_write_ports            1
+--dcache_banks                  1
+--dcache_assoc		        4
+--dcache_line_size              64
+
+### Reorder/Retire Stage
+
+# Max number of instructions to be retired per cycle.
+--node_ret_width                6
+--node_table_size               224
+
+# Do not keep stores in RSVs on cache misses; TODO: confirm what this knob does
+--stores_do_not_block_window    1
+
+# TODO: confirm what this knob does
+--prefs_do_not_block_window     1
+
+
+## Uncore
+
+### Mid-level cache
+
+# Enable use of a midlevel cache between i/d and L1
+--mlc_present                   0
+
+### LLC
+--l1_size                       1048576
+--l1_banks                      1
+--l1_cycles		        18
+--l1_assoc                      8
+--l1_line_size                  64
+--l1_interleave_factor          64
+--l1_cache_repl_policy          11
+
+
+### Prefetcher
+--pref_framework_on             1
+--pref_stream_on 		            1
+--pref_stream_per_core_enable   1
+--pref_shared_queues            0
+--pref_train_on_pref_misses     0
+--pref_oracle_train             0
+--pref_ul1req_queue_overwrite_on_full 1
+
+--stream_length                 64
+--stream_prefetch_n             4
+--stream_start_dis              1
+--stream_train_num 		4	
+--stream_create_on_dc_miss      0
+--stream_create_on_l1_miss      1
+
+--pref_throttlefb_on=1
+--pref_acc_thresh_1=0.75
+--pref_acc_thresh_2=0.4
+--pref_acc_thresh_3=0.4
+--pref_timely_thresh=0.01
+--pref_polpf_thresh=0.005
+--pref_update_interval=8192
+
+--mem_req_buffer_pref_watermark 4
+--promote_to_higher_priority_mem_req_type 1
+
+### Memory
+--addr_translation		random
+
+--mem_priority_ifetch        0
+--mem_priority_dfetch        1
+--mem_priority_dstore        2
+--mem_priority_iprf          3
+--mem_priority_dprf          4
+--mem_priority_wb            5
+--mem_priority_wb_nodirty    5
+
+--mem_req_buffer_entries        32
+--mem_l1_fill_queue_entries     32
+--va_page_size_bytes      4096
+--bus_width_in_bytes            8
+
+--ramulator_standard		DDR4
+--ramulator_speed		DDR4_2400R
+--ramulator_org 		DDR4_8Gb_x8
+--ramulator_channels		1
+--ramulator_ranks		1
+--ramulator_bankgroups		4
+--ramulator_banks		4
+--ramulator_chip_width		8
+--ramulator_rows		65536
+--ramulator_cols		1024
+--ramulator_scheduling_policy	FRFCFS_Cap		
+--ramulator_readq_entries	32		
+--ramulator_writeq_entries	32		
+--ramulator_record_cmd_trace	FALSE		
+--ramulator_print_cmd_trace	FALSE		
+--ramulator_tCK			833333
+--ramulator_tCL			16		
+--ramulator_tCCD		6		
+--ramulator_tCCDS		4		
+--ramulator_tCCDL		6		
+--ramulator_tCWL		12		
+--ramulator_tBL			4		
+--ramulator_tWTR		9		
+--ramulator_tWTRS		3		
+--ramulator_tWTRL		9		
+--ramulator_tRP			16		
+--ramulator_tRPpb		16		
+--ramulator_tRPab		16		
+--ramulator_tRCD		16		
+--ramulator_tRCDR		16		
+--ramulator_tRCDW		16		
+--ramulator_tRAS		39		
+--dram_tech_in_nm		32
+
+## Other
+
+
+### Debug
+--debug_inst_start              0
+--debug_inst_stop              -1
+--debug_cycle_start             0
+--debug_cycle_stop             -1
+
+
+## Stats and Params
+--dump_params                   1
+--dump_stats                    1
+--dump_trace                    0
+
+####################################
+--set_off_path_confirmed        1
+
+--order_beyond_bus              1
+
+--mem_ooo_stores                1
+--mem_obey_store_dep            1

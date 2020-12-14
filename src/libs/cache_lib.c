@@ -130,6 +130,9 @@ void init_cache(Cache* cache, const char* name, uns cache_size, uns assoc,
         memset(cache->entries[ii][jj].data, 0, data_size);
       } else
         cache->entries[ii][jj].data = INIT_CACHE_DATA_VALUE;
+      if(cache->repl_policy == REPL_SRRIP) {
+        cache->entries[ii][jj].rrpv = cache->assoc-1;
+      }
     }
 
     /* initialize the unsure lists (if necessary) */
@@ -280,6 +283,10 @@ void* cache_insert_replpos(Cache* cache, uns8 proc_id, Addr addr,
   uns          repl_index;
   uns          set = cache_index(cache, addr, &tag, line_addr);
   Cache_Entry* new_line;
+  
+  if (cache->repl_policy == REPL_SRRIP) {
+    insert_repl_policy = INSERT_REPL_SRRIP;
+  }
 
   if(cache->repl_policy == REPL_IDEAL) {
     new_line        = insert_sure_line(cache, set, tag);
@@ -355,6 +362,9 @@ void* cache_insert_replpos(Cache* cache, uns8 proc_id, Addr addr,
         new_line->last_access_time = sim_time;
       free(access);
     } break;
+    case INSERT_REPL_SRRIP:
+      new_line->rrpv = cache->assoc - 2;
+      break;
     default:
       ASSERT(0, FALSE);  // should never come here
   }
@@ -554,7 +564,31 @@ Cache_Entry* find_repl_entry(Cache* cache, uns8 proc_id, uns set, uns* way) {
       *way = lru_ind;
       return &cache->entries[set][lru_ind];
     }
-
+    case REPL_SRRIP: {
+      uns assoc = cache->assoc;
+      /* if an entry is invalid, directly replace it */
+      for (ii = 0; ii < assoc; ii++) {
+        Cache_Entry* entry = &cache->entries[set][ii];
+        if (!entry->valid) {
+          *way = ii;
+          return entry;
+        }
+      }
+      /* if full, find an entry with 2^m-1,
+        else increment all the RRPVs, and find the value */
+      while (1) {
+        for (ii = 0; ii < assoc; ii++) {
+          Cache_Entry* entry = &cache->entries[set][ii];
+          if (entry->rrpv == assoc - 1) {
+            *way = ii;
+            return entry;
+          }
+        }
+        for (ii = 0; ii < assoc; ii++) {
+          cache->entries[set][ii].rrpv++;
+        }
+      }
+    }  break;
 
     default:
       ASSERT(0, FALSE);
@@ -621,6 +655,12 @@ static inline void update_repl_policy(Cache* cache, Cache_Entry* cur_entry,
           }
         }
         cache->repl_ctrs[set] = lru_ind;
+      }
+      break;
+    case REPL_SRRIP:
+      DEBUG(0, "cache hit, using SRRIP to update\n");
+      if (cur_entry->rrpv != 0) {
+        cur_entry->rrpv--;
       }
       break;
     default:
@@ -1009,6 +1049,9 @@ void reset_cache(Cache* cache) {
   for(ii = 0; ii < cache->num_sets; ii++) {
     for(jj = 0; jj < cache->assoc; jj++) {
       cache->entries[ii][jj].valid = FALSE;
+      if (cache->repl_policy == REPL_SRRIP) {
+        cache->entries[ii][jj].rrpv = cache->assoc - 1;
+      }
     }
   }
 }
