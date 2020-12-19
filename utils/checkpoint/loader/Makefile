@@ -1,53 +1,25 @@
-CC=gcc
-CCC=g++
+all: opt
 
-C_WARN_FLAGS=-Wall -Wunused -Wmissing-prototypes -Wmissing-declarations -Wno-long-long -Wpointer-arith -Wimplicit -Werror
-CC_WARN_FLAGS=-Wall -Wunused -Wmissing-declarations -Wno-long-long -Wpointer-arith -Werror
+.PHONY: opt
+opt: build/Makefile
+	make -j --no-print-directory -C build 
+	ln -sf build/test_memcpy test_memcpy
+	ln -sf build/checkpoint_loader checkpoint_loader
 
-OPTCCFLAGS=--std=c++11 -O3 $(CC_WARN_FLAGS) -mxsave
-OPTCFLAGS=-O3 $(C_WARN_FLAGS)
+.PHONY: dbg
+dbg: build_dbg/Makefile
+	make -j --no-print-directory -C build_dbg
+	ln -sf build_dbg/test_memcpy test_memcpy
+	ln -sf build_dbg/checkpoint_loader checkpoint_loader
 
-OBJDIR=obj
-CCFILES=$(wildcard *.cc)
-CFILES=$(wildcard *.c)
+build/Makefile:
+	mkdir -p build
+	cd build; cmake .. -DCMAKE_BUILD_TYPE=Release
 
-OFILES=$(patsubst %.cc,$(OBJDIR)/%.o,$(CCFILES)) $(patsubst %.c,$(OBJDIR)/%.o,$(CFILES))
-CHECKPOINT_LOADER_OFILES=$(OFILES)
-
-CHECKPOINT_LOADER_DEPS=$(CHECKPOINT_LOADER_OFILES:%.o=%.d)
-DEP=$(CHECKPOINT_LOADER_DEPS)
-
-CHECKPOINT_LOADER := checkpoint_loader
-
-############################################################################
-# Building Checkpoint Loader
-############################################################################
-
-.PHONY: all clean dir
-
-all: $(CHECKPOINT_LOADER) $(PIN_EXEC_PATH)/$(CHK_PNT_PIN_TOOL)
+build_dbg/Makefile:
+	mkdir -p build_dbg
+	cd build_dbg; cmake .. -DCMAKE_BUILD_TYPE=Debug
 
 clean:
-	-rm -f $(CHECKPOINT_LOADER)
-	-rm -rf $(OBJDIR)
-	-make clean_checkpoint_pintool
-
-dir: $(OBJDIR)
-
-$(OBJDIR):
-	mkdir -p $(OBJDIR)
-
-$(CHECKPOINT_LOADER): $(CHECKPOINT_LOADER_OFILES)
-	$(CCC) $(OPTCCFLAGS) -o $@ $^
-
--include $(DEP)
-
-$(OBJDIR)/%.o: %.s $(OBJDIR)
-	as -o $@ $<
-
-$(OBJDIR)/%.o: %.c Makefile $(OBJDIR)
-	$(CC) $(OPTCFLAGS) -MMD -fPIC -c -o $@ $<
-
-$(OBJDIR)/%.o: %.cc Makefile $(OBJDIR)
-	$(CCC) $(OPTCCFLAGS) -MMD -fPIC -c -o $@ $<
-
+	rm -rf build/ build_dbg/
+	rm -f test_memcpy checkpoint_loader

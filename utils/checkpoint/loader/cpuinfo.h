@@ -36,9 +36,14 @@ inline std::string getCPUflags() {
   FILE* fp;
   fp = popen("cat /proc/cpuinfo | grep flags | head -n 1", "r");
   assert(NULL != fp);
-  assert(buf == fgets(buf, BUF_MAX, fp));   // read should succeed
-  assert(NULL == fgets(buf, BUF_MAX, fp));  // should only be a single line
-  int status = pclose(fp);
+
+  [[maybe_unused]] auto fgets_ret1 = fgets(buf, BUF_MAX, fp);
+  assert(fgets_ret1 == buf);  // read should succeed
+
+  [[maybe_unused]] auto fgets_ret2 = fgets(buf, BUF_MAX, fp);
+  assert(NULL == fgets_ret2);  // should only be a single line
+
+  [[maybe_unused]] int status = pclose(fp);
   assert(-1 != status);
 
   std::string full_line(buf);

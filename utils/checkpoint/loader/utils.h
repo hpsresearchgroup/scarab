@@ -41,8 +41,8 @@
 typedef uint64_t ADDR;
 
 // void fatal(const char* fmt, ...);
-void vfatal(const char* fmt, va_list va);
-void fatal_and_kill_child(pid_t child_pid, const char* fmt, va_list va);
+void vfatal(const char* fmt, ...);
+void fatal_and_kill_child(pid_t child_pid, const char* fmt, ...);
 void debug(const char* fmt, ...);
 void assertm(bool p, const char* message);
 

@@ -9,10 +9,10 @@
 
 namespace {
 
-char data[] = "=====================================================";
+char data[]      = "Test Failed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+char repl_data[] = "Test Succeeded !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
 
 void execute_tracer(pid_t child_pid) {
-  std::cout << "tracer" << std::endl;
   int status;
   waitpid(child_pid, &status, 0);
   if(!WIFSTOPPED(status)) {
@@ -21,16 +21,10 @@ void execute_tracer(pid_t child_pid) {
   }
 
 
-  for(auto& c : data) {
-    c = '*';
-  }
-  std::cout << "tracer data: ";
-  for(char c : data) {
-    std::cout << c;
-  }
-  std::cout << std::endl;
+  auto[tracer_addr, tracee_addr] = allocate_shared_memory(child_pid);
 
-  execute_memcpy(child_pid, &data[0], &data[0], (sizeof(data) / 8) * 8);
+  shared_memory_memcpy(child_pid, &data[0], &repl_data[0], (sizeof(data) / 8) * 8, tracer_addr, tracee_addr);
+  //execute_memcpy(child_pid, &data[0], &repl_data[0], (sizeof(data) / 8) * 8);
 
   if(ptrace(PTRACE_DETACH, child_pid, NULL, NULL)) {
     perror("PTRACE_DETACH");
@@ -44,7 +38,6 @@ void execute_tracer(pid_t child_pid) {
 }
 
 void execute_tracee_wrapper(char* argv0) {
-  std::cout << "tracee wrapper" << std::endl;
   ptrace(PTRACE_TRACEME, 0, 0, 0);
   char  dummy_arg[] = "dummy";
   char* argv[]      = {argv0, dummy_arg, nullptr};
@@ -52,11 +45,7 @@ void execute_tracee_wrapper(char* argv0) {
 }
 
 void execute_tracee() {
-  std::cout << "tracee data: ";
-  for(char c : data) {
-    std::cout << c;
-  }
-  std::cout << std::endl;
+  std::cout << data << std::endl;
 }
 
 }  // namespace

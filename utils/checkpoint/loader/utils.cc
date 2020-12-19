@@ -32,18 +32,27 @@
 #include <stdarg.h>
 #include <sys/personality.h>
 
-void vfatal(const char* fmt, va_list va) {
+void vfatal(const char* fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+
   fprintf(stderr, "fatal: ");
   vfprintf(stderr, fmt, va);
   fprintf(stderr, "\n");
+  va_end(va);
   exit(1);
 }
 
-void fatal_and_kill_child(pid_t child_pid, const char* fmt, va_list va) {
-  assert(0 != child_pid);
-  kill(child_pid, SIGKILL);
+void fatal_and_kill_child(pid_t child_pid, const char* fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+
+  if(0 != child_pid) {
+    kill(child_pid, SIGKILL);
+  }
 
   vfatal(fmt, va);
+  va_end(va);
 }
 
 void debug(const char* fmt, ...) {
@@ -87,8 +96,11 @@ int count_longest_option_length(const struct option long_options[]) {
 
 void turn_aslr_off() {
   const int current_persona = personality(0xffffffff);
-  assert(-1 != current_persona);
-  int ret_val = personality(current_persona | ADDR_NO_RANDOMIZE);
+  if(-1 == current_persona) {
+    vfatal("could not get the current personality");
+  }
+  [[maybe_unused]] int ret_val = personality(current_persona |
+                                             ADDR_NO_RANDOMIZE);
   assert(current_persona == ret_val);
 }
 
