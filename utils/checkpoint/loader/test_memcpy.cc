@@ -23,8 +23,9 @@ void execute_tracer(pid_t child_pid) {
 
   auto[tracer_addr, tracee_addr] = allocate_shared_memory(child_pid);
 
-  shared_memory_memcpy(child_pid, &data[0], &repl_data[0], (sizeof(data) / 8) * 8, tracer_addr, tracee_addr);
-  //execute_memcpy(child_pid, &data[0], &repl_data[0], (sizeof(data) / 8) * 8);
+  shared_memory_memcpy(child_pid, &data[0], &repl_data[0],
+                       (sizeof(data) / 8) * 8, tracer_addr, tracee_addr);
+  // execute_memcpy(child_pid, &data[0], &repl_data[0], (sizeof(data) / 8) * 8);
 
   if(ptrace(PTRACE_DETACH, child_pid, NULL, NULL)) {
     perror("PTRACE_DETACH");
