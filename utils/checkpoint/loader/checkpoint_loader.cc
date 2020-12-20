@@ -361,12 +361,12 @@ void jump_to_infinite_loop(pid_t pid) {
 }
 
 void load_fp_state(pid_t pid) {
+  std::cout << "Loading the floating-point state ..." << std::endl;
   char* fp_page_address = (char*)NULL;
 
   // Note: it does not matter if we get the address we requested or a different
   // address.
   debug("load_fp_state: mmapp for fp_state: %llx", fp_page_address);
-  std::cout << std::flush;
   fp_page_address = (char*)execute_mmap(pid, fp_page_address, FPSTATE_SIZE,
                                         PROT_READ | PROT_EXEC,
                                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

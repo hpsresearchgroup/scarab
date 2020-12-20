@@ -109,13 +109,11 @@ void read_fpstate(const struct hconfig_t* registers_config);
 
 bool is_pin_library(std::string filename);
 
-void fatal_and_kill_child(const char* fmt, ...);
-
 static const char* require_str(const struct hconfig_t* config,
                                const char*             name) {
   const char* str = hconfig_value(config, name);
   if(!str)
-    fatal_and_kill_child("Could not find \"%s\"", name);
+    fatal_and_kill_child(child_pid, "Could not find \"%s\"", name);
   return str;
 }
 
@@ -130,8 +128,8 @@ static uint64_t require_uint64(const struct hconfig_t* config,
     rc = sscanf(str, "%" PRIu64, &ans);
   }
   if(rc != 1)
-    fatal_and_kill_child("Could not parse \"%s\" as a 64 bit unsigned integer",
-                         str);
+    fatal_and_kill_child(
+      child_pid, "Could not parse \"%s\" as a 64 bit unsigned integer", str);
   return ans;
 }
 
@@ -145,8 +143,8 @@ static int64_t require_int64(const struct hconfig_t* config, const char* name) {
     rc = sscanf(str, "%" PRId64, &ans);
   }
   if(rc != 1)
-    fatal_and_kill_child("Could not parse \"%s\" as a 64 bit signed integer",
-                         str);
+    fatal_and_kill_child(
+      child_pid, "Could not parse \"%s\" as a 64 bit signed integer", str);
   return ans;
 }
 
@@ -156,14 +154,15 @@ static const struct hconfig_t* subconfig(const struct hconfig_t* config,
   if(!sub) {
     switch(hconfig_error()) {
       case HCONFIG_NAME_NOT_FOUND:
-        fatal_and_kill_child("Subconfig \"%s\" not found", name);
+        fatal_and_kill_child(child_pid, "Subconfig \"%s\" not found", name);
         break;
       case HCONFIG_MULTIPLE_NAMES:
-        fatal_and_kill_child("Too many subconfigs named \"%s\"", name);
+        fatal_and_kill_child(child_pid, "Too many subconfigs named \"%s\"",
+                             name);
         break;
       default:
-        fatal_and_kill_child("Unknown error looking for subconfig \"%s\"",
-                             name);
+        fatal_and_kill_child(
+          child_pid, "Unknown error looking for subconfig \"%s\"", name);
         break;
     }
   }
@@ -173,6 +172,7 @@ static const struct hconfig_t* subconfig(const struct hconfig_t* config,
 static void read_byte_array(char* buffer, const char* str, int buffer_size) {
   if(strncmp(str, HEX_PREFIX, 2)) {
     fatal_and_kill_child(
+      child_pid,
       "Cannot read byte array: \"%s\"; only hex representation is "
       "currently supported",
       str);
@@ -181,8 +181,8 @@ static void read_byte_array(char* buffer, const char* str, int buffer_size) {
   int num_chars = strlen(str);
   if(num_chars != 2 * buffer_size) {
     fatal_and_kill_child(
-      "Mismatch between number of bytes in the checkpoint file and "
-      "register sizes");
+      child_pid, "Mismatch between number of bytes in the checkpoint file and "
+                 "register sizes");
   }
   for(int buf_idx = 0; buf_idx < buffer_size; ++buf_idx) {
     int byte;
@@ -196,7 +196,8 @@ static const struct hconfig_t* read_checkpoint_config(
   std::string filepath = std::string(checkpoint_dir) + "/main";
   FILE*       file     = fopen(filepath.c_str(), "r");
   if(!file) {
-    fatal_and_kill_child("Could not open checkpoint file %s", filepath.c_str());
+    fatal_and_kill_child(child_pid, "Could not open checkpoint file %s",
+                         filepath.c_str());
   }
   const struct hconfig_t* config           = hconfig_load(file);
   const struct hconfig_t* processes_config = subconfig(config, "processes");
@@ -210,7 +211,7 @@ static void read_memory_regions() {
 
   if(hconfig_num_children(memory_config) > MAX_MEMORY_REGIONS) {
     fatal_and_kill_child(
-      "More memory regions in the checkpoint than the maximum size");
+      child_pid, "More memory regions in the checkpoint than the maximum size");
   }
   for(unsigned int i = 0; i < hconfig_num_children(memory_config); ++i) {
     const struct hconfig_t* range_config = hconfig_children(memory_config)[i];
@@ -233,7 +234,8 @@ static void read_memory_regions() {
             memory_regions[i].region_info.prot |= PROT_EXEC;
             break;
           default:
-            fatal_and_kill_child("Unknown permission '%c'", permissions[j]);
+            fatal_and_kill_child(child_pid, "Unknown permission '%c'",
+                                 permissions[j]);
             break;
         }
       }
@@ -250,7 +252,7 @@ static void read_memory_regions() {
         heap_region_id = i;
       } else if(!strncmp(path, "[stack", 6)) {
         if(stack_region_id != -1) {
-          fatal_and_kill_child("Found multiple stack regions");
+          fatal_and_kill_child(child_pid, "Found multiple stack regions");
         }
         stack_region_id = i;
       } else if(!strcmp(path, "[vdso]")) {
@@ -269,17 +271,19 @@ static void read_memory_regions() {
   }
 
   if(heap_region_id == -1) {
-    fatal_and_kill_child("Did not find the heap region in the checkpoint");
+    fatal_and_kill_child(child_pid,
+                         "Did not find the heap region in the checkpoint");
   }
   if(stack_region_id == -1) {
-    fatal_and_kill_child("Did not find the stack region in the checkpoint");
+    fatal_and_kill_child(child_pid,
+                         "Did not find the stack region in the checkpoint");
   }
 }
 
 void read_fpstate(const struct hconfig_t* registers_config) {
   const char* str = hconfig_value(registers_config, "FPSTATE");
   if(!str) {
-    fatal_and_kill_child("Could not find FPSTATE in the checkpoint");
+    fatal_and_kill_child(child_pid, "Could not find FPSTATE in the checkpoint");
   }
   read_byte_array(fpstate_buffer, str, FPSTATE_SIZE);
 
@@ -337,7 +341,9 @@ static std::vector<char*> read_null_delimited_data(const char* name) {
     }
     addrsOfIndivStrs.push_back(NULL);
     int ret = close(fd);
-    assert(0 == ret);
+    if(0 != ret) {
+      vfatal("Clsoing a file failed: %s", fullpath.c_str());
+    }
   }
   return addrsOfIndivStrs;
 }
@@ -365,12 +371,14 @@ static void read_signals() {
   const char* blocked = hconfig_value(signals_config, "blocked");
   if(blocked) {
     fatal_and_kill_child(
+      child_pid,
       "Checkpoint loader currently does not support blocked signals at "
       "the checkpoint time");
   }
   const char* pending = hconfig_value(signals_config, "pending");
   if(pending) {
     fatal_and_kill_child(
+      child_pid,
       "Checkpoint loader currently does not support pending signals at "
       "the checkpoint time");
   }
@@ -383,8 +391,8 @@ static void read_tls() {
                                                  "thread_local_storage");
   if(hconfig_num_children(tls_config)) {
     fatal_and_kill_child(
-      "Checkpoint loader currently does not support thread local "
-      "storage");
+      child_pid, "Checkpoint loader currently does not support thread local "
+                 "storage");
   }
 }
 
@@ -397,6 +405,7 @@ static void resize_heap(pid_t child_pid, const RegionInfo& child_region,
     std::cerr << "Child region: " << child_region << std::endl;
     std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
     fatal_and_kill_child(
+      child_pid,
       "Mismatch in the heap region of the tracee and the checkpoint");
   }
   void* brk_ret = execute_brk(child_pid, checkpoint_brk);
@@ -404,7 +413,7 @@ static void resize_heap(pid_t child_pid, const RegionInfo& child_region,
     std::cerr << "Child region: " << child_region << std::endl;
     std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
     std::cerr << "brk() return value: " << brk_ret << std::endl;
-    fatal_and_kill_child("brk() syscall on the tracee failed");
+    fatal_and_kill_child(child_pid, "brk() syscall on the tracee failed");
   }
 }
 
@@ -421,13 +430,15 @@ static void resize_stack(pid_t child_pid, const RegionInfo& child_region,
     std::cerr << "Child region: " << child_region << std::endl;
     std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
     fatal_and_kill_child(
+      child_pid,
       "Mismatch in the stack region of the tracee and the checkpoint");
   }
 
   int munmap_ret = execute_munmap(child_pid, (void*)child_start,
                                   (size_t)(child_end - child_start));
   if(munmap_ret) {
-    fatal_and_kill_child("munmap() syscall on the tracee stack failed");
+    fatal_and_kill_child(child_pid,
+                         "munmap() syscall on the tracee stack failed");
   }
 
   void* mapped_addr = execute_mmap(
@@ -437,7 +448,7 @@ static void resize_stack(pid_t child_pid, const RegionInfo& child_region,
 
   if((ADDR)mapped_addr != checkpoint_start) {
     fatal_and_kill_child(
-      "mmap() syscall to create a new stack for the tracee failed");
+      child_pid, "mmap() syscall to create a new stack for the tracee failed");
   }
 }
 
@@ -456,7 +467,7 @@ static int verify_generic_region(pid_t             child_pid,
         std::cerr << "Child region: " << child_region << std::endl;
         std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
         fatal_and_kill_child(
-          "Mismatch in a region in the tracee and the checkpoint");
+          child_pid, "Mismatch in a region in the tracee and the checkpoint");
       }
       found_region_id = i;
       break;
@@ -464,7 +475,8 @@ static int verify_generic_region(pid_t             child_pid,
   }
   if(found_region_id == -1) {
     std::cerr << "Child region: " << child_region << std::endl;
-    fatal_and_kill_child("Could not find a region starting at 0x%" PRIx64
+    fatal_and_kill_child(child_pid,
+                         "Could not find a region starting at 0x%" PRIx64
                          " in the checkpoint",
                          child_region.range.inclusive_lower_bound);
   }
@@ -511,26 +523,29 @@ void open_file_descriptors() {
     if(fd_num == 0) {  // stdin
       if(i != fd_num) {
         fatal_and_kill_child(
-          "The file descriptor for stdin (fd = 0) should be first "
-          "in the checkpoint");
+          child_pid, "The file descriptor for stdin (fd = 0) should be first "
+                     "in the checkpoint");
       }
       if(!strncmp(path, "pipe:", 5) || !strncmp(path, "socket:", 7)) {
         fatal_and_kill_child(
-          "stdin of the checkpoint cannot be a pipe or a socket");
+          child_pid, "stdin of the checkpoint cannot be a pipe or a socket");
       } else if(!strncmp(path, "/dev", 4)) {
         // continue using the default stdin
       } else {
         FILE* opened_file = freopen(path, "r", stdin);
         if(opened_file == 0) {
-          fatal_and_kill_child("Could not open the input file for stdin");
+          fatal_and_kill_child(child_pid,
+                               "Could not open the input file for stdin");
         }
         int ret = fcntl(fd_num, F_SETFL, flags);
         if(ret != 0) {
-          fatal_and_kill_child("Could not change the flags of stdin");
+          fatal_and_kill_child(child_pid,
+                               "Could not change the flags of stdin");
         }
         off_t ret_offset = lseek(0, offset, SEEK_SET);
         if(ret_offset != offset) {
-          fatal_and_kill_child("Could not set the offset of stdin properly");
+          fatal_and_kill_child(child_pid,
+                               "Could not set the offset of stdin properly");
         }
       }
     } else if(fd_num < 3) {  // stdout or stderr
@@ -559,34 +574,37 @@ void open_file_descriptors() {
 
       if(fd_num > (i + 1)) {
         fatal_and_kill_child(
+          child_pid,
           "The 2nd and 3rd file descriptors in the checkpoint should "
           "be stdout and stderr (fd = 1,2)");
       }
     } else {
       if((i + num_open_dummies) > fd_num) {
         fatal_and_kill_child(
-          "File descriptors in the checkpoint are not sorted");
+          child_pid, "File descriptors in the checkpoint are not sorted");
       }
       while((i + num_open_dummies) < fd_num) {
         if(num_open_dummies >= MAX_TMP_FILES) {
-          fatal_and_kill_child("MAX_TMP_FILES is too small");
+          fatal_and_kill_child(child_pid, "MAX_TMP_FILES is too small");
         }
         dummy_files[num_open_dummies] = tmpfile();
         num_open_dummies += 1;
       }
       int opened_fd = open(path, flags);
       if(opened_fd == -1) {
-        fatal_and_kill_child("Could not open the file descriptor %d", fd_num);
+        fatal_and_kill_child(child_pid, "Could not open the file descriptor %d",
+                             fd_num);
       }
       if(opened_fd != fd_num) {
         fatal_and_kill_child(
-          "Got unexpected file descriptor (%d instead of %d)", opened_fd,
-          fd_num);
+          child_pid, "Got unexpected file descriptor (%d instead of %d)",
+          opened_fd, fd_num);
       }
       off_t ret_offset = lseek(fd_num, offset, SEEK_SET);
       if(ret_offset != offset) {
         fatal_and_kill_child(
-          "Could not set the offset of file descriptor %d properly", fd_num);
+          child_pid, "Could not set the offset of file descriptor %d properly",
+          fd_num);
       }
     }
   }
@@ -599,7 +617,8 @@ void open_file_descriptors() {
 void change_working_directory() {
   int res = chdir(cwd);
   if(0 != res) {
-    fatal_and_kill_child("Could not change working directory to %s", cwd);
+    fatal_and_kill_child(child_pid, "Could not change working directory to %s",
+                         cwd);
   }
 }
 
@@ -617,20 +636,8 @@ bool is_pin_library(std::string filename) {
   }
 }
 
-void fatal_and_kill_child(const char* fmt, ...) {
-  va_list va;
-  va_start(va, fmt);
-
-  if(0 != child_pid) {
-    fatal_and_kill_child(child_pid, fmt, va);
-  } else {
-    vfatal(fmt, va);
-  }
-
-  va_end(va);
-}
-
 void allocate_new_regions(pid_t child_pid) {
+  std::cout << "Allocating all regions in the child process ..." << std::endl;
   std::vector<RegionInfo> child_regions = read_proc_maps_file(child_pid);
 
   for(auto& child_region : child_regions) {
@@ -694,12 +701,14 @@ void allocate_new_regions(pid_t child_pid) {
       if(mapped_addr != addr) {
         std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
         std::cerr << "mmap return value: " << mapped_addr << "\n";
-        fatal_and_kill_child("mmap() did not map the region correctly");
+        fatal_and_kill_child(child_pid,
+                             "mmap() did not map the region correctly");
       }
       if(fd >= 0) {
         if(execute_close(child_pid, fd)) {
           std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
-          fatal_and_kill_child("close() failed after mapping this region");
+          fatal_and_kill_child(child_pid,
+                               "close() failed after mapping this region");
         }
       }
     } else {
@@ -710,6 +719,7 @@ void allocate_new_regions(pid_t child_pid) {
           std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
           std::cerr << "mprotect return value: " << mprotect_ret << "\n";
           fatal_and_kill_child(
+            child_pid,
             "mprotect() did not change the region protection correctly");
         }
       }
@@ -718,6 +728,32 @@ void allocate_new_regions(pid_t child_pid) {
 }
 
 void write_data_to_regions(pid_t child_pid) {
+  std::cout << "Writing data to all regions ..." << std::endl;
+  auto[sharedmem_tracer_addr, sharedmem_tracee_addr] = allocate_shared_memory(
+    child_pid);
+  constexpr int INJECTION_REGION_SIZE = 4096;
+  void* injection_site = execute_mmap(child_pid, NULL, INJECTION_REGION_SIZE,
+                                      PROT_EXEC | PROT_READ | PROT_WRITE,
+                                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if(injection_site == (void*)-1) {
+    fatal_and_kill_child(
+      child_pid, "Could not map a new region for code injection. errno: %s",
+      std::strerror(errno));
+  }
+  struct user_regs_struct oldregs;
+  if(ptrace(PTRACE_GETREGS, child_pid, NULL, &oldregs)) {
+    perror("PTRACE_GETREGS");
+    kill_and_exit(child_pid);
+  }
+
+  struct user_regs_struct newregs;
+  memcpy(&newregs, &oldregs, sizeof(newregs));
+  newregs.rip = (unsigned long long)injection_site;
+  if(ptrace(PTRACE_SETREGS, child_pid, NULL, &newregs)) {
+    perror("PTRACE_SETREGS");
+    kill_and_exit(child_pid);
+  }
+
   for(int i = 0; i < num_valid_memory_regions; ++i) {
     const RegionInfo& checkpoint_region = memory_regions[i].region_info;
     size_t region_size = checkpoint_region.range.exclusive_upper_bound -
@@ -731,48 +767,63 @@ void write_data_to_regions(pid_t child_pid) {
     char*       temp_buffer = new char[region_size];
     std::string cmd         = std::string("bzip2 -dc ") + checkpoint_dir + "/" +
                       memory_regions[i].data_file;
-    std::cout << cmd << "\n";
+    DEBUG(cmd);
     FILE* data_file = popen(cmd.c_str(), "r");
     if(!data_file) {
-      fatal_and_kill_child("Error opening a dat file: %s",
+      fatal_and_kill_child(child_pid, "Error opening a dat file: %s",
                            memory_regions[i].data_file.c_str());
     }
     size_t bytes_read = fread(temp_buffer, 1, region_size, data_file);
     if(bytes_read != region_size) {
-      std::cerr << "bytes read: " << bytes_read << std::endl;
-      std::cerr << "region size: " << region_size << std::endl;
-      fatal_and_kill_child("dat file did not have enough bytes: %s",
-                           memory_regions[i].data_file.c_str());
+      fatal_and_kill_child(child_pid,
+                           "dat file did not have enough bytes: %s. "
+                           "bytes_read: %d, region_size: %d",
+                           memory_regions[i].data_file.c_str(), bytes_read,
+                           region_size);
     }
 
     char temp_byte;
     bytes_read = fread(&temp_byte, 1, 1, data_file);
     if(bytes_read == 1 || !feof(data_file)) {
-      fatal_and_kill_child("dat file has too many bytes: %s",
+      fatal_and_kill_child(child_pid, "dat file has too many bytes: %s",
                            memory_regions[i].data_file.c_str());
     }
+    fclose(data_file);
 
     if(i == vsyscall_region_id || i == vdso_region_id || i == vvar_region_id) {
-      std::cout << "asserting regions are equal: start" << std::endl;
+      DEBUG("asserting regions are equal: start");
       assert_equal_mem(child_pid, temp_buffer,
                        (char*)checkpoint_region.range.inclusive_lower_bound,
                        region_size);
-      std::cout << "asserting regions are equal: done" << std::endl;
+      DEBUG("asserting regions are equal: done");
     } else {
-      std::cout << "doing a ptrace memcpy: start" << std::endl;
-      execute_memcpy(child_pid,
-                     (void*)checkpoint_region.range.inclusive_lower_bound,
-                     temp_buffer, region_size);
-      std::cout << "doing a ptrace memcpy: end" << std::endl;
+      DEBUG("doing a ptrace memcpy: start");
+      // execute_memcpy(child_pid,
+      //               (void*)checkpoint_region.range.inclusive_lower_bound,
+      //               temp_buffer, region_size);
+      shared_memory_memcpy(
+        child_pid, (void*)checkpoint_region.range.inclusive_lower_bound,
+        temp_buffer, region_size, sharedmem_tracer_addr, sharedmem_tracee_addr);
+      DEBUG("doing a ptrace memcpy: end");
     }
 
-    std::cout << "done\n";
-    fclose(data_file);
     delete[] temp_buffer;
+  }
+
+  if(ptrace(PTRACE_SETREGS, child_pid, NULL, &oldregs)) {
+    perror("PTRACE_SETREGS");
+    kill_and_exit(child_pid);
+  }
+  int munmap_ret = execute_munmap(child_pid, injection_site,
+                                  INJECTION_REGION_SIZE);
+  if(munmap_ret) {
+    fatal_and_kill_child(
+      child_pid, "munmap() for deallocating the code injection site failed");
   }
 }
 
 void update_region_protections(pid_t child_pid) {
+  std::cout << "Updating region protection fields ..." << std::endl;
   for(int i = 0; i < num_valid_memory_regions; ++i) {
     const RegionInfo& checkpoint_region = memory_regions[i].region_info;
 
@@ -786,14 +837,13 @@ void update_region_protections(pid_t child_pid) {
                     checkpoint_region.range.inclusive_lower_bound;
     int prot = checkpoint_region.prot;
     if(i != vsyscall_region_id && i != vdso_region_id) {
-      std::cout << "Running mprotect for region start: " << checkpoint_region
-                << std::endl;
+      DEBUG("Running mprotect for region start: " << checkpoint_region);
       int mprotect_ret = execute_mprotect(child_pid, addr, length, prot);
-      std::cout << "Running mprotect for region done" << std::endl;
       if(mprotect_ret != 0) {
         std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
         std::cerr << "mprotect return value: " << mprotect_ret << "\n";
         fatal_and_kill_child(
+          child_pid,
           "mprotect() did not change the region protection correctly");
       }
     }
@@ -801,8 +851,9 @@ void update_region_protections(pid_t child_pid) {
 }
 
 void load_registers(pid_t child_pid) {
+  std::cout << "Loading the architectural registers ..." << std::endl;
   struct user_regs_struct newregs;
-  debug("About to GETREGS for load_registers()\n");
+  DEBUG("About to GETREGS for load_registers()");
   if(ptrace(PTRACE_GETREGS, child_pid, NULL, &newregs)) {
     perror("PTRACE_GETREGS");
     kill_and_exit(child_pid);
@@ -835,14 +886,14 @@ void load_registers(pid_t child_pid) {
   newregs.eflags  = registers.rflags;
   newregs.rip     = registers.rip;
 
-  debug("About to SETREGS for load_registers()\n");
+  DEBUG("About to SETREGS for load_registers()");
 
   // set the new registers with our syscall arguments
   if(ptrace(PTRACE_SETREGS, child_pid, NULL, &newregs)) {
     perror("PTRACE_SETREGS");
     kill_and_exit(child_pid);
   }
-  debug("load_registers() DONE\n");
+  DEBUG("load_registers() DONE");
 }
 
 uint64_t get_checkpoint_start_rip() {

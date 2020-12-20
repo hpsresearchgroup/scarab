@@ -1,53 +1,27 @@
-CC=gcc
-CCC=g++
+CMAKE=$(shell if which cmake3 ; then echo "cmake"; else echo "cmake"; fi)
 
-C_WARN_FLAGS=-Wall -Wunused -Wmissing-prototypes -Wmissing-declarations -Wno-long-long -Wpointer-arith -Wimplicit -Werror
-CC_WARN_FLAGS=-Wall -Wunused -Wmissing-declarations -Wno-long-long -Wpointer-arith -Werror
+all: opt
 
-OPTCCFLAGS=--std=c++11 -O3 $(CC_WARN_FLAGS) -mxsave
-OPTCFLAGS=-O3 $(C_WARN_FLAGS)
+.PHONY: opt
+opt: build/Makefile
+	make -j --no-print-directory -C build 
+	ln -sf build/test_memcpy test_memcpy
+	ln -sf build/checkpoint_loader checkpoint_loader
 
-OBJDIR=obj
-CCFILES=$(wildcard *.cc)
-CFILES=$(wildcard *.c)
+.PHONY: dbg
+dbg: build_dbg/Makefile
+	make -j --no-print-directory -C build_dbg
+	ln -sf build_dbg/test_memcpy test_memcpy
+	ln -sf build_dbg/checkpoint_loader checkpoint_loader
 
-OFILES=$(patsubst %.cc,$(OBJDIR)/%.o,$(CCFILES)) $(patsubst %.c,$(OBJDIR)/%.o,$(CFILES))
-CHECKPOINT_LOADER_OFILES=$(OFILES)
+build/Makefile:
+	mkdir -p build
+	cd build; $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release
 
-CHECKPOINT_LOADER_DEPS=$(CHECKPOINT_LOADER_OFILES:%.o=%.d)
-DEP=$(CHECKPOINT_LOADER_DEPS)
-
-CHECKPOINT_LOADER := checkpoint_loader
-
-############################################################################
-# Building Checkpoint Loader
-############################################################################
-
-.PHONY: all clean dir
-
-all: $(CHECKPOINT_LOADER) $(PIN_EXEC_PATH)/$(CHK_PNT_PIN_TOOL)
+build_dbg/Makefile:
+	mkdir -p build_dbg
+	cd build_dbg; $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug
 
 clean:
-	-rm -f $(CHECKPOINT_LOADER)
-	-rm -rf $(OBJDIR)
-	-make clean_checkpoint_pintool
-
-dir: $(OBJDIR)
-
-$(OBJDIR):
-	mkdir -p $(OBJDIR)
-
-$(CHECKPOINT_LOADER): $(CHECKPOINT_LOADER_OFILES)
-	$(CCC) $(OPTCCFLAGS) -o $@ $^
-
--include $(DEP)
-
-$(OBJDIR)/%.o: %.s $(OBJDIR)
-	as -o $@ $<
-
-$(OBJDIR)/%.o: %.c Makefile $(OBJDIR)
-	$(CC) $(OPTCFLAGS) -MMD -fPIC -c -o $@ $<
-
-$(OBJDIR)/%.o: %.cc Makefile $(OBJDIR)
-	$(CCC) $(OPTCCFLAGS) -MMD -fPIC -c -o $@ $<
-
+	rm -rf build/ build_dbg/
+	rm -f test_memcpy checkpoint_loader

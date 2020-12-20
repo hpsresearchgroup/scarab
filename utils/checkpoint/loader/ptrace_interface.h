@@ -71,6 +71,7 @@ int   execute_close(pid_t pid, int fd);
 void* execute_mremap(pid_t pid, void* old_addr, size_t old_size,
                      size_t new_size, int flags, void* new_addr);
 void* execute_brk(pid_t pid, void* addr);
+void* execute_shmat(pid_t pid, int shmid, const void* shmaddr, int shmflg);
 void  assert_equal_mem(pid_t pid, char* tracer_addr, const char* tracee_addr,
                        size_t n);
 
@@ -81,10 +82,16 @@ unsigned long long execute_syscall(
 void kill_and_exit(pid_t pid);
 void do_wait(pid_t pid, const char* name);
 void singlestep(pid_t pid);
+void ptrace_continue(pid_t pid);
 void poke_text(pid_t pid, char* where, const char* new_text, char* old_text,
                size_t len);
 void restore(pid_t pid, struct user_regs_struct oldregs, char* old_word,
              size_t old_word_size);
 void detach_process(pid_t pid);
+
+std::pair<void*, void*> allocate_shared_memory(pid_t child_pid);
+void shared_memory_memcpy(pid_t pid, void* dest, void* src, int64_t n,
+                          void* sharedmem_tracer_addr,
+                          void* sharedmem_tracee_addr);
 
 #endif
