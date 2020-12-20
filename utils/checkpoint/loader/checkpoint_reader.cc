@@ -637,6 +637,7 @@ bool is_pin_library(std::string filename) {
 }
 
 void allocate_new_regions(pid_t child_pid) {
+  std::cout << "Allocating all regions in the child process ..." << std::endl;
   std::vector<RegionInfo> child_regions = read_proc_maps_file(child_pid);
 
   for(auto& child_region : child_regions) {
@@ -727,6 +728,7 @@ void allocate_new_regions(pid_t child_pid) {
 }
 
 void write_data_to_regions(pid_t child_pid) {
+  std::cout << "Writing data to all regions ..." << std::endl;
   auto[sharedmem_tracer_addr, sharedmem_tracee_addr] = allocate_shared_memory(
     child_pid);
   constexpr int INJECTION_REGION_SIZE = 4096;
@@ -765,7 +767,7 @@ void write_data_to_regions(pid_t child_pid) {
     char*       temp_buffer = new char[region_size];
     std::string cmd         = std::string("bzip2 -dc ") + checkpoint_dir + "/" +
                       memory_regions[i].data_file;
-    std::cout << cmd << std::endl;
+    DEBUG(cmd);
     FILE* data_file = popen(cmd.c_str(), "r");
     if(!data_file) {
       fatal_and_kill_child(child_pid, "Error opening a dat file: %s",
@@ -789,23 +791,22 @@ void write_data_to_regions(pid_t child_pid) {
     fclose(data_file);
 
     if(i == vsyscall_region_id || i == vdso_region_id || i == vvar_region_id) {
-      std::cout << "asserting regions are equal: start" << std::endl;
+      DEBUG("asserting regions are equal: start");
       assert_equal_mem(child_pid, temp_buffer,
                        (char*)checkpoint_region.range.inclusive_lower_bound,
                        region_size);
-      std::cout << "asserting regions are equal: done" << std::endl;
+      DEBUG("asserting regions are equal: done");
     } else {
-      std::cout << "doing a ptrace memcpy: start" << std::endl;
+      DEBUG("doing a ptrace memcpy: start");
       // execute_memcpy(child_pid,
       //               (void*)checkpoint_region.range.inclusive_lower_bound,
       //               temp_buffer, region_size);
       shared_memory_memcpy(
         child_pid, (void*)checkpoint_region.range.inclusive_lower_bound,
         temp_buffer, region_size, sharedmem_tracer_addr, sharedmem_tracee_addr);
-      std::cout << "doing a ptrace memcpy: end" << std::endl;
+      DEBUG("doing a ptrace memcpy: end");
     }
 
-    std::cout << "done\n";
     delete[] temp_buffer;
   }
 
@@ -822,6 +823,7 @@ void write_data_to_regions(pid_t child_pid) {
 }
 
 void update_region_protections(pid_t child_pid) {
+  std::cout << "Updating region protection fields ..." << std::endl;
   for(int i = 0; i < num_valid_memory_regions; ++i) {
     const RegionInfo& checkpoint_region = memory_regions[i].region_info;
 
@@ -835,10 +837,8 @@ void update_region_protections(pid_t child_pid) {
                     checkpoint_region.range.inclusive_lower_bound;
     int prot = checkpoint_region.prot;
     if(i != vsyscall_region_id && i != vdso_region_id) {
-      std::cout << "Running mprotect for region start: " << checkpoint_region
-                << std::endl;
+      DEBUG("Running mprotect for region start: " << checkpoint_region);
       int mprotect_ret = execute_mprotect(child_pid, addr, length, prot);
-      std::cout << "Running mprotect for region done" << std::endl;
       if(mprotect_ret != 0) {
         std::cerr << "Checkpoint region: " << checkpoint_region << std::endl;
         std::cerr << "mprotect return value: " << mprotect_ret << "\n";
@@ -851,8 +851,9 @@ void update_region_protections(pid_t child_pid) {
 }
 
 void load_registers(pid_t child_pid) {
+  std::cout << "Loading the architectural registers ..." << std::endl;
   struct user_regs_struct newregs;
-  debug("About to GETREGS for load_registers()\n");
+  DEBUG("About to GETREGS for load_registers()");
   if(ptrace(PTRACE_GETREGS, child_pid, NULL, &newregs)) {
     perror("PTRACE_GETREGS");
     kill_and_exit(child_pid);
@@ -885,14 +886,14 @@ void load_registers(pid_t child_pid) {
   newregs.eflags  = registers.rflags;
   newregs.rip     = registers.rip;
 
-  debug("About to SETREGS for load_registers()\n");
+  DEBUG("About to SETREGS for load_registers()");
 
   // set the new registers with our syscall arguments
   if(ptrace(PTRACE_SETREGS, child_pid, NULL, &newregs)) {
     perror("PTRACE_SETREGS");
     kill_and_exit(child_pid);
   }
-  debug("load_registers() DONE\n");
+  DEBUG("load_registers() DONE");
 }
 
 uint64_t get_checkpoint_start_rip() {

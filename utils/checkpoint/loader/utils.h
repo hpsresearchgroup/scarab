@@ -50,6 +50,21 @@ void print_string_array(const char* name, const char* const str_array[]);
 int  count_longest_option_length(const struct option long_options[]);
 void turn_aslr_off();
 
+#ifndef DEBUG_EN
+#define DEBUG_EN 1
+#endif
+
+#if DEBUG_EN == 1
+#define DEBUG(x)                 \
+  do {                           \
+    std::cout << x << std::endl; \
+  } while(0)
+#else
+#define DEBUG(x) \
+  do {           \
+  } while(0)
+#endif
+
 struct AddressRange {
   ADDR inclusive_lower_bound;
   ADDR exclusive_upper_bound;

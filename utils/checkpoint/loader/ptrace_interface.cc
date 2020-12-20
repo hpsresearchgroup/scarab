@@ -136,6 +136,7 @@ void assert_equal_mem(pid_t pid, char* tracer_addr, const char* tracee_addr,
 }
 
 void detach_process(pid_t pid) {
+  std::cout << "Detaching ptrace from the child process ..." << std::endl;
   if(ptrace(PTRACE_DETACH, pid, NULL, NULL)) {
     perror("PTRACE_DETACH");
   }
@@ -216,8 +217,6 @@ void poke_text(pid_t pid, char* where, const char* new_text, char* old_text,
       memmove(old_text + copied, &peek_data, sizeof(peek_data));
     }
 
-    // debug("PTRACE_POKETEXT: pid:%d, dest_addr:%llx, data:%llx", pid, where +
-    // copied, poke_data);
     if(ptrace(PTRACE_POKETEXT, pid, where + copied, (void*)poke_data) < 0) {
       perror("PTRACE_POKETEXT");
       kill_and_exit(pid);
@@ -303,8 +302,8 @@ unsigned long long execute_syscall(
   }
 
   // invoke mmap(2)
-  std::cout << "About to single-step for syscall. RIP: " << std::hex
-            << oldregs.rip << ", Arg1: " << arg1 << std::endl;
+  DEBUG("About to single-step for syscall. RIP: " << std::hex << oldregs.rip
+                                                  << ", Arg1: " << arg1);
   singlestep(pid);
 
   // read the new register state, so we can see where the mmap went
@@ -320,7 +319,7 @@ unsigned long long execute_syscall(
 
 void* execute_mmap(pid_t pid, void* addr, size_t length, int prot, int flags,
                    int fd, off_t offset) {
-  std::cout << "Calling mmap, Addr: " << addr << std::endl;
+  DEBUG("Calling mmap, Addr: " << addr);
   return (void*)execute_syscall(
     pid, MMAP_SYSCALL, (unsigned long long int)addr,
     (unsigned long long int)length, (unsigned long long int)prot,
@@ -396,23 +395,8 @@ void* execute_shmat(pid_t pid, int shmid, const void* shmaddr, int shmflg) {
 }
 
 std::pair<void*, void*> allocate_shared_memory(pid_t pid) {
-  char identifier_path[] = "/tmp/scarab_loader_XXXXXX";
-  if(mkstemp(identifier_path) == -1) {
-    fatal_and_kill_child(pid,
-                         "Could not create a temporary file for allocating "
-                         "shared memory. errno: %s",
-                         std::strerror(errno));
-  }
-
-  int  arbitrary_project_id = 1;
-  auto key                  = ftok(identifier_path, arbitrary_project_id);
-  if(key == -1) {
-    fatal_and_kill_child(pid, "Could not create a shared memory key. errno: %s",
-                         std::strerror(errno));
-  }
-
   int  USER_READ_WRITE  = 0600;
-  auto shared_memory_id = shmget(key, SHARED_MEMORY_SIZE,
+  auto shared_memory_id = shmget(IPC_PRIVATE, SHARED_MEMORY_SIZE,
                                  IPC_CREAT | IPC_EXCL | USER_READ_WRITE);
   if(shared_memory_id == -1) {
     fatal_and_kill_child(pid,
@@ -428,9 +412,9 @@ std::pair<void*, void*> allocate_shared_memory(pid_t pid) {
         pid,
         "Could not attach the shared memory region to the "
         "tracer. Marking the region to be destroyed also "
-        "failed. Path: %s. shmat_errno: %s, shmctl_errno: %s\n\n!!!!!! DO NOT "
+        "failed. shmat_errno: %s, shmctl_errno: %s\n\n!!!!!! DO NOT "
         "IGNORE THIS ERROR. This could be a SYSTEM-LEVEL memory leak. \n\n",
-        identifier_path, std::strerror(shmat_errno), std::strerror(errno));
+        std::strerror(shmat_errno), std::strerror(errno));
     } else {
       fatal_and_kill_child(pid,
                            "Could not attach the shared memory region to the "
@@ -440,15 +424,14 @@ std::pair<void*, void*> allocate_shared_memory(pid_t pid) {
   }
 
   // Immediately mark the shared region to be destroyed. This is safe because
-  // Linux guarantees the region will exist until no processes is attached to
+  // Linux guarantees the region will exist until no process is attached to
   // the region.
   if(shmctl(shared_memory_id, IPC_RMID, NULL) == -1) {
     fatal_and_kill_child(pid,
                          "Could not mark the shared memory region to be "
-                         "destroyed. Path: %s. errno: %s",
-                         identifier_path, std::strerror(errno));
+                         "destroyed. errno: %s",
+                         std::strerror(errno));
   }
-  unlink(identifier_path);
 
   void* tracee_addr = execute_shmat(pid, shared_memory_id, NULL, 0);
   if(tracer_addr == (void*)-1) {
@@ -499,7 +482,7 @@ void shared_memory_memcpy(pid_t pid, void* dest, void* src, int64_t n,
     // Is casting void* to an int type undefined behavior?
     newregs.rdi = (unsigned long long)(dest) + i;
     // newregs.rsi = (unsigned long long)(dest) + i;
-    //newregs.rdi = (unsigned long long)sharedmem_tracee_addr;
+    // newregs.rdi = (unsigned long long)sharedmem_tracee_addr;
     newregs.rsi = (unsigned long long)sharedmem_tracee_addr;
     newregs.rcx = (unsigned long long)block_size / 8;
 
@@ -509,10 +492,9 @@ void shared_memory_memcpy(pid_t pid, void* dest, void* src, int64_t n,
       kill_and_exit(pid);
     }
 
-    std::cout << "About to continue the tracee for REP MOVSQ. RIP: " << std::hex
-              << newregs.rip << ", rdi: " << newregs.rdi
-              << ", rsi: " << newregs.rsi << ", rcx: " << newregs.rcx
-              << std::endl;
+    DEBUG("About to continue the tracee for REP MOVSQ. RIP: "
+          << std::hex << newregs.rip << ", rdi: " << newregs.rdi
+          << ", rsi: " << newregs.rsi << ", rcx: " << newregs.rcx);
     ptrace_continue(pid);
     // singlestep(pid);
 

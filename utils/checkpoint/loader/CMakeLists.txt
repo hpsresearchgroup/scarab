@@ -19,6 +19,11 @@ target_compile_options(loader_lib
         "$<$<COMPILE_LANGUAGE:CXX>:${warn_cxx_flags}>"
 )
 target_compile_features(loader_lib PUBLIC cxx_std_17)
+target_compile_definitions(loader_lib 
+    PUBLIC
+        "$<$<CONFIG:RELEASE>:DEBUG_EN=0>"
+        "$<$<NOT:$<CONFIG:RELEASE>>:DEBUG_EN=1>"
+)
 
 add_executable(test_memcpy
     test_memcpy.cc 

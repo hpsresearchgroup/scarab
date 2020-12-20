@@ -56,12 +56,16 @@ void fatal_and_kill_child(pid_t child_pid, const char* fmt, ...) {
 }
 
 void debug(const char* fmt, ...) {
-  va_list va;
-  va_start(va, fmt);
-  fprintf(stdout, "DEBUG: ");
-  vfprintf(stdout, fmt, va);
-  fprintf(stdout, "\n");
-  va_end(va);
+  if(DEBUG_EN) {
+    va_list va;
+    va_start(va, fmt);
+
+    fprintf(stdout, "DEBUG: ");
+    vfprintf(stdout, fmt, va);
+    fprintf(stdout, "\n");
+    fflush(stdout);
+    va_end(va);
+  }
 }
 
 void assertm(bool p, const char* message) {
