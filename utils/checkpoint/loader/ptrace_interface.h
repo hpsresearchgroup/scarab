@@ -90,7 +90,7 @@ void restore(pid_t pid, struct user_regs_struct oldregs, char* old_word,
 void detach_process(pid_t pid);
 
 std::pair<void*, void*> allocate_shared_memory(pid_t child_pid);
-void shared_memory_memcpy(pid_t pid, void* dest, void* src, int n,
+void shared_memory_memcpy(pid_t pid, void* dest, void* src, int64_t n,
                           void* sharedmem_tracer_addr,
                           void* sharedmem_tracee_addr);
 

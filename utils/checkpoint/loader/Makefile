@@ -1,3 +1,5 @@
+CMAKE=$(shell if which cmake3 ; then echo "cmake"; else echo "cmake"; fi)
+
 all: opt
 
 .PHONY: opt
@@ -14,11 +16,11 @@ dbg: build_dbg/Makefile
 
 build/Makefile:
 	mkdir -p build
-	cd build; cmake .. -DCMAKE_BUILD_TYPE=Release
+	cd build; $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release
 
 build_dbg/Makefile:
 	mkdir -p build_dbg
-	cd build_dbg; cmake .. -DCMAKE_BUILD_TYPE=Debug
+	cd build_dbg; $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug
 
 clean:
 	rm -rf build/ build_dbg/

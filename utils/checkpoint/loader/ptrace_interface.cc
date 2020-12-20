@@ -61,7 +61,7 @@
 #define MREMAP_SYSCALL 25
 #define SHMAT_SYSCALL 30
 
-static constexpr int SHARED_MEMORY_SIZE = 2 * 1024 * 1024;
+static constexpr int64_t SHARED_MEMORY_SIZE = 2 * 1024 * 1024;
 
 void execute_jump_to_loop(pid_t pid, void* loop_address) {
   struct user_regs_struct regs;
@@ -460,7 +460,7 @@ std::pair<void*, void*> allocate_shared_memory(pid_t pid) {
   return {tracer_addr, tracee_addr};
 }
 
-void shared_memory_memcpy(pid_t pid, void* dest, void* src, int n,
+void shared_memory_memcpy(pid_t pid, void* dest, void* src, int64_t n,
                           void* sharedmem_tracer_addr,
                           void* sharedmem_tracee_addr) {
   if(n % 8 != 0) {
@@ -486,19 +486,13 @@ void shared_memory_memcpy(pid_t pid, void* dest, void* src, int n,
   new_word[0] = 0xf3;  // REP MOVSQ
   new_word[1] = 0x48;  // REP MOVSQ
   new_word[2] = 0xa5;  // REP MOVSQ
-  // new_word[0] = 0x90;  // REP MOVSQ
-  // new_word[1] = 0x90;  // REP MOVSQ
-  // new_word[2] = 0x90;  // REP MOVSQ
   new_word[3] = 0xcc;  // int3 (breakpoint)
 
   // insert the REP-MOVSQ instruction into the process, and save the old word
   poke_text(pid, rip, new_word, old_word, sizeof(new_word));
 
-  long peek_data = ptrace(PTRACE_PEEKTEXT, pid, rip, NULL);
-  std::cout << "peek: " << std::hex << peek_data << std::endl;
-
-  for(int i = 0; i < n; i += SHARED_MEMORY_SIZE) {
-    int block_size = std::min(n - i, SHARED_MEMORY_SIZE);
+  for(int64_t i = 0; i < n; i += SHARED_MEMORY_SIZE) {
+    auto block_size = std::min(n - i, SHARED_MEMORY_SIZE);
 
     std::memcpy(sharedmem_tracer_addr, (const char*)src + i, block_size);
 

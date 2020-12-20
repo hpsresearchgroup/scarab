@@ -765,7 +765,7 @@ void write_data_to_regions(pid_t child_pid) {
     char*       temp_buffer = new char[region_size];
     std::string cmd         = std::string("bzip2 -dc ") + checkpoint_dir + "/" +
                       memory_regions[i].data_file;
-    std::cout << cmd << "\n";
+    std::cout << cmd << std::endl;
     FILE* data_file = popen(cmd.c_str(), "r");
     if(!data_file) {
       fatal_and_kill_child(child_pid, "Error opening a dat file: %s",
@@ -796,13 +796,12 @@ void write_data_to_regions(pid_t child_pid) {
       std::cout << "asserting regions are equal: done" << std::endl;
     } else {
       std::cout << "doing a ptrace memcpy: start" << std::endl;
-      execute_memcpy(child_pid,
-                     (void*)checkpoint_region.range.inclusive_lower_bound,
-                     temp_buffer, region_size);
-      // shared_memory_memcpy(
-      //   child_pid, (void*)checkpoint_region.range.inclusive_lower_bound,
-      //   temp_buffer, region_size, sharedmem_tracer_addr,
-      //   sharedmem_tracee_addr);
+      // execute_memcpy(child_pid,
+      //               (void*)checkpoint_region.range.inclusive_lower_bound,
+      //               temp_buffer, region_size);
+      shared_memory_memcpy(
+        child_pid, (void*)checkpoint_region.range.inclusive_lower_bound,
+        temp_buffer, region_size, sharedmem_tracer_addr, sharedmem_tracee_addr);
       std::cout << "doing a ptrace memcpy: end" << std::endl;
     }
 
