@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.5.0)
 
 project(scarab_checkpoint_loader CXX C)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 set(warn_c_flags -Wall -Wunused -Wmissing-prototypes -Wmissing-declarations -Wno-long-long -Wpointer-arith -Wimplicit -Werror)
 set(warn_cxx_flags -Wall -Wunused -Wmissing-declarations -Wno-long-long -Wpointer-arith -Werror)
 
@@ -18,7 +21,6 @@ target_compile_options(loader_lib
         "$<$<COMPILE_LANGUAGE:C>:${warn_c_flags}>"
         "$<$<COMPILE_LANGUAGE:CXX>:${warn_cxx_flags}>"
 )
-target_compile_features(loader_lib PUBLIC cxx_std_17)
 target_compile_definitions(loader_lib 
     PUBLIC
         "$<$<CONFIG:RELEASE>:DEBUG_EN=0>"
