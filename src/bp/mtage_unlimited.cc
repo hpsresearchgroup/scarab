@@ -1,5 +1,4 @@
-#include "predictor.h"
-#include <math.h>
+#include <cmath>
 // Code is derived from P.Michaud and  A. Seznec code for the CBP4 winner
 //Sorry two very different code writing styles
 
@@ -1042,7 +1041,7 @@ folded_history::update (uint8_t * h, int PT)
 
 
 
-PREDICTOR::PREDICTOR (void)
+MTAGE::MTAGE (void)
 {
   sp[0].init (P0_SPSIZE, P0_NUMG, P0_MINHIST, P0_MAXHIST, P0_LOGG, TAGBITS,
 	      PATHBITS, P0_HASHPARAM);
@@ -1079,7 +1078,7 @@ PREDICTOR::PREDICTOR (void)
 
 
 bool
-PREDICTOR::GetPrediction (UINT64 PC)
+MTAGE::GetPrediction (UINT64 PC)
 {
 
   subp[0] = &sp[0].p[0];	// global path
@@ -1154,7 +1153,7 @@ PREDICTOR::GetPrediction (UINT64 PC)
 /////////////////////////////////////////////////////////////
 
 void
-PREDICTOR::UpdatePredictor (UINT64 PC, OpType OPTYPE, bool resolveDir,
+MTAGE::UpdatePredictor (UINT64 PC, OpType OPTYPE, bool resolveDir,
 			    bool predDir, UINT64 branchTarget)
 {
 
@@ -1227,7 +1226,7 @@ if (branchTarget < PC)
 /////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////
 void
-PREDICTOR::TrackOtherInst (UINT64 PC, OpType opType, bool taken,
+MTAGE::TrackOtherInst (UINT64 PC, OpType opType, bool taken,
 			   UINT64 branchTarget)
 {
 
@@ -1248,7 +1247,7 @@ PREDICTOR::TrackOtherInst (UINT64 PC, OpType opType, bool taken,
 
 
 void
-PREDICTOR::initSC ()
+MTAGE::initSC ()
 {
 
   NRHSP = 80;
@@ -1334,10 +1333,10 @@ PREDICTOR::initSC ()
   for (int i = 0; i < FNB; i++)
     fGEHL[i] = &fGEHLA[i][0];
 
-#ifdef LOOPPREDICTOR
+#ifdef LOOPMTAGE
   ltable = new lentry[1 << (LOGL)];
 #endif
-#ifdef LOOPPREDICTOR
+#ifdef LOOPMTAGE
   LVALID = false;
   WITHLOOP = -1;
 #endif
@@ -1534,7 +1533,7 @@ PREDICTOR::initSC ()
 
 
 void
-PREDICTOR::HistoryUpdate (UINT64 PC, uint8_t brtype, bool taken,
+MTAGE::HistoryUpdate (UINT64 PC, uint8_t brtype, bool taken,
 			  UINT64 target, int &Y, folded_history * K,
   
 			  folded_history * L)
@@ -1651,7 +1650,7 @@ PREDICTOR::HistoryUpdate (UINT64 PC, uint8_t brtype, bool taken,
 /////////////////////////////////////////////////////////////
 
 void
-PREDICTOR::UpdateFinalSC (UINT64 PC, bool taken)
+MTAGE::UpdateFinalSC (UINT64 PC, bool taken)
 {
 
   bool CRES = (taken);
@@ -1670,7 +1669,7 @@ PREDICTOR::UpdateFinalSC (UINT64 PC, bool taken)
 /////////////////////////////////////////////////////////////
 
 bool
-PREDICTOR::FinalSCpredict (UINT64 PC, bool Tpred)
+MTAGE::FinalSCpredict (UINT64 PC, bool Tpred)
 {
 
   int TypeSecondSum;
@@ -1701,7 +1700,7 @@ PREDICTOR::FinalSCpredict (UINT64 PC, bool Tpred)
 /////////////////////////////////////////////////////////////
 
 void
-PREDICTOR::UpdateSC (UINT64 PC, bool taken, bool PRED)
+MTAGE::UpdateSC (UINT64 PC, bool taken, bool PRED)
 {
 
   if ((predSC != taken)
@@ -1777,7 +1776,7 @@ PREDICTOR::UpdateSC (UINT64 PC, bool taken, bool PRED)
 
 
 bool
-PREDICTOR::SCpredict (UINT64 PC, bool PRED)
+MTAGE::SCpredict (UINT64 PC, bool PRED)
 {
   LSUM = 0;
   predict_gehl (PC);
@@ -1863,7 +1862,7 @@ PREDICTOR::SCpredict (UINT64 PC, bool PRED)
 //Functions  for the statiscal corrector
 
 void
-PREDICTOR::predict_gehl (UINT64 PC)
+MTAGE::predict_gehl (UINT64 PC)
 {
   //index computation     
   for (int i = 1; i <= NGEHL; i++)
@@ -1882,7 +1881,7 @@ PREDICTOR::predict_gehl (UINT64 PC)
 
 
 void
-PREDICTOR::gehlupdate (UINT64 PC, bool taken)
+MTAGE::gehlupdate (UINT64 PC, bool taken)
 {
   //update the GEHL  predictor tables
   for (int i = NGEHL; i >= 0; i--)
@@ -1891,7 +1890,7 @@ PREDICTOR::gehlupdate (UINT64 PC, bool taken)
 
 
 void
-PREDICTOR::predict_rhsp (UINT64 PC)
+MTAGE::predict_rhsp (UINT64 PC)
 {
   //index computation     
   for (int i = 1; i <= NRHSP; i++)
@@ -1908,7 +1907,7 @@ PREDICTOR::predict_rhsp (UINT64 PC)
 
 
 void
-PREDICTOR::rhspupdate (UINT64 PC, bool taken)
+MTAGE::rhspupdate (UINT64 PC, bool taken)
 {
   for (int i = NRHSP; i >= 1; i--)
     ctrupdate (RHSP[RHSPINDEX[i]][i], taken, PERCWIDTH);
@@ -1916,7 +1915,7 @@ PREDICTOR::rhspupdate (UINT64 PC, bool taken)
 
 
 int
-PREDICTOR::percpredict (int PC, long long BHIST, int8_t * line, int PSTEP,
+MTAGE::percpredict (int PC, long long BHIST, int8_t * line, int PSTEP,
 			int WIDTH)
 {
   PERCSUM = 0;
@@ -1939,7 +1938,7 @@ PREDICTOR::percpredict (int PC, long long BHIST, int8_t * line, int PSTEP,
 
 
 void
-PREDICTOR::updateperc (bool taken, int8_t * line, long long BHIST, int PSTEP,
+MTAGE::updateperc (bool taken, int8_t * line, long long BHIST, int PSTEP,
 		       int WIDTH)
 {
   int PT = 0;
@@ -1956,7 +1955,7 @@ PREDICTOR::updateperc (bool taken, int8_t * line, long long BHIST, int PSTEP,
 
 
 int
-PREDICTOR::Gpredict (UINT64 PC, long long BHIST, int *length, int8_t ** tab,
+MTAGE::Gpredict (UINT64 PC, long long BHIST, int *length, int8_t ** tab,
 		     int NBR)
 {
   PERCSUM = 0;
@@ -1977,7 +1976,7 @@ PREDICTOR::Gpredict (UINT64 PC, long long BHIST, int *length, int8_t ** tab,
 
 
 void
-PREDICTOR::Gupdate (UINT64 PC, bool taken, long long BHIST, int *length,
+MTAGE::Gupdate (UINT64 PC, bool taken, long long BHIST, int *length,
 		    int8_t ** tab, int NBR, int WIDTH)
 {
   for (int i = 0; i < NBR; i++)
@@ -1995,7 +1994,7 @@ PREDICTOR::Gupdate (UINT64 PC, bool taken, long long BHIST, int *length,
 
 
 int
-PREDICTOR::gehlindex (UINT64 PC, int bank)
+MTAGE::gehlindex (UINT64 PC, int bank)
 {
   int index =
     PC ^ (PC >> ((mgehl[bank] % LOGGEHL) + 1)) ^ chgehl_i[bank].comp;
@@ -2006,7 +2005,7 @@ PREDICTOR::gehlindex (UINT64 PC, int bank)
 
 
 int
-PREDICTOR::rhspindex (UINT64 PC, int bank)
+MTAGE::rhspindex (UINT64 PC, int bank)
 {
   int index =
     PC ^ (PC >> ((mrhsp[bank] % LOGRHSP) + 1)) ^ chrhsp_i[bank].comp;

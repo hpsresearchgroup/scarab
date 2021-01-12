@@ -1,5 +1,5 @@
-#ifndef _PREDICTOR_H_
-#define _PREDICTOR_H_
+#ifndef _MTAGE_H_
+#define _MTAGE_H_
 
 #include <stdlib.h>
 #include <string.h>
@@ -307,7 +307,7 @@ class folded_history {
 };
 
 
-class PREDICTOR {
+class MTAGE {
 
  private:
 
@@ -321,7 +321,7 @@ class PREDICTOR {
 
  public:
 
-  PREDICTOR(void);
+  MTAGE(void);
   bool    GetPrediction(UINT64 PC);
   void    UpdatePredictor(UINT64 PC, OpType OPTYPE,bool resolveDir, bool predDir, UINT64 branchTarget);
 void    TrackOtherInst(UINT64 PC, OpType opType, bool taken,UINT64 branchTarget);
