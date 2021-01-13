@@ -32,7 +32,11 @@ Bp bp_table [] = {
     /* ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
     { GSHARE_BP,    "gshare",   bp_gshare_init,     bp_gshare_timestamp,    bp_gshare_pred,   bp_gshare_spec_update,    bp_gshare_update,    bp_gshare_retire,    bp_gshare_recover   },
     { HYBRIDGP_BP,  "hybridgp", bp_hybridgp_init,   bp_hybridgp_timestamp,  bp_hybridgp_pred, bp_hybridgp_spec_update,  bp_hybridgp_update,  bp_hybridgp_retire,  bp_hybridgp_recover },
-    { TAGESCL_BP,   "tagescl",  bp_tagescl_init,    bp_tagescl_timestamp,   bp_tagescl_pred,  bp_tagescl_spec_update,   bp_tagescl_update,   bp_tagescl_retire,   bp_tagescl_recover },    
+    { TAGESCL_BP,   "tagescl",  bp_tagescl_init,    bp_tagescl_timestamp,   bp_tagescl_pred,  bp_tagescl_spec_update,   bp_tagescl_update,   bp_tagescl_retire,   bp_tagescl_recover  },    
+#define DEF_CBP(CBP_NAME, CBP_CLASS) \
+    { CBP_CLASS ## _BP,    CBP_NAME,   SCARAB_BP_INTF_FUNC(CBP_CLASS, init), SCARAB_BP_INTF_FUNC(CBP_CLASS, timestamp), SCARAB_BP_INTF_FUNC(CBP_CLASS, pred), SCARAB_BP_INTF_FUNC(CBP_CLASS, spec_update), SCARAB_BP_INTF_FUNC(CBP_CLASS, update), SCARAB_BP_INTF_FUNC(CBP_CLASS, retire), SCARAB_BP_INTF_FUNC(CBP_CLASS, recover)}, 
+#include "cbp_table.def"
+#undef DEF_CBP
     { NUM_BP,       0,          NULL,               NULL,                   NULL,             NULL,                     NULL,                NULL,                NULL }
     
 };

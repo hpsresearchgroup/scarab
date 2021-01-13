@@ -177,6 +177,9 @@ typedef enum Bp_Id_enum {
   GSHARE_BP,
   HYBRIDGP_BP,
   TAGESCL_BP,
+#define DEF_CBP(CBP_NAME, CBP_CLASS) CBP_CLASS##_BP,
+#include "cbp_table.def"
+#undef DEF_CBP
   NUM_BP,
 } Bp_Id;
 
