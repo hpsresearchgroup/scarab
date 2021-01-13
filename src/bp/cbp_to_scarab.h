@@ -9,12 +9,15 @@
  * painless as possible. This file was written with CBP 2016 in mind.
  *
  * USAGE:
- *   1. Download files from CBP (predictor.h and predictor.cc)
- *   2. Rename files to more descriptive name (e.g., mtage.h and mtage.cc)
- *   3. Search and replace all occurances of PREDICTOR with new name (e.g.,
- * s/PREDICTOR/MTAGE/g)
- *   4. Include this file in *.h
- *   5. Rename any conflicting names (e.g., ASSERT)
+ *   1. Add CBP files to scarab
+ *      a. Download files from CBP (predictor.h and predictor.cc) and place them
+ * in src/bp/ directory. b. Rename files to more descriptive name (e.g., mtage.h
+ * and mtage.cc) c. Search and replace all occurances of PREDICTOR with new
+ * name (e.g., s/PREDICTOR/MTAGE/g) d. Rename any conflicting names (e.g.,
+ * ASSERT)
+ *   2. Add the CBP header file to cbp_to_scarab.cpp
+ *   3. Add entry for CBP predictor in cbp_table.def (make sure names do not
+ * conflict)
  */
 
 #ifndef __CBP_TO_SCARAB_H__
@@ -50,20 +53,23 @@ extern "C" {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 // Library needed for Scarab Interface
 #include "bp/bp.h"
 
-#define CBP_PREDICTOR MTAGE
-#define SCARAB_BP_INTF_FUNC(name) bp_##MTAGE##_##name
+#define SCARAB_BP_INTF_FUNC(CBP_CLASS, FCN_NAME) bp_##CBP_CLASS##_##FCN_NAME
 
 /*************Interface to Scarab***************/
-void SCARAB_BP_INTF_FUNC(init)();
-void SCARAB_BP_INTF_FUNC(timestamp)(Op* op);
-uns8 SCARAB_BP_INTF_FUNC(pred)(Op*);
-void SCARAB_BP_INTF_FUNC(spec_update)(Op* op);
-void SCARAB_BP_INTF_FUNC(update)(Op* op);
-void SCARAB_BP_INTF_FUNC(retire)(Op* op);
-void SCARAB_BP_INTF_FUNC(recover)(Recovery_Info*);
+#define DEF_CBP(CBP_NAME, CBP_CLASS)                         \
+  void SCARAB_BP_INTF_FUNC(CBP_CLASS, init)();               \
+  void SCARAB_BP_INTF_FUNC(CBP_CLASS, timestamp)(Op * op);   \
+  uns8 SCARAB_BP_INTF_FUNC(CBP_CLASS, pred)(Op*);            \
+  void SCARAB_BP_INTF_FUNC(CBP_CLASS, spec_update)(Op * op); \
+  void SCARAB_BP_INTF_FUNC(CBP_CLASS, update)(Op * op);      \
+  void SCARAB_BP_INTF_FUNC(CBP_CLASS, retire)(Op * op);      \
+  void SCARAB_BP_INTF_FUNC(CBP_CLASS, recover)(Recovery_Info*);
+#include "cbp_table.def"
+#undef DEF_CBP
 
 #ifdef __cplusplus
 }

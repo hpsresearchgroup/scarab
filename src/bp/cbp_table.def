@@ -1,0 +1,15 @@
+/**
+ * @file cbp_table.def
+ * @author Stephen Pruett (stephen.pruett@utexas.edu)
+ * @brief
+ * @version 0.1
+ * @date 2021-01-12
+ *
+ * Usage:
+ *   Add your CBP predictor below, as indicated by the example.
+ *
+ * Example:
+ *   DEF_CBP("predictor_name", PREDICTOR_CLASS)
+ */
+
+DEF_CBP("mtage", MTAGE)
