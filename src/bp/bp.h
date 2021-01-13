@@ -177,6 +177,7 @@ typedef enum Bp_Id_enum {
   GSHARE_BP,
   HYBRIDGP_BP,
   TAGESCL_BP,
+  MTAGE_BP,
   NUM_BP,
 } Bp_Id;
 
