@@ -231,50 +231,50 @@ struct Tage_Prediction_Info {
 
 template <class TAGE_HISTORIES_CONFIG>
 class Tage_Histories {
-  public:
-   Tage_Histories(int max_in_flight_branches) :
-       history_register_(max_in_flight_branches) {
-     path_history_ = 0;
-     intialize_folded_history();
-   }
+ public:
+  Tage_Histories(int max_in_flight_branches) :
+      history_register_(max_in_flight_branches) {
+    path_history_ = 0;
+    intialize_folded_history();
+  }
 
-   void push_into_history(
-     uint64_t br_pc, uint64_t br_target, Branch_Type br_type, bool branch_dir,
-     Tage_Prediction_Info<TAGE_HISTORIES_CONFIG>* prediction_info) {
-     head_old_           = history_register_.head_idx();
-     int num_bit_inserts = 2;
-     if(br_type.is_indirect && !br_type.is_conditional) {
-       num_bit_inserts = 3;
-     }
+  void push_into_history(
+    uint64_t br_pc, uint64_t br_target, Branch_Type br_type, bool branch_dir,
+    Tage_Prediction_Info<TAGE_HISTORIES_CONFIG>* prediction_info) {
+    head_old_           = history_register_.head_idx();
+    int num_bit_inserts = 2;
+    if(br_type.is_indirect && !br_type.is_conditional) {
+      num_bit_inserts = 3;
+    }
 
-     int pc_dir_hash = ((br_pc ^ (br_pc >> 2))) ^ branch_dir;
-     int path_hash   = br_pc ^ (br_pc >> 2) ^ (br_pc >> 4);
-     if((br_type.is_indirect && br_type.is_conditional) & branch_dir) {
-       pc_dir_hash = (pc_dir_hash ^ (br_target >> 2));
-       path_hash   = path_hash ^ (br_target >> 2) ^ (br_target >> 4);
-     }
+    int pc_dir_hash = ((br_pc ^ (br_pc >> 2))) ^ branch_dir;
+    int path_hash   = br_pc ^ (br_pc >> 2) ^ (br_pc >> 4);
+    if((br_type.is_indirect && br_type.is_conditional) & branch_dir) {
+      pc_dir_hash = (pc_dir_hash ^ (br_target >> 2));
+      path_hash   = path_hash ^ (br_target >> 2) ^ (br_target >> 4);
+    }
 
-     prediction_info->num_global_history_bits = num_bit_inserts;
-     prediction_info->path_history_checkpoint = path_history_;
-     prediction_info->global_history_head_checkpoint_ =
-       history_register_.head_idx();
+    prediction_info->num_global_history_bits = num_bit_inserts;
+    prediction_info->path_history_checkpoint = path_history_;
+    prediction_info->global_history_head_checkpoint_ =
+      history_register_.head_idx();
 
-     for(int i = 0; i < num_bit_inserts; ++i) {
-       history_register_.push_bit(pc_dir_hash & 1);
-       pc_dir_hash >>= 1;
+    for(int i = 0; i < num_bit_inserts; ++i) {
+      history_register_.push_bit(pc_dir_hash & 1);
+      pc_dir_hash >>= 1;
 
-       path_history_ = (path_history_ << 1) ^ (path_hash & 127);
-       path_hash >>= 1;
+      path_history_ = (path_history_ << 1) ^ (path_hash & 127);
+      path_hash >>= 1;
 
-       for(int j = 0; j < TAGE_HISTORIES_CONFIG::NUM_HISTORIES; ++j) {
-         folded_histories_for_indices_[j].update(history_register_);
-         folded_histories_for_tags_0_[j].update(history_register_);
-         folded_histories_for_tags_1_[j].update(history_register_);
-       }
-     }
+      for(int j = 0; j < TAGE_HISTORIES_CONFIG::NUM_HISTORIES; ++j) {
+        folded_histories_for_indices_[j].update(history_register_);
+        folded_histories_for_tags_0_[j].update(history_register_);
+        folded_histories_for_tags_1_[j].update(history_register_);
+      }
+    }
 
-     path_history_ = path_history_ &
-                     ((1 << TAGE_HISTORIES_CONFIG::PATH_HISTORY_WIDTH) - 1);
+    path_history_ = path_history_ &
+                    ((1 << TAGE_HISTORIES_CONFIG::PATH_HISTORY_WIDTH) - 1);
   }
 
   void intialize_folded_history(void);
@@ -291,7 +291,8 @@ class Tage_Histories {
   static constexpr Tage_Tag_Bits<TAGE_HISTORIES_CONFIG> tag_bits_ = {};
 
   // Predictor State
-  Long_History_Register<TAGE_HISTORIES_CONFIG::MAX_HISTORY_SIZE> history_register_;
+  Long_History_Register<TAGE_HISTORIES_CONFIG::MAX_HISTORY_SIZE>
+    history_register_;
   std::vector<Folded_History<TAGE_HISTORIES_CONFIG::MAX_HISTORY_SIZE>>
     folded_histories_for_indices_;
   std::vector<Folded_History<TAGE_HISTORIES_CONFIG::MAX_HISTORY_SIZE>>
@@ -382,8 +383,8 @@ class Tage {
   void update_speculative_state(
     uint64_t br_pc, uint64_t br_target, Branch_Type br_type,
     bool final_prediction, Tage_Prediction_Info<TAGE_CONFIG>* prediction_info) {
-    tage_histories.push_into_history(br_pc, br_target, br_type, final_prediction,
-                      prediction_info);
+    tage_histories.push_into_history(br_pc, br_target, br_type,
+                                     final_prediction, prediction_info);
   }
 
   void commit_state(uint64_t br_pc, bool resolve_dir,
@@ -392,8 +393,10 @@ class Tage {
     const int* indices = prediction_info.indices;
     const int* tags    = prediction_info.tags;
 
-    bool allocate_new_entry = (prediction_info.prediction != resolve_dir) &&
-                              (prediction_info.hit_bank < Tage_Histories<TAGE_CONFIG>::twice_num_histories_);
+    bool allocate_new_entry =
+      (prediction_info.prediction != resolve_dir) &&
+      (prediction_info.hit_bank <
+       Tage_Histories<TAGE_CONFIG>::twice_num_histories_);
 
     if(prediction_info.hit_bank > 0) {
       // Manage the selection between longest matching and alternate
@@ -451,7 +454,8 @@ class Tage {
                                0xffe)) ^
                              (random_number_gen_() & 1));
 
-      for(; allocation_bank < Tage_Histories<TAGE_CONFIG>::twice_num_histories_; allocation_bank += 2) {
+      for(; allocation_bank < Tage_Histories<TAGE_CONFIG>::twice_num_histories_;
+          allocation_bank += 2) {
         int  i    = allocation_bank + 1;  // REVISIT: is i needed?
         bool done = false;
         if(tables_enabled_.arr[i]) {
@@ -575,7 +579,8 @@ class Tage {
 
   void commit_state_at_retire(
     const Tage_Prediction_Info<TAGE_CONFIG>& prediction_info) {
-    tage_histories.history_register_.retire(prediction_info.num_global_history_bits);
+    tage_histories.history_register_.retire(
+      prediction_info.num_global_history_bits);
     tage_histories.path_history_old_ = tage_histories.path_history_;
   }
 
@@ -586,9 +591,12 @@ class Tage {
        tage_histories.history_register_.head_idx());
     for(int i = 0; i < num_flushed_bits; ++i) {
       for(int j = 0; j < TAGE_CONFIG::NUM_HISTORIES; ++j) {
-        tage_histories.folded_histories_for_indices_[j].update_reverse(tage_histories.history_register_);
-        tage_histories.folded_histories_for_tags_0_[j].update_reverse(tage_histories.history_register_);
-        tage_histories.folded_histories_for_tags_1_[j].update_reverse(tage_histories.history_register_);
+        tage_histories.folded_histories_for_indices_[j].update_reverse(
+          tage_histories.history_register_);
+        tage_histories.folded_histories_for_tags_0_[j].update_reverse(
+          tage_histories.history_register_);
+        tage_histories.folded_histories_for_tags_1_[j].update_reverse(
+          tage_histories.history_register_);
       }
       tage_histories.history_register_.rewind(1);
     }
@@ -641,7 +649,8 @@ class Tage {
   // Derived constants
   static constexpr Tage_Tables_Enabled<TAGE_CONFIG> tables_enabled_ = {};
 
-  Tagged_Entry* tagged_table_ptrs_[Tage_Histories<TAGE_CONFIG>::twice_num_histories_ + 1];
+  Tagged_Entry*
+    tagged_table_ptrs_[Tage_Histories<TAGE_CONFIG>::twice_num_histories_ + 1];
 
   // Predictor State
   Tage_Histories<TAGE_CONFIG> tage_histories;
@@ -661,21 +670,23 @@ class Tage {
 };
 
 template <class TAGE_HISTORIES_CONFIG>
-constexpr Tage_History_Sizes<TAGE_HISTORIES_CONFIG> Tage_Histories<TAGE_HISTORIES_CONFIG>::history_sizes_;
+constexpr Tage_History_Sizes<TAGE_HISTORIES_CONFIG>
+  Tage_Histories<TAGE_HISTORIES_CONFIG>::history_sizes_;
 
 template <class TAGE_CONFIG>
 constexpr Tage_Tables_Enabled<TAGE_CONFIG> Tage<TAGE_CONFIG>::tables_enabled_;
 
 template <class TAGE_HISTORIES_CONFIG>
-constexpr Tage_Tag_Bits<TAGE_HISTORIES_CONFIG> Tage_Histories<TAGE_HISTORIES_CONFIG>::tag_bits_;
+constexpr Tage_Tag_Bits<TAGE_HISTORIES_CONFIG>
+  Tage_Histories<TAGE_HISTORIES_CONFIG>::tag_bits_;
 
 template <class TAGE_CONFIG>
 void Tage<TAGE_CONFIG>::initialize_table_sizes(void) {
   for(int i = 1; i < TAGE_CONFIG::FIRST_LONG_HISTORY_TABLE; ++i) {
     tagged_table_ptrs_[i] = low_history_tagged_table_;
   }
-  for(int i = TAGE_CONFIG::FIRST_LONG_HISTORY_TABLE; i <= Tage_Histories<TAGE_CONFIG>::twice_num_histories_;
-      ++i) {
+  for(int i = TAGE_CONFIG::FIRST_LONG_HISTORY_TABLE;
+      i <= Tage_Histories<TAGE_CONFIG>::twice_num_histories_; ++i) {
     tagged_table_ptrs_[i] = high_history_tagged_table_;
   }
 }
@@ -688,7 +699,8 @@ void Tage_Histories<TAGE_HISTORIES_CONFIG>::intialize_folded_history(void) {
     // directly (gcc complains that variable is undefined), do not know why.
     // REVISIT: since I got rid of LOG_ENTRIES_PER_BANK as a constant, this
     // should be fine now.
-    const int LOG_ENTRIES_PER_BANK2 = TAGE_HISTORIES_CONFIG::LOG_ENTRIES_PER_BANK;
+    const int LOG_ENTRIES_PER_BANK2 =
+      TAGE_HISTORIES_CONFIG::LOG_ENTRIES_PER_BANK;
     folded_histories_for_indices_.emplace_back(history_sizes_.arr[i],
                                                LOG_ENTRIES_PER_BANK2);
     folded_histories_for_tags_0_.emplace_back(history_sizes_.arr[i],
@@ -706,9 +718,8 @@ void Tage<TAGE_CONFIG>::intialize_predictor_state(void) {
 }
 
 template <class TAGE_HISTORIES_CONFIG>
-int64_t Tage_Histories<TAGE_HISTORIES_CONFIG>::compute_path_hash(int64_t path_history,
-                                             int max_width, int bank,
-                                             int index_size) const {
+int64_t Tage_Histories<TAGE_HISTORIES_CONFIG>::compute_path_hash(
+  int64_t path_history, int max_width, int bank, int index_size) const {
   int64_t temp1, temp2;
 
   // truncate path history to index size.
@@ -738,25 +749,32 @@ template <class TAGE_CONFIG>
 void Tage<TAGE_CONFIG>::fill_table_indices_tags(
   uint64_t br_pc, Tage_Prediction_Info<TAGE_CONFIG>* output) const {
   // Generate tags and indices, ignore bank bits for now.
-  for(int i = 1; i <= Tage_Histories<TAGE_CONFIG>::twice_num_histories_; i += 2) {
+  for(int i = 1; i <= Tage_Histories<TAGE_CONFIG>::twice_num_histories_;
+      i += 2) {
     if(tables_enabled_.arr[i] || tables_enabled_.arr[i + 1]) {
       int max_path_width = (tage_histories.history_sizes_.arr[(i - 1) / 2] >
                             TAGE_CONFIG::PATH_HISTORY_WIDTH) ?
                              TAGE_CONFIG::PATH_HISTORY_WIDTH :
                              tage_histories.history_sizes_.arr[(i - 1) / 2];
-      int64_t path_hash = tage_histories.compute_path_hash(tage_histories.path_history_, max_path_width, i,
-                                            TAGE_CONFIG::LOG_ENTRIES_PER_BANK);
-      int64_t index     = br_pc;
+      int64_t path_hash = tage_histories.compute_path_hash(
+        tage_histories.path_history_, max_path_width, i,
+        TAGE_CONFIG::LOG_ENTRIES_PER_BANK);
+      int64_t index = br_pc;
       index ^= br_pc >> (std::abs(TAGE_CONFIG::LOG_ENTRIES_PER_BANK - i) + 1);
-      index ^= tage_histories.folded_histories_for_indices_[(i - 1) / 2].get_value();
+      index ^=
+        tage_histories.folded_histories_for_indices_[(i - 1) / 2].get_value();
       index ^= path_hash;
       output->indices[i] = index &
                            ((1 << TAGE_CONFIG::LOG_ENTRIES_PER_BANK) - 1);
 
       int64_t tag = br_pc;
-      tag ^= tage_histories.folded_histories_for_tags_0_[(i - 1) / 2].get_value();
-      tag ^= tage_histories.folded_histories_for_tags_1_[(i - 1) / 2].get_value() << 1;
-      output->tags[i] = tag & ((1 << tage_histories.tag_bits_.arr[(i - 1) / 2]) - 1);
+      tag ^=
+        tage_histories.folded_histories_for_tags_0_[(i - 1) / 2].get_value();
+      tag ^=
+        tage_histories.folded_histories_for_tags_1_[(i - 1) / 2].get_value()
+        << 1;
+      output->tags[i] = tag &
+                        ((1 << tage_histories.tag_bits_.arr[(i - 1) / 2]) - 1);
 
       output->tags[i + 1]    = output->tags[i];
       output->indices[i + 1] = output->indices[i] ^
@@ -773,8 +791,8 @@ void Tage<TAGE_CONFIG>::fill_table_indices_tags(
                       .arr[(TAGE_CONFIG::FIRST_LONG_HISTORY_TABLE - 1) / 2]) -
                 1))) %
              TAGE_CONFIG::LONG_HISTORY_NUM_BANKS;
-  for(int i = TAGE_CONFIG::FIRST_LONG_HISTORY_TABLE; i <= Tage_Histories<TAGE_CONFIG>::twice_num_histories_;
-      ++i) {
+  for(int i = TAGE_CONFIG::FIRST_LONG_HISTORY_TABLE;
+      i <= Tage_Histories<TAGE_CONFIG>::twice_num_histories_; ++i) {
     if(tables_enabled_.arr[i]) {
       output->indices[i] += (temp << TAGE_CONFIG::LOG_ENTRIES_PER_BANK);
       temp++;
@@ -783,7 +801,8 @@ void Tage<TAGE_CONFIG>::fill_table_indices_tags(
   }
 
   // Now add bank bits to the indices of low history tables.
-  temp = (br_pc ^ (tage_histories.path_history_ & ((1 << tage_histories.history_sizes_.arr[0]) - 1))) %
+  temp = (br_pc ^ (tage_histories.path_history_ &
+                   ((1 << tage_histories.history_sizes_.arr[0]) - 1))) %
          TAGE_CONFIG::SHORT_HISTORY_NUM_BANKS;
   for(int i = 1; i <= TAGE_CONFIG::FIRST_LONG_HISTORY_TABLE - 1; ++i) {
     if(tables_enabled_.arr[i]) {
