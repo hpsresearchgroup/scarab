@@ -326,3 +326,11 @@ DEF_PARAM(dumb_model_avg_row_hits_per_core, DUMB_MODEL_AVG_ROW_HITS_PER_CORE,
 DEF_PARAM(dumb_model_mlp, DUMB_MODEL_MLP, uns, uns, 1, )
 DEF_PARAM(dumb_model_mlp_per_core, DUMB_MODEL_MLP_PER_CORE, char*, string,
           NULL, )
+
+DEF_PARAM(duplication_enabled, DUPLICATION_EN, Flag, Flag, FALSE, )
+DEF_PARAM(duplication_page_bits, DUPLICATION_PAGE_BITS, uns, uns, 0, )
+DEF_PARAM(duplication_page_remap_table_num_entries, DUPLICATION_PAGE_REMAP_TABLE_NUM_ENTRIES, uns, uns, 0, )
+DEF_PARAM(duplication_page_sequence_table_num_entries, DUPLICATION_PAGE_SEQUENCE_TABLE_NUM_ENTRIES, uns, uns, 0, )
+DEF_PARAM(duplication_num_sequences, DUPLICATION_NUM_SEQUENCES, uns, uns, 0, )
+DEF_PARAM(duplication_pages_per_sequence, DUPLICATION_PAGES_PER_SEQUENCE, uns, uns, 0, )
+

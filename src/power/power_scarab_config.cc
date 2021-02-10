@@ -928,6 +928,21 @@ void power_print_mc_params(std::ofstream& out) {
   ADD_XML_ACCUM_STAT(out, header, "memory_reads", POWER_MEMORY_CTRL_READ, );
   ADD_XML_ACCUM_STAT(out, header, "memory_writes", POWER_MEMORY_CTRL_WRITE, );
 
+
+  ADD_XML_PARAM(out, header, "duplication_enabled", DUPLICATION_EN, );
+  ADD_XML_PARAM(out, header, "duplication_page_bits", DUPLICATION_PAGE_BITS, );
+  ADD_XML_PARAM(out, header, "duplication_page_remap_table_num_entries", DUPLICATION_PAGE_REMAP_TABLE_NUM_ENTRIES, );
+  ADD_XML_PARAM(out, header, "duplication_page_sequence_table_num_entries", DUPLICATION_PAGE_SEQUENCE_TABLE_NUM_ENTRIES, );
+  ADD_XML_PARAM(out, header, "duplication_num_sequences", DUPLICATION_NUM_SEQUENCES, );
+  ADD_XML_PARAM(out, header, "duplication_pages_per_sequence", DUPLICATION_PAGES_PER_SEQUENCE, );
+
+  ADD_XML_ACCUM_STAT(out, header, "duplication_page_remap_table_reads", DUPLICATION_PAGE_REMAP_TABLE_READS, );
+  ADD_XML_ACCUM_STAT(out, header, "duplication_page_sequence_table_reads", DUPLICATION_PAGE_SEQUENCE_TABLE_READS, );
+  ADD_XML_ACCUM_STAT(out, header, "duplication_sequence_buffer_reads", DUPLICATION_SEQUENCE_BUFFER_READS, );
+  ADD_XML_ACCUM_STAT(out, header, "duplication_page_remap_table_writes", DUPLICATION_PAGE_REMAP_TABLE_WRITES, );
+  ADD_XML_ACCUM_STAT(out, header, "duplication_page_sequence_table_writes", DUPLICATION_PAGE_SEQUENCE_TABLE_WRITES, );
+  ADD_XML_ACCUM_STAT(out, header, "duplication_sequence_buffer_writes", DUPLICATION_SEQUENCE_BUFFER_WRITES, );
+
   /* McPAT does not track individual mc, instead, it takes the total accesses
    * and calculate the average power per MC or per channel. This is sufficent
    * for most application. Further trackdown can be easily added in later
