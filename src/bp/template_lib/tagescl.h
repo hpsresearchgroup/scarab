@@ -35,19 +35,20 @@ struct Tage_SC_L_Prediction_Info {
 
 class Tage_SC_L_Base {
  public:
-  virtual int64_t get_new_branch_id() = 0;
-  virtual bool get_prediction(int64_t branch_id, uint64_t br_pc) = 0;
-  virtual void update_speculative_state(int64_t branch_id, uint64_t br_pc,
-                                Branch_Type br_type, bool branch_dir,
-                                uint64_t br_target) = 0;
-  virtual void commit_state(int64_t branch_id, uint64_t br_pc, Branch_Type br_type,
-                    bool resolve_dir) = 0;
-  virtual void commit_state_at_retire(int64_t branch_id, uint64_t br_pc,
-                              Branch_Type br_type, bool resolve_dir,
-                              uint64_t br_target) = 0;
+  virtual int64_t get_new_branch_id()                                 = 0;
+  virtual bool    get_prediction(int64_t branch_id, uint64_t br_pc)   = 0;
+  virtual void    update_speculative_state(int64_t branch_id, uint64_t br_pc,
+                                           Branch_Type br_type, bool branch_dir,
+                                           uint64_t br_target)        = 0;
+  virtual void    commit_state(int64_t branch_id, uint64_t br_pc,
+                               Branch_Type br_type, bool resolve_dir) = 0;
+  virtual void    commit_state_at_retire(int64_t branch_id, uint64_t br_pc,
+                                         Branch_Type br_type, bool resolve_dir,
+                                         uint64_t br_target)          = 0;
   virtual void flush_branch_and_repair_state(int64_t branch_id, uint64_t br_pc,
-                                     Branch_Type br_type, bool resolve_dir,
-                                     uint64_t br_target) = 0;
+                                             Branch_Type br_type,
+                                             bool        resolve_dir,
+                                             uint64_t    br_target)      = 0;
 };
 
 /* Interface functions:
