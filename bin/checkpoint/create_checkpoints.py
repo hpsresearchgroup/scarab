@@ -104,6 +104,14 @@ def define_commandline_arguments():
       type=float,
       default=0.1,
       help='Minimum simpoint weight to keep')
+
+  ################### Simpoints Overrides ###################
+  parser.add_argument(
+      '--icount_override',
+      type=int,
+      default=None,
+      help='The icount each instruction should begin with.')
+
   return parser.parse_args()
 
 def define_programs_list(descriptor_path):
@@ -231,7 +239,11 @@ def run_simpoints_phase():
   fix_simpoint_scripts()
   print('Running Simpoints on all benchmarks ...')
   cmds = setup_simpoint_dir_and_get_simpoint_commands()
-  BatchManager([ Phase(cmds) ], processor_cores_per_node=__args__.num_threads).run()
+
+  if not __args__.icount_override:
+    BatchManager([ Phase(cmds) ], processor_cores_per_node=__args__.num_threads).run()
+  else:
+    print("Icount override specified. Skipping simpoint creation...")
 
 def get_subinput_numbers_for_csv_paths(simpoint_csv_paths):
   subinput_numbers = []
@@ -313,12 +325,20 @@ def read_all_simpoints():
     workload_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
     workload_name = benchmark.name
     simpoint_csv_path = '{}/simpoints_{}.Data/simpoints_{}.pinpoints.csv'.format(workload_path, workload_name, workload_name)
-    if not os.path.isfile(simpoint_csv_path):
-      print('ERROR: could not find the simpoint output file in {}'.format(simpoint_csv_path))
-      sys.exit(1)
 
-    weights_map, icounts_map, length_map, total_instructions_in_workload = \
-        parse_simpoint_csv_path(simpoint_csv_path)
+    if __args__.icount_override:
+      print("Overriding Icount with {}. Skipping reading simpoints...".format(__args__.icount_override))
+      weights_map = { 0: 1.0 }
+      icounts_map = { 0: __args__.icount_override }
+      length_map =  { 0: __args__.simpoint_length }
+      total_instructions_in_workload = __args__.simpoint_length
+    else:
+      if not os.path.isfile(simpoint_csv_path):
+        print('ERROR: could not find the simpoint output file in {}'.format(simpoint_csv_path))
+        sys.exit(1)
+      weights_map, icounts_map, length_map, total_instructions_in_workload = \
+          parse_simpoint_csv_path(simpoint_csv_path)
+
     for checkpoint_num in weights_map:
       simpoints[(benchmark.name, checkpoint_num)] = (benchmark,
           weights_map[checkpoint_num], icounts_map[checkpoint_num], length_map[checkpoint_num])
