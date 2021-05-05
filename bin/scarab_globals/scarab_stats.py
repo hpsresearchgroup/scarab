@@ -144,6 +144,16 @@ class StatCollection:
 
     return StatDF(combined_df.copy())
 
+  def sort_names_by_stat(self, stat_name, core_id, cutoff=None):
+    stat_name_ = stat_name.split('=')[0]
+    stat_df = self.get([stat_name], [core_id])
+    stat_df.df.sort_values(stat_name_, axis='columns', ascending=False, inplace=True)
+
+    if cutoff:
+      stat_df.df = stat_df.df.T[stat_df.df.T[stat_name_] > cutoff].T
+
+    return stat_df.df.columns.tolist()
+
 class StatRun(StatCollection):
   def append(self, frame_name, frame):
     frame.name = frame_name
@@ -460,7 +470,7 @@ class StatFileParser:
         RegEx Object: The Regex Object containing the parsed results
     """
     # A slow regex that grabs all stat values from file:
-    pattern_all_values = '^([^\s]+)\s+([0-9.]+)\s+([0-9.]+)?[%]?\s+([0-9.]+)\s+([0-9.]+)?[%]?'
+    pattern_all_values = '^([^\s]+)\s+([0-9.]+)\s+([0-9.nan-]+)?[%]?\s+([0-9.]+)\s+([0-9.nan-]+)?[%]?'
 
     # If we only need the reset stats, then use the faster regex...
     m = re.search(pattern_all_values, stat_str)
