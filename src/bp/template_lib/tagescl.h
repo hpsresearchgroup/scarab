@@ -33,6 +33,23 @@ struct Tage_SC_L_Prediction_Info {
   bool                                        final_prediction;
 };
 
+class Tage_SC_L_Base {
+ public:
+  virtual int64_t get_new_branch_id() = 0;
+  virtual bool get_prediction(int64_t branch_id, uint64_t br_pc) = 0;
+  virtual void update_speculative_state(int64_t branch_id, uint64_t br_pc,
+                                Branch_Type br_type, bool branch_dir,
+                                uint64_t br_target) = 0;
+  virtual void commit_state(int64_t branch_id, uint64_t br_pc, Branch_Type br_type,
+                    bool resolve_dir) = 0;
+  virtual void commit_state_at_retire(int64_t branch_id, uint64_t br_pc,
+                              Branch_Type br_type, bool resolve_dir,
+                              uint64_t br_target) = 0;
+  virtual void flush_branch_and_repair_state(int64_t branch_id, uint64_t br_pc,
+                                     Branch_Type br_type, bool resolve_dir,
+                                     uint64_t br_target) = 0;
+};
+
 /* Interface functions:
  *
  * warmup() a wrapper for updating predictor state during the warmup phase of a
@@ -43,7 +60,7 @@ struct Tage_SC_L_Prediction_Info {
  * requirements. (same as Championship Branch Prediction Interface)
  */
 template <class CONFIG>
-class Tage_SC_L {
+class Tage_SC_L : public Tage_SC_L_Base {
  public:
   Tage_SC_L(int max_in_flight_branches) :
       tage_(random_number_gen_, max_in_flight_branches),
@@ -56,7 +73,7 @@ class Tage_SC_L {
   // the branch is retired or flushed. The class internally maintains metadata
   // for each in-flight branch. The rest of the public functions in this class
   // need the id of a branch to work on.
-  int64_t get_new_branch_id() {
+  int64_t get_new_branch_id() override {
     int64_t branch_id       = prediction_info_buffer_.allocate_back();
     auto&   prediction_info = prediction_info_buffer_[branch_id];
     Tage<typename CONFIG::TAGE>::build_empty_prediction(&prediction_info.tage);
@@ -67,7 +84,7 @@ class Tage_SC_L {
 
   // It uses the speculative state of the predictor to generate a prediction.
   // Should be called before update_speculative_state.
-  bool get_prediction(int64_t branch_id, uint64_t br_pc);
+  bool get_prediction(int64_t branch_id, uint64_t br_pc) override;
 
   // It updates the speculative state (e.g. to insert history bits in Tage's
   // global history register). For conditional branches, it should be called
@@ -75,7 +92,7 @@ class Tage_SC_L {
   // branches, it should be the only function called in the front-end.
   void update_speculative_state(int64_t branch_id, uint64_t br_pc,
                                 Branch_Type br_type, bool branch_dir,
-                                uint64_t br_target);
+                                uint64_t br_target) override;
 
   // Invokes the default update algorithm for updating the predictor state.
   // Can
@@ -84,7 +101,7 @@ class Tage_SC_L {
   // cannot
   // be undone.
   void commit_state(int64_t branch_id, uint64_t br_pc, Branch_Type br_type,
-                    bool resolve_dir);
+                    bool resolve_dir) override;
 
   // Updates predictor states that are critical for algorithm correctness.
   // Thus, should always be called in the retire state and after
@@ -92,7 +109,7 @@ class Tage_SC_L {
   // is called. branch_id is invalidated and should not be used anymore.
   void commit_state_at_retire(int64_t branch_id, uint64_t br_pc,
                               Branch_Type br_type, bool resolve_dir,
-                              uint64_t br_target);
+                              uint64_t br_target) override;
 
   // Flushes the branch and all branches that came after it and repairs the
   // speculative state of the predictor. It invalidated all branch_id of
@@ -100,7 +117,7 @@ class Tage_SC_L {
   // branches.
   void flush_branch_and_repair_state(int64_t branch_id, uint64_t br_pc,
                                      Branch_Type br_type, bool resolve_dir,
-                                     uint64_t br_target);
+                                     uint64_t br_target) override;
 
  private:
   Random_Number_Generator               random_number_gen_;
