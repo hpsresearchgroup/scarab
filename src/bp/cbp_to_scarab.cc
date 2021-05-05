@@ -46,7 +46,7 @@ class CBP_To_Scarab_Intf {
   uns8 pred(Op* op) {
     uns proc_id = op->proc_id;
     if(op->off_path)
-      return NOT_TAKEN;
+      return op->oracle_info.dir;
     return cbp_predictors.at(proc_id).GetPrediction(op->inst_info->addr);
   }
 
