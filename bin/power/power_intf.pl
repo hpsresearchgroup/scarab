@@ -274,7 +274,7 @@ sub parse_cacti_dram_output($$)
          $write_energy     (Write Energy nJ)     * $power_dram_write_stat     (POWER_DRAM_WRITE)\n");
     }
 
-    $values{"DYNAMIC"} *= 10e-9; # convert from nJoules to Joules
+    $values{"DYNAMIC"} *= 1e-9; # convert from nJoules to Joules
 
     my $time = $stats{"POWER_CYCLE"}[0]/$params{"POWER_INTF_REF_CHIP_FREQ"};
     if($debug) {
@@ -310,7 +310,7 @@ sub parse_cacti_dram_output($$)
       print("$total_leakage mW (STATIC) = $open_page_leakage (Leakage Power Open Page mW) + $io_leakage (Leakage Power I/O mW) + $refresh_leakage (Refresh power mW)");
     }
 
-    $values{"STATIC"} *= 10e-3; # convert to Watts
+    $values{"STATIC"} *= 1e-3; # convert to Watts
 
     return \%values;
 }
