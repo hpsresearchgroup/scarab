@@ -106,6 +106,7 @@ class Progress:
     scarab launch stdout will tell if job is running or has finished
      - scarab launch should always call notify with message: Scarab run terminated, cleaning up...
     """
+    return len(self.matching_lines["Finished:"]) > 0
     for line in self.matching_lines["Notify:"]:
       m = re.search("Scarab run terminated", line)
       if m:
