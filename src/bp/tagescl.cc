@@ -25,8 +25,8 @@
 #include <memory>
 
 extern "C" {
-#include "core.param.h"
 #include "bp.param.h"
+#include "core.param.h"
 #include "globals/assert.h"
 #include "table_info.h"
 }
@@ -72,10 +72,12 @@ void bp_tagescl_init() {
   if(tagescl_predictors.size() == 0) {
     tagescl_predictors.reserve(NUM_CORES);
     for(uns i = 0; i < NUM_CORES; ++i) {
-      if (BP_MECH == TAGESCL_BP) {
-        tagescl_predictors.push_back(std::make_unique<Tage_SC_L<TAGE_SC_L_CONFIG_64KB>>(NODE_TABLE_SIZE));
+      if(BP_MECH == TAGESCL_BP) {
+        tagescl_predictors.push_back(
+          std::make_unique<Tage_SC_L<TAGE_SC_L_CONFIG_64KB>>(NODE_TABLE_SIZE));
       } else {
-        tagescl_predictors.push_back(std::make_unique<Tage_SC_L<TAGE_SC_L_CONFIG_80KB>>(NODE_TABLE_SIZE));
+        tagescl_predictors.push_back(
+          std::make_unique<Tage_SC_L<TAGE_SC_L_CONFIG_80KB>>(NODE_TABLE_SIZE));
       }
     }
   }
