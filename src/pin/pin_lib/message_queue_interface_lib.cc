@@ -25,13 +25,13 @@
 extern "C" {}
 
 #define RECEIVE_BUFFER_MAX_SIZE (0x01 << 12)
-#define CHECK_FOR_FAILURE(f, str)                                \
-  if(f) {                                                        \
-    char error_message[150];                                     \
-    sprintf(error_message, "%s:%d (%s)$ %s", __FILE__, __LINE__, \
-            is_server ? "Server" : "Client", str);               \
-    perror(error_message);                                       \
-    exit(1);                                                     \
+#define CHECK_FOR_FAILURE(f, str)                                       \
+  if(f) {                                                               \
+    char error_message[1024];                                           \
+    snprintf(error_message, 1024, "%s:%d (%s)$ %s", __FILE__, __LINE__, \
+             is_server ? "Server" : "Client", str);                     \
+    perror(error_message);                                              \
+    exit(1);                                                            \
   }
 //#define MQ_NON_BLOCKING 1
 
