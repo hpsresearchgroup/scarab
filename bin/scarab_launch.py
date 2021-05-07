@@ -45,7 +45,7 @@ parser.add_argument('--scarab_stderr', default=None, help="Path to redirect scar
 parser.add_argument('--pin_stdout', default=None, help="Path to redirect pins stdout to. Default is stdout.")
 parser.add_argument('--pin_stderr', default=None, help="Path to redirect pins stderr to. Default is stderr.")
 
-parser.add_argument('--enable_aslr', action='store_true', help="Enable ASLR for the application and pintool.");
+parser.add_argument('--enable_aslr', action='store_true', help="Enable ASLR for the application and pintool.")
 
 parser.add_argument('--scarab', default=scarab_paths.scarab_bin, help="Path to the scarab binary. Defaults to src/scarab.")
 parser.add_argument('--pin', default=scarab_paths.pin_dir + "/pin", help="Path to the pin binary. Default is $PIN_ROOT/pin.")
@@ -147,7 +147,7 @@ class Pin:
     return self.cmd
 
   def __get_pin_program_command(self):
-    self.cmd = "{pin} -mt 0 -t {pin_tool} -socket_path {socket} -core_id {core_id} {additional_args} -- {program_command}".format(
+    self.cmd = "{pin} -ifeellucky -mt 0 -t {pin_tool} -socket_path {socket} -core_id {core_id} {additional_args} -- {program_command}".format(
         pin=args.pin,
         pin_tool=args.frontend_pin_tool,
         socket=self.socket_path,

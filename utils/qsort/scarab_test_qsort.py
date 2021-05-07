@@ -63,7 +63,7 @@ def run_scarab():
                      '--param',
                      scarab_paths.sim_dir + '/utils/qsort/PARAMS.qsort',
                      '--pintool_args',
-                     '-fast_forward_to_start_inst 1 -ifeellucky',
+                     '-fast_forward_to_start_inst 1',
                      '--scarab_args',
                      '--inst_limit 5000000 --heartbeat_interval 1 --num_heartbeats 20']# --power_intf_on 1']
   print ('Scarab cmd:', ' '.join(scarab_cmd_argv))
