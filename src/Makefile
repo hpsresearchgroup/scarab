@@ -1,14 +1,14 @@
 CMAKE = $(shell if which cmake3 ; then echo "cmake"; else echo "cmake"; fi)
 GITREV = $(shell git rev-parse --short HEAD)
+SRCPWD = $(shell pwd)
 
 BUILD_DIR_PREFIX = build
 
 TARGETS := opt dbg vgr gpf
 
-.PHONY: all default clean $(TARGETS) $(subst %, clean%, $(TARGETS))
+.PHONY: all default clean clean_pin_exec pin_exec $(TARGETS) $(subst %, clean%, $(TARGETS))
 
 default: opt
-	@echo $(TMP)
 
 all: $(TARGETS)
 
@@ -24,11 +24,17 @@ vgr: $(BUILD_DIR_PREFIX)/vgr/scarab_phony ## Build Scarab in Valgrind mode
 gpf: BUILD_TYPE := Gprof
 gpf: $(BUILD_DIR_PREFIX)/gpf/scarab_phony ## Build Scarab in Gprof mode
 
+pin_exec:
+	make SCARAB_DIR=$(SRCPWD) pin_exec --directory pin/pin_exec	 --no-print-directory
+
+clean_pin_exec:
+	make --directory pin/pin_exec clean --no-print-directory
+
 clean%: ## Clean a specific build directory
 	rm -rf build/$*
 	rm -f scarab
 
-clean: ## Clean all build directories
+clean: clean_pin_exec ## Clean all build directories
 	rm -rf build/
 	rm -f scarab
 
@@ -59,7 +65,7 @@ help-nocolor: ## Print this message
 # scarab_phony is a fake file that causes this rule to always be run.
 # We tried to make this a phony target, but it did not work. We suspect phony
 # targets cannot be file paths.
-$(BUILD_DIR_PREFIX)/%/scarab_phony: $(BUILD_DIR_PREFIX)/%/Makefile gitrev
+$(BUILD_DIR_PREFIX)/%/scarab_phony: $(BUILD_DIR_PREFIX)/%/Makefile gitrev pin_exec
 	@make -j --no-print-directory -C $(dir $@)
 	ln -sf $(dir $@)scarab scarab
 
