@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 SCARAB_PATH="$(realpath $(dirname "${0}")/..)"
 

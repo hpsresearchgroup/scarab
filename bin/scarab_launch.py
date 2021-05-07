@@ -203,6 +203,7 @@ def main():
   if args.checkpoint:
     make_checkpoint_loader()
 
+  return_code = 0
   try:
     proc_list.push(Scarab(socket_path).launch())
 
@@ -211,11 +212,13 @@ def main():
     core = launch_programs(proc_list, core, socket_path)
     core = launch_checkpoints(proc_list, core, socket_path)
 
-    proc_list.wait_on_processes()
+    return_code = proc_list.wait_on_processes()
 
   finally:
     progress.notify("Scarab run terminated, cleaning up...")
     proc_list.kill_all_processes()
+  
+  sys.exit(return_code)
 
 if __name__ == "__main__":
   main()
