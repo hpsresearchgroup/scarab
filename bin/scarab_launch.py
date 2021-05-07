@@ -147,7 +147,7 @@ class Pin:
     return self.cmd
 
   def __get_pin_program_command(self):
-    self.cmd = "{pin} -ifeellucky -mt 0 -t {pin_tool} -socket_path {socket} -core_id {core_id} {additional_args} -- {program_command}".format(
+    self.cmd = "{pin} -mt 0 -t {pin_tool} -socket_path {socket} -core_id {core_id} {additional_args} -- {program_command}".format(
         pin=args.pin,
         pin_tool=args.frontend_pin_tool,
         socket=self.socket_path,
