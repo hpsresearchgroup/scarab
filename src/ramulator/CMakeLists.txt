@@ -1,5 +1,3 @@
-#add_compile_options(-Wno-missing-declarations)
-
 file(GLOB srcs *.cpp *.h)
 add_library(ramulator STATIC ${srcs})
 target_compile_definitions(ramulator PRIVATE RAMULATOR)
