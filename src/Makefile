@@ -4,6 +4,16 @@ SRCPWD = $(shell pwd)
 
 BUILD_DIR_PREFIX = build
 
+# origin checks to see where the value of CC came from.
+# If it is still set to the default, then over write it with a new default.
+# This must be done for variables like CC for which the Makefile
+# assigns a default value. Other variables, like CXX (next line), can use the 
+# ?= syntax because Makefile does not assign them a default value. 
+ifeq ($(origin CC),default)
+CC = gcc
+endif
+CXX ?= g++
+
 TARGETS := opt dbg vgr gpf
 
 .PHONY: all default clean clean_pin_exec pin_exec $(TARGETS) $(subst %, clean%, $(TARGETS))
@@ -74,4 +84,9 @@ $(BUILD_DIR_PREFIX)/%/scarab_phony: $(BUILD_DIR_PREFIX)/%/Makefile gitrev pin_ex
 .SECONDARY: $(patsubst %, $(BUILD_DIR_PREFIX)/%/Makefile, $(TARGETS))
 $(BUILD_DIR_PREFIX)/%/Makefile:
 	mkdir -p $(dir $@)
-	cd $(dir $@); $(CMAKE) ../.. -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+	echo $(CC)
+	echo $(CXX)
+	cd $(dir $@); \
+	  CC=$(CC)      \
+	  CXX=$(CXX)     \
+	  $(CMAKE) ../.. -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
