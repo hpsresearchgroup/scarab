@@ -65,7 +65,7 @@ def run_scarab():
                      '--pintool_args',
                      '-fast_forward_to_start_inst 1',
                      '--scarab_args',
-                     '--inst_limit 5000000 --heartbeat_interval 1 --num_heartbeats 20 --power_intf_on 1']
+                     '--inst_limit 5000000 --heartbeat_interval 1 --num_heartbeats 20']# --power_intf_on 1']
   print ('Scarab cmd:', ' '.join(scarab_cmd_argv))
   subprocess.check_call(scarab_cmd_argv)
 

@@ -25,6 +25,7 @@ rollups/
 ^doc/doxygen
 
 # binaries/compilation results
+build/
 *.pdf
 *.ps
 *.pyc

@@ -131,7 +131,7 @@ void run_power_model_exec(void) {
   power_print_cacti_cfg_infile();
 
   char cmd[MAX_STR_LENGTH];
-  uns  len = sprintf(cmd, "python %s/%s %s %d %d %s", BINDIR, POWER_INTF_EXEC,
+  uns  len = sprintf(cmd, "python3 %s/%s %s %d %d %s", BINDIR, POWER_INTF_EXEC,
                     ".", POWER_INTF_ENABLE_SCALING, DEBUG_POWER_UTILS,
                     FILE_TAG);
   ASSERT(0, len < MAX_STR_LENGTH);

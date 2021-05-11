@@ -38,7 +38,14 @@ jobs:
     - name: make release
       run: |
         make clean -C scarab/src
-        make opt -j -C scarab/src
         make dbg -j -C scarab/src
+        make opt -j -C scarab/src
       env:
         PIN_ROOT: ${{ github.workspace }}/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux
+
+#    - name: test qsort
+#      run: |
+#        pip install -r scarab/bin/requirements.txt
+#        cd scarab/utils/qsort; make; python3 scarab_test_qsort.py tmp
+#      env:
+#        PIN_ROOT: ${{ github.workspace }}/scarab-dependencies/pinplay-drdebug-3.5-pin-3.5-97503-gac534ca30-gcc-linux

@@ -2,11 +2,14 @@ cmake_minimum_required(VERSION 3.5.0)
 
 project(scarab_checkpoint_loader CXX C)
 
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(warn_c_flags -Wall -Wunused -Wmissing-prototypes -Wmissing-declarations -Wno-long-long -Wpointer-arith -Wimplicit -Werror)
-set(warn_cxx_flags -Wall -Wunused -Wmissing-declarations -Wno-long-long -Wpointer-arith -Werror)
+set(warn_flags -Wall -Wunused -Wmissing-declarations -Wno-long-long -Wpointer-arith -Werror)
+set(warn_c_flags ${warn_flags} -Wmissing-prototypes -Wimplicit -Wno-unused-but-set-variable -Wno-maybe-uninitialized)
+set(warn_cxx_flags ${warn_flags})
+
 
 add_library(loader_lib
         ptrace_interface.cc ptrace_interface.h
