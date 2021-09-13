@@ -6,5 +6,16 @@ add_library(pin_lib_for_scarab
         pin_scarab_common_lib.h
         uop_generator.c
         uop_generator.h
+        x86_decoder.cc
+        x86_decoder.h
+        x87_stack_delta.h
+        x87_stack_delta.cc
+        gather_scatter_addresses.h
+        gather_scatter_addresses.cc
 )
+
+set($ENV{TARGET} ia32)
 target_include_directories(pin_lib_for_scarab PRIVATE ../..)
+target_include_directories(pin_lib_for_scarab PRIVATE $ENV{XED_ROOT}/include/public/xed/)
+target_include_directories(pin_lib_for_scarab PRIVATE $ENV{XED_ROOT}/obj/)
+

@@ -19,37 +19,36 @@
  * SOFTWARE.
  */
 
-#ifndef __DECODER_H__
-#define __DECODER_H__
+#ifndef __X86_DECODER_H__
+#define __X86_DECODER_H__
 
-#undef UNUSED   // there is a name conflict between PIN and Scarab
-#undef WARNING  // there is a name conflict between PIN and Scarab
+#include "assert.h"
 
-#include "pin.H"
-
-#undef UNUSED   // there is a name conflict between PIN and Scarab
-#undef WARNING  // there is a name conflict between PIN and Scarab
+#include "pin_api_to_xed.h"
+#include "x87_stack_delta.h"
+#include "pin_scarab_common_lib.h"
 #include "../../ctype_pin_inst.h"
 #include "../../table_info.h"
-#include "x86_decoder.h"
+
+#include <unordered_map>
 #include <ostream>
 
-using namespace std;
+// Global static instructions map
+typedef std::unordered_map<ADDRINT, ctype_pin_inst*> inst_info_map;
+typedef inst_info_map::iterator                 inst_info_map_p;
 
-void pin_decoder_init(bool translate_x87_regs, std::ostream* err_ostream);
+/**************************** Public Functions ********************************/
 
-void pin_decoder_insert_analysis_functions(const INS& ins);
-void     insert_analysis_functions(ctype_pin_inst* info, const INS& ins);
-ctype_pin_inst* pin_decoder_get_latest_inst();
+void     init_x86_decoder(std::ostream* err_ostream);
+void     fill_in_basic_info(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
+uint32_t add_dependency_info(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
+void     fill_in_simd_info(ctype_pin_inst* info, const xed_decoded_inst_t* ins,
+                           uint32_t max_op_width);
+void     apply_x87_bug_workaround(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
+void     fill_in_cf_info(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
 
-void pin_decoder_print_unknown_opcodes();
+void     print_err_if_invalid(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
 
-vector<PIN_MEM_ACCESS_INFO>
-  get_gather_scatter_mem_access_infos_from_gather_scatter_info(
-    const CONTEXT* ctxt, const PIN_MULTI_MEM_ACCESS_INFO* infos_from_pin);
+uint8_t  is_ifetch_barrier(const xed_decoded_inst_t* ins);
 
-ctype_pin_inst create_sentinel();
-ctype_pin_inst create_dummy_jump(uint64_t eip, uint64_t tgt);
-ctype_pin_inst create_dummy_nop(uint64_t eip, Wrongpath_Nop_Mode_Reason reason);
-
-#endif  // __DECODER_H__
+#endif //__X86_DECODER_H__
