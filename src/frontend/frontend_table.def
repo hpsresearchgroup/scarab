@@ -29,3 +29,6 @@
 // Format: enum name, text name, function name prefix
 FRONTEND_IMPL(PIN_EXEC_DRIVEN, "pin_exec_driven", pin_exec_driven)
 FRONTEND_IMPL(TRACE,           "trace",           trace)
+#ifdef ENABLE_MEMTRACE
+FRONTEND_IMPL(MEMTRACE,	       "memtrace",	  memtrace)
+#endif

@@ -25,3 +25,7 @@ set($ENV{TARGET} ia32)
 add_library(xed INTERFACE)
 target_include_directories(xed INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/xed/include/public/xed/)
 target_include_directories(xed INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/xed/obj/)
+
+if(DEFINED ENV{ENABLE_MEMTRACE})
+  add_subdirectory(dynamorio)
+endif()
