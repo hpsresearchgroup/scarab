@@ -4,3 +4,6 @@
 [submodule "src/deps/xed"]
 	path = src/deps/xed
 	url = https://github.com/intelxed/xed.git
+[submodule "src/deps/dynamorio"]
+	path = src/deps/dynamorio
+	url = https://github.com/DynamoRIO/dynamorio.git

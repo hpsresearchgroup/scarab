@@ -46,7 +46,8 @@ Please see the [LICENSE](LICENSE) for more information.
 4. Running a single program on Scarab.
 5. Running multiple jobs locally or on a batch system. (coming soon!)
 6. Viewing batch job status and results. (coming soon!)
-7. Solutions to common Scarab problems.
+7. [Simulating dynamorio memtraces](docs/memtrace.md)
+8. Solutions to common Scarab problems.
 
 ## Contributing to Scarab
 
