@@ -109,6 +109,9 @@ DEF_PARAM( debug_dvfs                              , DEBUG_DVFS                 
 
 DEF_PARAM( debug_trace_read                        , DEBUG_TRACE_READ                     , Flag    , Flag      , FALSE   ,       )
 
+DEF_PARAM( debug_inst_fields                       , DEBUG_INST_FIELDS                    , Flag    , Flag      , FALSE   ,       )
+DEF_PARAM( debug_op_fields                         , DEBUG_OP_FIELDS                      , Flag    , Flag      , FALSE   ,       )
+
 DEF_PARAM( debug_pin_exec_driven                   , DEBUG_PIN_EXEC_DRIVEN                , Flag    , Flag      , FALSE   ,       )
 
 DEF_PARAM( debug_cache_part                        , DEBUG_CACHE_PART                     , Flag    , Flag      , FALSE   ,       )

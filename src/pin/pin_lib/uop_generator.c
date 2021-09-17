@@ -28,6 +28,7 @@
 
 #include "../../debug/debug.param.h"
 #include "../../debug/debug_macros.h"
+#include "../../debug/debug_print.h"
 #include "../../globals/assert.h"
 #include "../../globals/global_defs.h"
 #include "../../globals/global_types.h"
@@ -49,6 +50,7 @@
 /* Macros */
 
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_TRACE_READ, ##args)
+#define DEBUG_PRINT(proc_id, args...) fprintf(GLOBAL_DEBUG_STREAM, ##args)
 #define MAX_PUP 256
 /**************************************************************************************/
 /* Types */
@@ -121,7 +123,90 @@ static void convert_t_uop_to_info(uns8 proc_id, Trace_Uop* t_uop,
 static void convert_dyn_uop(uns8 proc_id, Inst_Info* info, ctype_pin_inst* pi,
                             Trace_Uop* trace_uop, uns mem_size,
                             Flag is_last_uop);
+
 /**************************************************************************************/
+
+static void print_inst_fields(uns proc_id, compressed_op* cop) {
+  if(DEBUG_INST_FIELDS && DEBUG_RANGE_COND(proc_id)) {
+    DEBUG_PRINT(proc_id,
+                "=========== Compressed Op Information ===============\n");
+    DEBUG_PRINT(proc_id, "DEBUG inst addrs fake: %lx %lx %d %d\n",
+                cop->instruction_addr, cop->instruction_next_addr,
+                cop->fake_inst, cop->fake_inst_reason);
+    DEBUG_PRINT(proc_id, "DEBUG op: %s\n", cop->pin_iclass);
+    DEBUG_PRINT(proc_id, "DEBUG size op cf fp: %d %d %d %d %d\n", cop->size,
+                cop->op_type, cop->cf_type, cop->is_fp, cop->actually_taken);
+    DEBUG_PRINT(proc_id, "DEBUG src regs:");
+    for(int i = 0; i < cop->num_src_regs; ++i) {
+      DEBUG_PRINT(proc_id, "%d ", cop->src_regs[i]);
+    }
+    DEBUG_PRINT(proc_id, "\n");
+    DEBUG_PRINT(proc_id, "DEBUG dst regs:");
+    for(int i = 0; i < cop->num_dst_regs; ++i) {
+      DEBUG_PRINT(proc_id, "%d ", cop->dst_regs[i]);
+    }
+    DEBUG_PRINT(proc_id, "\n");
+    DEBUG_PRINT(proc_id, "DEBUG ld1 addr regs:");
+    for(int i = 0; i < cop->num_ld1_addr_regs; ++i) {
+      DEBUG_PRINT(proc_id, "%d ", cop->ld1_addr_regs[i]);
+    }
+    DEBUG_PRINT(proc_id, "\n");
+    DEBUG_PRINT(proc_id, "DEBUG ld2 addr regs:");
+    for(int i = 0; i < cop->num_ld2_addr_regs; ++i) {
+      DEBUG_PRINT(proc_id, "%d ", cop->ld2_addr_regs[i]);
+    }
+    DEBUG_PRINT(proc_id, "\n");
+    DEBUG_PRINT(proc_id, "DEBUG st addr regs:");
+    for(int i = 0; i < cop->num_st_addr_regs; ++i) {
+      DEBUG_PRINT(proc_id, "%d ", cop->st_addr_regs[i]);
+    }
+    DEBUG_PRINT(proc_id, "\n");
+    DEBUG_PRINT(proc_id, "DEBUG simd: %d %d\n", cop->num_simd_lanes,
+                cop->lane_width_bytes);
+    DEBUG_PRINT(proc_id, "DEBUG ld addrs:");
+    for(int i = 0; i < cop->num_ld; ++i) {
+      DEBUG_PRINT(proc_id, "%lx ", cop->ld_vaddr[i]);
+    }
+    DEBUG_PRINT(proc_id, "\n");
+    DEBUG_PRINT(proc_id, "DEBUG st addrs:");
+    for(int i = 0; i < cop->num_st; ++i) {
+      DEBUG_PRINT(proc_id, "%lx ", cop->st_vaddr[i]);
+    }
+    DEBUG_PRINT(proc_id, "\n");
+    DEBUG_PRINT(proc_id, "DEBUG ld st size: %d %d\n", cop->ld_size,
+                cop->st_size);
+  }
+}
+
+static void print_op_fields(uns proc_id, Op* op) {
+  if(DEBUG_OP_FIELDS && DEBUG_RANGE_COND(proc_id)) {
+    DEBUG_PRINT(proc_id, "----- Op Information -----\n");
+    DEBUG_PRINT(proc_id, "DEBUG_OP_FIELDS inst addrs fake: %llx %d %d\n",
+                op->inst_info->addr, op->inst_info->fake_inst,
+                op->inst_info->fake_inst_reason);
+    DEBUG_PRINT(proc_id, "DEBUG_OP_FIELDS op: %s\n", disasm_op(op, FALSE));
+    DEBUG_PRINT(proc_id, "DEBUG_OP_FIELDS op cf dir: %d %d %d\n",
+                op->table_info->op_type, op->table_info->cf_type,
+                op->oracle_info.dir);
+    DEBUG_PRINT(proc_id, "DEBUG_OP_FIELDS src regs: ");
+    for(int i = 0; i < op->table_info->num_src_regs; ++i) {
+      DEBUG_PRINT(proc_id, "%d ", op->inst_info->srcs[i].id);
+    }
+    DEBUG_PRINT(proc_id, "\n");
+    DEBUG_PRINT(proc_id, "DEBUG_OP_FIELDS dst regs: ");
+    for(int i = 0; i < op->table_info->num_dest_regs; ++i) {
+      DEBUG_PRINT(proc_id, "%d ", op->inst_info->dests[i].id);
+    }
+    DEBUG_PRINT(proc_id, "\n");
+    DEBUG_PRINT(proc_id, "DEBUG_OP_FIELDS simd: %d %d %d\n",
+                op->table_info->is_simd,
+                op->table_info->is_simd ? op->table_info->num_simd_lanes : 0,
+                op->table_info->is_simd ? op->table_info->lane_width_bytes : 0);
+    DEBUG_PRINT(proc_id, "DEBUG_OP_FIELDS mem_type addr mem_size: %d %llx %d\n",
+                op->table_info->mem_type, op->oracle_info.va,
+                op->table_info->mem_size);
+  }
+}
 
 void uop_generator_init(uint32_t num_cores) {
   inst_info_hash = (Hash_Table*)malloc(num_cores * sizeof(Hash_Table));
@@ -153,9 +238,12 @@ void uop_generator_init(uint32_t num_cores) {
 Flag uop_generator_extract_op(uns proc_id, Op* op, compressed_op* cop) {
   if(uop_generator_get_bom(proc_id)) {
     uop_generator_get_uop(proc_id, op, cop);
+    print_inst_fields(proc_id, cop);
   } else {
     uop_generator_get_uop(proc_id, op, NULL);
   }
+
+  print_op_fields(proc_id, op);
 
   if(uop_generator_get_eom(proc_id)) {
     return TRUE;
