@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.5)
 
-project(scarab C CXX)
+project(scarab C CXX ASM)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 14)
@@ -25,6 +25,7 @@ add_compile_options(
 
 add_subdirectory(ramulator)
 add_subdirectory(pin/pin_lib)
+add_subdirectory(pin/pin_exec/testing)
 
 set(scarab_dirs bp debug bp/template_lib dvfs frontend globals isa libs memory power prefetcher .)
 
