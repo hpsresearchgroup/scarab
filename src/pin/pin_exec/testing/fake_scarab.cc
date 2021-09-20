@@ -22,7 +22,9 @@ Fake_Scarab::Fake_Scarab(const char* binary_path) :
 Fake_Scarab::~Fake_Scarab() {
   if(!tmpdir_path_.empty()) {
     const auto cmd = std::string("rm -r ") + tmpdir_path_;
-    system(cmd.c_str());
+    int        ret = system(cmd.c_str());
+    (void)(ret);  // ignore variable explicitly to circumvent unused variable
+                  // warning
   }
 }
 

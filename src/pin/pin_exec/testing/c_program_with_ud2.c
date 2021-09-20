@@ -3,6 +3,7 @@
 
 jmp_buf buffer;
 
+void handle_sig(int sig);
 void handle_sig(int sig) {
   longjmp(buffer, 1);
 }
