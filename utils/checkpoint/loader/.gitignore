@@ -1,6 +1,5 @@
 obj
 checkpoint_loader
-test_memcpy
 loader
 build
 build_dbg
