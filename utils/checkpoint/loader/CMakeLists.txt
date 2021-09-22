@@ -30,12 +30,17 @@ target_compile_definitions(loader_lib
         "$<$<NOT:$<CONFIG:RELEASE>>:DEBUG_EN=1>"
 )
 
-add_executable(test_memcpy
-    test_memcpy.cc 
-)
-target_link_libraries(test_memcpy PUBLIC loader_lib -static)
-
 add_executable(checkpoint_loader
     checkpoint_loader.cc 
 )
 target_link_libraries(checkpoint_loader PUBLIC loader_lib)
+
+
+option(BUILD_TESTS "Build or not build the test binary for memcpy" OFF)
+
+if (BUILD_TESTS)
+  add_executable(test_memcpy
+      test_memcpy.cc 
+  )
+  target_link_libraries(test_memcpy PUBLIC loader_lib -static)
+endif()

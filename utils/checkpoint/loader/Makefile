@@ -5,13 +5,11 @@ all: opt
 .PHONY: opt
 opt: build/Makefile
 	make -j --no-print-directory -C build 
-	ln -sf build/test_memcpy test_memcpy
 	ln -sf build/checkpoint_loader checkpoint_loader
 
 .PHONY: dbg
 dbg: build_dbg/Makefile
 	make -j --no-print-directory -C build_dbg
-	ln -sf build_dbg/test_memcpy test_memcpy
 	ln -sf build_dbg/checkpoint_loader checkpoint_loader
 
 build/Makefile:
@@ -24,4 +22,4 @@ build_dbg/Makefile:
 
 clean:
 	rm -rf build/ build_dbg/
-	rm -f test_memcpy checkpoint_loader
+	rm -f checkpoint_loader
