@@ -17,20 +17,23 @@ def parse_args():
   parser.add_argument('file2_path', help='Path to the second Scarab standard output file')
   return parser.parse_args()
 
-def read_file(path):
-  with open(path) as f:
-    return [(i, line.strip()) for i, line in enumerate(f) if line.strip().startswith('DEBUG_OP_FIELDS')]
+class LogReader:
+  def __init__(self, path):
+    self.path = path
+
+  def __iter__(self):
+    with open(self.path) as f:
+      for i, line in enumerate(f):
+        if not line.strip().startswith('DEBUG_OP_FIELDS'): continue
+        yield i, line.strip()
 
 def main():
   args = parse_args()
 
-  file1_lines = read_file(args.file1_path)
-  file2_lines = read_file(args.file2_path)
-
   histogram = defaultdict(lambda: defaultdict(lambda: 0))
   bucket_contents = defaultdict(lambda: defaultdict(lambda: []))
 
-  for (line1_number, line1), (line2_number, line2) in zip(file1_lines, file2_lines):
+  for (line1_number, line1), (line2_number, line2) in zip(LogReader(args.file1_path), LogReader(args.file2_path)):
     if line1 != line2:
       words = line1.split()
       assert words[0] == 'DEBUG_OP_FIELDS'

@@ -29,17 +29,17 @@
 
 #undef UNUSED   // there is a name conflict between PIN and Scarab
 #undef WARNING  // there is a name conflict between PIN and Scarab
+#include <ostream>
 #include "../../ctype_pin_inst.h"
 #include "../../table_info.h"
 #include "x86_decoder.h"
-#include <ostream>
 
 using namespace std;
 
 void pin_decoder_init(bool translate_x87_regs, std::ostream* err_ostream);
 
-void pin_decoder_insert_analysis_functions(const INS& ins);
-void     insert_analysis_functions(ctype_pin_inst* info, const INS& ins);
+void            pin_decoder_insert_analysis_functions(const INS& ins);
+void            insert_analysis_functions(ctype_pin_inst* info, const INS& ins);
 ctype_pin_inst* pin_decoder_get_latest_inst();
 
 void pin_decoder_print_unknown_opcodes();

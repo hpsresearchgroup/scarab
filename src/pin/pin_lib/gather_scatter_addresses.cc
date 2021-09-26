@@ -20,17 +20,16 @@
  */
 
 #include "gather_scatter_addresses.h"
+#include <cassert>
 #include <iostream>
 #include <map>
-#include <cassert>
 
 // Global static instruction map just for scatter instructions
-scatter_info_map                                    scatter_info_storage;
+scatter_info_map scatter_info_storage;
 
-gather_scatter_info add_to_gather_scatter_info_storage(const ADDRINT iaddr,
-                                                       const bool    is_gather,
-                                                       const bool    is_scatter,
-                                           const xed_category_enum_t category) {
+gather_scatter_info add_to_gather_scatter_info_storage(
+  const ADDRINT iaddr, const bool is_gather, const bool is_scatter,
+  const xed_category_enum_t category) {
   assert(!(is_gather && is_scatter));
   assert(is_gather || is_scatter);
   gather_scatter_info::type type = is_gather ? gather_scatter_info::GATHER :
@@ -48,8 +47,9 @@ gather_scatter_info add_to_gather_scatter_info_storage(const ADDRINT iaddr,
 
     default:
       std::cout << std::string(
-                      "unexpected category for gather/scatter instruction: ") +
-                  std::string(XED_CATEGORY_StringShort(category)) << std::endl;
+                     "unexpected category for gather/scatter instruction: ") +
+                     std::string(XED_CATEGORY_StringShort(category))
+                << std::endl;
       assert(0);
       break;
   }
@@ -90,9 +90,10 @@ static void set_gather_scatter_data_width(
   scatter_info_storage[iaddr].set_data_reg_total_width(xed_reg);
 }
 
-void set_gather_scatter_reg_operand_info(const ADDRINT iaddr, const xed_reg_enum_t pin_reg,
-                                         const bool operandRead,
-                                         const bool operandWritten) {
+void set_gather_scatter_reg_operand_info(const ADDRINT        iaddr,
+                                         const xed_reg_enum_t pin_reg,
+                                         const bool           operandRead,
+                                         const bool           operandWritten) {
   const gather_scatter_info::type info_type =
     scatter_info_storage[iaddr].get_type();
   const gather_scatter_info::mask_reg_type mask_reg_type =
@@ -130,9 +131,10 @@ void set_gather_scatter_reg_operand_info(const ADDRINT iaddr, const xed_reg_enum
 }
 
 void set_gather_scatter_memory_operand_info(
-  const ADDRINT iaddr, const xed_reg_enum_t pin_base_reg, const xed_reg_enum_t pin_index_reg,
-  /*const uint64_t displacement,*/ const uint32_t scale, const bool operandReadOnly,
-  const bool operandWritenOnly) {
+  const ADDRINT iaddr, const xed_reg_enum_t pin_base_reg,
+  const xed_reg_enum_t                            pin_index_reg,
+  /*const uint64_t displacement,*/ const uint32_t scale,
+  const bool operandReadOnly, const bool operandWritenOnly) {
   switch(scatter_info_storage[iaddr].get_type()) {
     case gather_scatter_info::GATHER:
       assert(operandReadOnly);
@@ -146,7 +148,7 @@ void set_gather_scatter_memory_operand_info(
   }
   scatter_info_storage[iaddr].set_base_reg(pin_base_reg);
   scatter_info_storage[iaddr].set_index_reg(pin_index_reg);
-  //scatter_info_storage[iaddr].set_displacement(displacement);
+  // scatter_info_storage[iaddr].set_displacement(displacement);
   scatter_info_storage[iaddr].set_scale(scale);
 }
 
@@ -234,11 +236,12 @@ void finalize_scatter_info(const ADDRINT iaddr, ctype_pin_inst* info) {
 /*static void verify_mem_access_infos(
   const vector<PIN_MEM_ACCESS_INFO> computed_infos,
   const PIN_MULTI_MEM_ACCESS_INFO* infos_from_pin, bool base_reg_is_gr32) {
-  for(uint32_t lane_id = 0; lane_id < infos_from_pin->numberOfMemops; lane_id++) {
-    ADDRINT        addr_from_pin = infos_from_pin->memop[lane_id].memoryAddress;
+  for(uint32_t lane_id = 0; lane_id < infos_from_pin->numberOfMemops; lane_id++)
+  { ADDRINT        addr_from_pin = infos_from_pin->memop[lane_id].memoryAddress;
     PIN_MEMOP_ENUM type_from_pin = infos_from_pin->memop[lane_id].memopType;
-    uint32_t         size_from_pin = infos_from_pin->memop[lane_id].bytesAccessed;
-    bool           mask_on_from_pin = infos_from_pin->memop[lane_id].maskOn;
+    uint32_t         size_from_pin =
+  infos_from_pin->memop[lane_id].bytesAccessed; bool           mask_on_from_pin
+  = infos_from_pin->memop[lane_id].maskOn;
 
     // as late as PIN 3.13, there is a bug where PIN will not correctly compute
     // the full 64 addresses of gathers/scatters if the base register is a
@@ -445,14 +448,15 @@ void gather_scatter_info::compute_num_mem_ops() {
   assert(is_non_zero_and_powerof2(_data_vector_reg_total_width_bytes));
   assert(is_non_zero_and_powerof2(_data_lane_width_bytes));
   uint32_t num_data_lanes = _data_vector_reg_total_width_bytes /
-                          _data_lane_width_bytes;
+                            _data_lane_width_bytes;
   assert(is_non_zero_and_powerof2(num_data_lanes));
 
-  uint32_t index_xyzmm_reg_width_bytes = pin_xyzmm_reg_width_in_bytes(_index_reg);
+  uint32_t index_xyzmm_reg_width_bytes = pin_xyzmm_reg_width_in_bytes(
+    _index_reg);
   assert(is_non_zero_and_powerof2(index_xyzmm_reg_width_bytes));
   assert(is_non_zero_and_powerof2(_index_lane_width_bytes));
   uint32_t num_index_lanes = index_xyzmm_reg_width_bytes /
-                           _index_lane_width_bytes;
+                             _index_lane_width_bytes;
   assert(is_non_zero_and_powerof2(num_index_lanes));
 
   _num_mem_ops = std::min(num_data_lanes, num_index_lanes);
@@ -488,12 +492,12 @@ vector<PIN_MEM_ACCESS_INFO> gather_scatter_info::compute_mem_access_infos(
 
   PIN_REGISTER vector_index_reg_val_buf;
   assert(reg_xed_to_pin_map.find(_index_reg) != reg_xed_to_pin_map.end());
-  PIN_GetContextRegval(ctxt, reg_xed_to_pin_map[_index_reg], (UINT8*)&vector_index_reg_val_buf);
-  PIN_REGISTER mask_reg_val_buf;
+  PIN_GetContextRegval(ctxt, reg_xed_to_pin_map[_index_reg],
+(UINT8*)&vector_index_reg_val_buf); PIN_REGISTER mask_reg_val_buf;
   assert(reg_xed_to_pin_map.find(_mask_reg) != reg_xed_to_pin_map.end());
-  PIN_GetContextRegval(ctxt, reg_xed_to_pin_map[_mask_reg], (UINT8*)&mask_reg_val_buf);
-  for(uint32_t lane_id = 0; lane_id < _num_mem_ops; lane_id++) {
-    uint64_t index_val = compute_base_index_addr_contribution(
+  PIN_GetContextRegval(ctxt, reg_xed_to_pin_map[_mask_reg],
+(UINT8*)&mask_reg_val_buf); for(uint32_t lane_id = 0; lane_id < _num_mem_ops;
+lane_id++) { uint64_t index_val = compute_base_index_addr_contribution(
       vector_index_reg_val_buf, lane_id);
     ADDRINT final_addr = base_addr_contribution + (index_val * _scale) +
                          _displacement;
@@ -516,4 +520,3 @@ bool gather_scatter_info::base_reg_is_gr32() const {
   }
   return false;
 }
-

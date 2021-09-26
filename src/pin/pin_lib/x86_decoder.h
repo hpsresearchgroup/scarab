@@ -24,31 +24,33 @@
 
 #include "assert.h"
 
-#include "pin_api_to_xed.h"
-#include "x87_stack_delta.h"
-#include "pin_scarab_common_lib.h"
 #include "../../ctype_pin_inst.h"
 #include "../../table_info.h"
+#include "pin_api_to_xed.h"
+#include "pin_scarab_common_lib.h"
+#include "x87_stack_delta.h"
 
-#include <unordered_map>
 #include <ostream>
+#include <unordered_map>
 
 // Global static instructions map
 typedef std::unordered_map<ADDRINT, ctype_pin_inst*> inst_info_map;
-typedef inst_info_map::iterator                 inst_info_map_p;
+typedef inst_info_map::iterator                      inst_info_map_p;
 
 /**************************** Public Functions ********************************/
 
-void     init_x86_decoder(std::ostream* err_ostream);
-void     fill_in_basic_info(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
-uint32_t add_dependency_info(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
+void init_x86_decoder(std::ostream* err_ostream);
+void fill_in_basic_info(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
+uint32_t add_dependency_info(ctype_pin_inst*           info,
+                             const xed_decoded_inst_t* ins);
 void     fill_in_simd_info(ctype_pin_inst* info, const xed_decoded_inst_t* ins,
                            uint32_t max_op_width);
-void     apply_x87_bug_workaround(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
+void     apply_x87_bug_workaround(ctype_pin_inst*           info,
+                                  const xed_decoded_inst_t* ins);
 void     fill_in_cf_info(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
 
-void     print_err_if_invalid(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
+void print_err_if_invalid(ctype_pin_inst* info, const xed_decoded_inst_t* ins);
 
-uint8_t  is_ifetch_barrier(const xed_decoded_inst_t* ins);
+uint8_t is_ifetch_barrier(const xed_decoded_inst_t* ins);
 
-#endif //__X86_DECODER_H__
+#endif  //__X86_DECODER_H__

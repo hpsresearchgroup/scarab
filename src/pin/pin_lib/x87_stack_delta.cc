@@ -184,7 +184,7 @@ void update_x87_stack_state(int opcode) {
 void init_x87_stack_delta() {
   for(size_t opcode = XED_ICLASS_INVALID; opcode < XED_ICLASS_LAST; ++opcode) {
     opcode_to_delta_map[opcode] = 0;
-    xed_iclass_enum_t iclass = static_cast<xed_iclass_enum_t>(opcode);
+    xed_iclass_enum_t iclass    = static_cast<xed_iclass_enum_t>(opcode);
     const std::string opcode_name(xed_iclass_enum_t2str(iclass));
     size_t            i;
     for(i = 0; opcode_infos[i].name; ++i) {

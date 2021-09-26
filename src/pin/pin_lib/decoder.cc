@@ -25,8 +25,8 @@
 #include <unordered_map>
 
 #include "decoder.h"
-#include "x87_stack_delta.h"
 #include "gather_scatter_addresses.h"
+#include "x87_stack_delta.h"
 
 #include "pin_scarab_common_lib.h"
 
@@ -50,17 +50,18 @@ static ctype_pin_inst  tmp_inst_info;
 uint32_t       glb_opcode, glb_actually_taken;
 deque<ADDRINT> glb_ld_vaddrs, glb_st_vaddrs;
 
-std::ostream*         glb_err_ostream;
-bool                  glb_translate_x87_regs;
-std::set<std::string> unknown_opcodes;
-inst_info_map                                   inst_info_storage;
+std::ostream*                                    glb_err_ostream;
+bool                                             glb_translate_x87_regs;
+std::set<std::string>                            unknown_opcodes;
+inst_info_map                                    inst_info_storage;
 static std::map<xed_reg_enum_t, LEVEL_BASE::REG> reg_xed_to_pin_map;
-extern scatter_info_map                                    scatter_info_storage;
+extern scatter_info_map                          scatter_info_storage;
 
 /********************* Private Functions Prototypes ***************************/
 ctype_pin_inst* get_inst_info_obj(const INS& ins);
-void     insert_analysis_functions(ctype_pin_inst* info, const INS& ins);
-void     print_err_if_invalid(ctype_pin_inst* info, const INS& ins);
+
+void insert_analysis_functions(ctype_pin_inst* info, const INS& ins);
+void print_err_if_invalid(ctype_pin_inst* info, const INS& ins);
 
 void get_opcode(UINT32 opcode);
 void get_gather_scatter_eas(bool is_gather, CONTEXT* ctxt,
@@ -75,20 +76,20 @@ void update_gather_scatter_num_ld_or_st(const ADDRINT                   iaddr,
                                         const gather_scatter_info::type type,
                                         const uint      num_maskon_memops,
                                         ctype_pin_inst* info);
+
 static void verify_mem_access_infos(
   const vector<PIN_MEM_ACCESS_INFO> computed_infos,
   const PIN_MULTI_MEM_ACCESS_INFO* infos_from_pin, bool base_reg_is_gr32);
 std::vector<PIN_MEM_ACCESS_INFO> compute_mem_access_infos(
-                              const CONTEXT* ctxt, gather_scatter_info *info);
-ADDRDELTA compute_base_reg_addr_contribution(const CONTEXT* ctxt,
+  const CONTEXT* ctxt, gather_scatter_info* info);
+ADDRDELTA compute_base_reg_addr_contribution(const CONTEXT*       ctxt,
                                              gather_scatter_info* info);
 ADDRDELTA compute_base_index_addr_contribution(
-                const PIN_REGISTER& vector_index_reg_val, const UINT32 lane_id,
-                                               gather_scatter_info* info);
+  const PIN_REGISTER& vector_index_reg_val, const UINT32 lane_id,
+  gather_scatter_info* info);
 PIN_MEMOP_ENUM type_to_PIN_MEMOP_ENUM(gather_scatter_info* info);
-bool           extract_mask_on(const PIN_REGISTER& mask_reg_val_buf,
-                               const UINT32        lane_id,
-                               gather_scatter_info* info);
+bool extract_mask_on(const PIN_REGISTER& mask_reg_val_buf, const UINT32 lane_id,
+                     gather_scatter_info* info);
 
 /**************************** Public Functions ********************************/
 void pin_decoder_init(bool translate_x87_regs, std::ostream* err_ostream) {
@@ -104,7 +105,7 @@ void pin_decoder_init(bool translate_x87_regs, std::ostream* err_ostream) {
 }
 
 void pin_decoder_insert_analysis_functions(const INS& ins) {
-  ctype_pin_inst* info = get_inst_info_obj(ins);
+  ctype_pin_inst*     info    = get_inst_info_obj(ins);
   xed_decoded_inst_t* xed_ins = INS_XedDec(ins);
   fill_in_basic_info(info, xed_ins);
 
@@ -116,10 +117,9 @@ void pin_decoder_insert_analysis_functions(const INS& ins) {
   }
 
   if(INS_IsVgather(ins) || INS_IsVscatter(ins)) {
-    xed_category_enum_t category = XED_INS_Category(xed_ins);
+    xed_category_enum_t category           = XED_INS_Category(xed_ins);
     scatter_info_storage[INS_Address(ins)] = add_to_gather_scatter_info_storage(
-                                           INS_Address(ins), INS_IsVgather(ins),
-                                           INS_IsVscatter(ins), category);
+      INS_Address(ins), INS_IsVgather(ins), INS_IsVscatter(ins), category);
   }
   uint32_t max_op_width = add_dependency_info(info, xed_ins);
   fill_in_simd_info(info, xed_ins, max_op_width);
@@ -376,8 +376,8 @@ vector<PIN_MEM_ACCESS_INFO>
   ADDRINT iaddr;
   PIN_GetContextRegval(ctxt, REG_INST_PTR, (UINT8*)&iaddr);
   ASSERTX(1 == scatter_info_storage.count(iaddr));
-  vector<PIN_MEM_ACCESS_INFO> computed_infos =
-    compute_mem_access_infos(ctxt, &scatter_info_storage[iaddr]);
+  vector<PIN_MEM_ACCESS_INFO> computed_infos = compute_mem_access_infos(
+    ctxt, &scatter_info_storage[iaddr]);
   verify_mem_access_infos(computed_infos, infos_from_pin,
                           scatter_info_storage[iaddr].base_reg_is_gr32());
 
@@ -411,9 +411,9 @@ static void verify_mem_access_infos(
   }
 }
 
-//TODO: extract displacement information
+// TODO: extract displacement information
 vector<PIN_MEM_ACCESS_INFO> compute_mem_access_infos(
-                        const CONTEXT* ctxt, gather_scatter_info* info) {
+  const CONTEXT* ctxt, gather_scatter_info* info) {
   info->verify_fields_for_mem_access_info_generation();
 
   vector<PIN_MEM_ACCESS_INFO> mem_access_infos;
@@ -433,17 +433,16 @@ vector<PIN_MEM_ACCESS_INFO> compute_mem_access_infos(
                        (UINT8*)&mask_reg_val_buf);
   for(UINT32 lane_id = 0; lane_id < info->get_num_mem_ops(); lane_id++) {
     ADDRDELTA index_val = compute_base_index_addr_contribution(
-                                    vector_index_reg_val_buf, lane_id, info);
-    ADDRINT final_addr = base_addr_contribution + (index_val *
-                                                   info->get_scale())
-                       + info->get_displacement();
-    bool                mask_on = extract_mask_on(mask_reg_val_buf, lane_id,
-                                                  info);
-    PIN_MEM_ACCESS_INFO access_info = {.memoryAddress = final_addr,
-                                       .memopType     = memop_type,
-                                       .bytesAccessed =
-                                       info->get_data_lane_width_bytes(),
-                                       .maskOn        = mask_on};
+      vector_index_reg_val_buf, lane_id, info);
+    ADDRINT final_addr = base_addr_contribution +
+                         (index_val * info->get_scale()) +
+                         info->get_displacement();
+    bool mask_on = extract_mask_on(mask_reg_val_buf, lane_id, info);
+    PIN_MEM_ACCESS_INFO access_info = {
+      .memoryAddress = final_addr,
+      .memopType     = memop_type,
+      .bytesAccessed = info->get_data_lane_width_bytes(),
+      .maskOn        = mask_on};
 
     mem_access_infos.push_back(access_info);
   }
@@ -451,7 +450,7 @@ vector<PIN_MEM_ACCESS_INFO> compute_mem_access_infos(
   return mem_access_infos;
 }
 
-ADDRDELTA compute_base_reg_addr_contribution(const CONTEXT* ctxt,
+ADDRDELTA compute_base_reg_addr_contribution(const CONTEXT*       ctxt,
                                              gather_scatter_info* info) {
   ADDRDELTA base_addr_contribution = 0;
   if(XED_REG_valid(info->get_base_reg())) {
@@ -474,8 +473,8 @@ ADDRDELTA compute_base_reg_addr_contribution(const CONTEXT* ctxt,
 }
 
 ADDRDELTA compute_base_index_addr_contribution(
-            const PIN_REGISTER& vector_index_reg_val, const UINT32 lane_id,
-                                               gather_scatter_info* info) {
+  const PIN_REGISTER& vector_index_reg_val, const UINT32 lane_id,
+  gather_scatter_info* info) {
   ADDRDELTA index_val;
   switch(info->get_index_lane_width_bytes()) {
     case 4:
@@ -492,8 +491,8 @@ ADDRDELTA compute_base_index_addr_contribution(
 }
 
 PIN_MEMOP_ENUM type_to_PIN_MEMOP_ENUM(gather_scatter_info* info) {
-   switch(info->get_type()) {
-   case gather_scatter_info::GATHER:
+  switch(info->get_type()) {
+    case gather_scatter_info::GATHER:
       return PIN_MEMOP_LOAD;
     case gather_scatter_info::SCATTER:
       return PIN_MEMOP_STORE;
@@ -503,8 +502,8 @@ PIN_MEMOP_ENUM type_to_PIN_MEMOP_ENUM(gather_scatter_info* info) {
   }
 }
 
-bool extract_mask_on(const PIN_REGISTER& mask_reg_val_buf,
-                     const UINT32 lane_id, gather_scatter_info* info) {
+bool extract_mask_on(const PIN_REGISTER& mask_reg_val_buf, const UINT32 lane_id,
+                     gather_scatter_info* info) {
   bool   mask_on  = false;
   UINT64 msb_mask = ((UINT64)1) << (info->get_data_lane_width_bytes() * 8 - 1);
 
@@ -537,24 +536,24 @@ bool extract_mask_on(const PIN_REGISTER& mask_reg_val_buf,
   return mask_on;
 }
 
-void init_reg_xed_to_pin_map() { 
-  reg_xed_to_pin_map[XED_REG_INVALID]        = REG_INVALID_;
-  reg_xed_to_pin_map[XED_REG_RDI]       = REG_RDI;
-  reg_xed_to_pin_map[XED_REG_EDI]       = REG_EDI;
-  reg_xed_to_pin_map[XED_REG_ESI]       = REG_ESI;
-  reg_xed_to_pin_map[XED_REG_RSI]       = REG_RSI;
-  reg_xed_to_pin_map[XED_REG_EBP]       = REG_EBP;
-  reg_xed_to_pin_map[XED_REG_RBP]       = REG_RBP;
-  reg_xed_to_pin_map[XED_REG_ESP]       = REG_ESP;
-  reg_xed_to_pin_map[XED_REG_RSP]       = REG_RSP;
-  reg_xed_to_pin_map[XED_REG_EBX]       = REG_EBX;
-  reg_xed_to_pin_map[XED_REG_RBX]       = REG_RBX;
-  reg_xed_to_pin_map[XED_REG_EDX]       = REG_EDX;
-  reg_xed_to_pin_map[XED_REG_RDX]       = REG_RDX;
-  reg_xed_to_pin_map[XED_REG_ECX]       = REG_ECX;
-  reg_xed_to_pin_map[XED_REG_RCX]       = REG_RCX;
-  reg_xed_to_pin_map[XED_REG_EAX]       = REG_EAX;
-  reg_xed_to_pin_map[XED_REG_RAX]       = REG_RAX;
+void init_reg_xed_to_pin_map() {
+  reg_xed_to_pin_map[XED_REG_INVALID] = REG_INVALID_;
+  reg_xed_to_pin_map[XED_REG_RDI]     = REG_RDI;
+  reg_xed_to_pin_map[XED_REG_EDI]     = REG_EDI;
+  reg_xed_to_pin_map[XED_REG_ESI]     = REG_ESI;
+  reg_xed_to_pin_map[XED_REG_RSI]     = REG_RSI;
+  reg_xed_to_pin_map[XED_REG_EBP]     = REG_EBP;
+  reg_xed_to_pin_map[XED_REG_RBP]     = REG_RBP;
+  reg_xed_to_pin_map[XED_REG_ESP]     = REG_ESP;
+  reg_xed_to_pin_map[XED_REG_RSP]     = REG_RSP;
+  reg_xed_to_pin_map[XED_REG_EBX]     = REG_EBX;
+  reg_xed_to_pin_map[XED_REG_RBX]     = REG_RBX;
+  reg_xed_to_pin_map[XED_REG_EDX]     = REG_EDX;
+  reg_xed_to_pin_map[XED_REG_RDX]     = REG_RDX;
+  reg_xed_to_pin_map[XED_REG_ECX]     = REG_ECX;
+  reg_xed_to_pin_map[XED_REG_RCX]     = REG_RCX;
+  reg_xed_to_pin_map[XED_REG_EAX]     = REG_EAX;
+  reg_xed_to_pin_map[XED_REG_RAX]     = REG_RAX;
   reg_xed_to_pin_map[XED_REG_R8]      = REG_R8;
   reg_xed_to_pin_map[XED_REG_R9]      = REG_R9;
   reg_xed_to_pin_map[XED_REG_R10]     = REG_R10;

@@ -7,7 +7,8 @@ Other versions of the same software may work, but have not been tested.
 Scarab relies on the following software packages:
 
 ## Required Packages
-* Intel [PIN 3.5](https://software.intel.com/en-us/articles/program-recordreplay-toolkit).
+* [Intel PIN 3.5](https://software.intel.com/en-us/articles/program-recordreplay-toolkit)
+* [Intel XED 12.01](https://github.com/intelxed/xed/releases)
 * g++ 7.3.1
 * gcc 7.3.1
 * Clang 5.0.1
