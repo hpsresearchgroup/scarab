@@ -225,7 +225,8 @@ void instrumentation_func_per_instruction(INS ins, void* v) {
       // Inserting functions to create a compressed op
       pin_decoder_insert_analysis_functions(ins);
 
-      if(INS_IsSyscall(ins) || is_ifetch_barrier(ins)) {
+      xed_decoded_inst_t* xed_ins = INS_XedDec(ins);
+      if(INS_IsSyscall(ins) || is_ifetch_barrier(xed_ins)) {
         insert_processing_for_syscalls(ins);
       } else {
         insert_checks_for_control_flow(ins);

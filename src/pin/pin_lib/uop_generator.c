@@ -130,50 +130,52 @@ static void print_inst_fields(uns proc_id, compressed_op* cop) {
   if(DEBUG_INST_FIELDS && DEBUG_RANGE_COND(proc_id)) {
     DEBUG_PRINT(proc_id,
                 "=========== Compressed Op Information ===============\n");
-    DEBUG_PRINT(proc_id, "DEBUG inst addrs fake: %lx %lx %d %d\n",
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS inst addrs fake: %lx %lx %d %d\n",
                 cop->instruction_addr, cop->instruction_next_addr,
                 cop->fake_inst, cop->fake_inst_reason);
-    DEBUG_PRINT(proc_id, "DEBUG op: %s\n", cop->pin_iclass);
-    DEBUG_PRINT(proc_id, "DEBUG size op cf fp: %d %d %d %d %d\n", cop->size,
-                cop->op_type, cop->cf_type, cop->is_fp, cop->actually_taken);
-    DEBUG_PRINT(proc_id, "DEBUG src regs:");
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS op: %s\n", cop->pin_iclass);
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS size op cf fp: %d %d %d %d %d\n",
+                cop->size, cop->op_type, cop->cf_type, cop->is_fp,
+                cop->actually_taken);
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS src regs:");
     for(int i = 0; i < cop->num_src_regs; ++i) {
       DEBUG_PRINT(proc_id, "%d ", cop->src_regs[i]);
     }
     DEBUG_PRINT(proc_id, "\n");
-    DEBUG_PRINT(proc_id, "DEBUG dst regs:");
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS dst regs:");
     for(int i = 0; i < cop->num_dst_regs; ++i) {
       DEBUG_PRINT(proc_id, "%d ", cop->dst_regs[i]);
     }
     DEBUG_PRINT(proc_id, "\n");
-    DEBUG_PRINT(proc_id, "DEBUG ld1 addr regs:");
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS ld1 addr regs:");
     for(int i = 0; i < cop->num_ld1_addr_regs; ++i) {
       DEBUG_PRINT(proc_id, "%d ", cop->ld1_addr_regs[i]);
     }
     DEBUG_PRINT(proc_id, "\n");
-    DEBUG_PRINT(proc_id, "DEBUG ld2 addr regs:");
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS ld2 addr regs:");
     for(int i = 0; i < cop->num_ld2_addr_regs; ++i) {
       DEBUG_PRINT(proc_id, "%d ", cop->ld2_addr_regs[i]);
     }
     DEBUG_PRINT(proc_id, "\n");
-    DEBUG_PRINT(proc_id, "DEBUG st addr regs:");
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS st addr regs:");
     for(int i = 0; i < cop->num_st_addr_regs; ++i) {
       DEBUG_PRINT(proc_id, "%d ", cop->st_addr_regs[i]);
     }
     DEBUG_PRINT(proc_id, "\n");
-    DEBUG_PRINT(proc_id, "DEBUG simd: %d %d\n", cop->num_simd_lanes,
-                cop->lane_width_bytes);
-    DEBUG_PRINT(proc_id, "DEBUG ld addrs:");
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS simd: %d %d %d\n", cop->is_simd,
+                cop->is_simd ? cop->num_simd_lanes : 0,
+                cop->is_simd ? cop->lane_width_bytes : 0);
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS ld addrs:");
     for(int i = 0; i < cop->num_ld; ++i) {
       DEBUG_PRINT(proc_id, "%lx ", cop->ld_vaddr[i]);
     }
     DEBUG_PRINT(proc_id, "\n");
-    DEBUG_PRINT(proc_id, "DEBUG st addrs:");
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS st addrs:");
     for(int i = 0; i < cop->num_st; ++i) {
       DEBUG_PRINT(proc_id, "%lx ", cop->st_vaddr[i]);
     }
     DEBUG_PRINT(proc_id, "\n");
-    DEBUG_PRINT(proc_id, "DEBUG ld st size: %d %d\n", cop->ld_size,
+    DEBUG_PRINT(proc_id, "DEBUG_INST_FIELDS ld st size: %d %d\n", cop->ld_size,
                 cop->st_size);
   }
 }
@@ -532,7 +534,19 @@ static void clear_t_uop(Trace_Uop* uop) {
   memset(uop, 0, sizeof(Trace_Uop));
 }
 
+static Flag is_reg_already_added(Reg_Id reg, Reg_Info* reg_array,
+                                 uns num_regs) {
+  for(uns i = 0; i < num_regs; ++i) {
+    if(reg_array[i].id == reg)
+      return 1;
+  }
+  return 0;
+}
+
 static void add_t_uop_src_reg(Trace_Uop* uop, Reg_Id reg) {
+  if(is_reg_already_added(reg, uop->srcs, uop->num_src_regs))
+    return;
+
   ASSERT(0, uop->num_src_regs < MAX_SRCS);
   uop->srcs[uop->num_src_regs].type = 0;
   uop->srcs[uop->num_src_regs].id   = reg;
@@ -541,6 +555,9 @@ static void add_t_uop_src_reg(Trace_Uop* uop, Reg_Id reg) {
 }
 
 static void add_t_uop_dest_reg(Trace_Uop* uop, Reg_Id reg) {
+  if(is_reg_already_added(reg, uop->dests, uop->num_dest_regs))
+    return;
+
   ASSERT(0, uop->num_dest_regs < MAX_DESTS);
   uop->dests[uop->num_dest_regs].type = 0;
   uop->dests[uop->num_dest_regs].id   = reg;

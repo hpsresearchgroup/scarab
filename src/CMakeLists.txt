@@ -23,6 +23,7 @@ add_compile_options(
         "$<$<COMPILE_LANGUAGE:CXX>:${warn_cxx_flags}>"
 )
 
+add_subdirectory(deps)
 add_subdirectory(ramulator)
 add_subdirectory(pin/pin_lib)
 add_subdirectory(pin/pin_exec/testing)
@@ -48,3 +49,4 @@ target_link_libraries(scarab
         ramulator
         pin_lib_for_scarab
 )
+

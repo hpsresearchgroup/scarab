@@ -19,23 +19,19 @@
  * SOFTWARE.
  */
 
-#include "x87_stack_delta.h"
+#include "pin/pin_lib/x87_stack_delta.h"
 #include <iostream>
-#include "decoder.h"
-
-#undef UNUSED   // there is a name conflict between PIN and Scarab
-#undef WARNING  // there is a name conflict between PIN and Scarab
-#include "pin.H"
-#undef UNUSED   // there is a name conflict between PIN and Scarab
-#undef WARNING  // there is a name conflict between PIN and Scarab
 
 #define REG(x) SCARAB_REG_##x,
 typedef enum Reg_Id_struct {
-#include "../../isa/x86_regs.def"
+#include "isa/x86_regs.def"
   SCARAB_NUM_REGS
 } Reg_Id;
 #undef REG
 
+#include "pin/pin_lib/x86_decoder.h"
+
+#define ASSERTX assert
 
 /* x87 stack deltas for floating point opcodes */
 static struct {
@@ -187,8 +183,9 @@ void update_x87_stack_state(int opcode) {
 
 void init_x87_stack_delta() {
   for(size_t opcode = XED_ICLASS_INVALID; opcode < XED_ICLASS_LAST; ++opcode) {
-    opcode_to_delta_map[opcode]   = 0;
-    const std::string opcode_name = OPCODE_StringShort(opcode);
+    opcode_to_delta_map[opcode] = 0;
+    xed_iclass_enum_t iclass    = static_cast<xed_iclass_enum_t>(opcode);
+    const std::string opcode_name(xed_iclass_enum_t2str(iclass));
     size_t            i;
     for(i = 0; opcode_infos[i].name; ++i) {
       if(opcode_name == std::string(opcode_infos[i].name)) {
@@ -197,8 +194,8 @@ void init_x87_stack_delta() {
       }
     }
     if(!opcode_infos[i].name && opcode_name.c_str()[0] == 'F') {
-      std::clog << "Possible unmatched x87 opcode: " << opcode_name
-                << std::endl;
+      //      std::clog << "Possible unmatched x87 opcode: " << opcode_name
+      //        << std::endl;
     }
   }
 }

@@ -30,6 +30,8 @@
 #include <stdio.h>
 #include <vector>
 
+using namespace std;
+
 struct pageTableEntryStruct {
   uint64_t addr_begin;
   uint64_t addr_end;

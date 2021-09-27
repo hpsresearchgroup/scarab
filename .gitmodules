@@ -1,0 +1,6 @@
+[submodule "src/deps/mbuild"]
+	path = src/deps/mbuild
+	url = https://github.com/intelxed/mbuild.git
+[submodule "src/deps/xed"]
+	path = src/deps/xed
+	url = https://github.com/intelxed/xed.git

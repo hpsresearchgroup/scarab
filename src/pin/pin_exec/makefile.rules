@@ -60,7 +60,8 @@ SOURCE_FILES := analysis_functions.cc globals.cc main_loop.cc exception_handling
 SOURCE_OBJFILES := $(patsubst %.cc,$(OBJDIR)%.o,$(SOURCE_FILES))
 
 SCARAB_DIR ?= ../../
-TOOL_CXXFLAGS += -std=c++14 -g3 -static -I$(SCARAB_DIR)
+#allow deprecated-declarations to enable compiling with newer PIN version e.g. 3.15 that define new APIs
+TOOL_CXXFLAGS += -std=c++14 -g3 -static -I$(SCARAB_DIR) -Wno-error=deprecated-declarations
 TOOL_LDFLAGS += -std=c++14
 
 ##############################################################
