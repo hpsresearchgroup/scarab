@@ -13,9 +13,7 @@ add_library(pin_lib_for_scarab
         gather_scatter_addresses.h
         gather_scatter_addresses.cc
 )
-
-set($ENV{TARGET} ia32)
 target_include_directories(pin_lib_for_scarab PRIVATE ../..)
-target_include_directories(pin_lib_for_scarab PRIVATE $ENV{XED_ROOT}/include/public/xed/)
-target_include_directories(pin_lib_for_scarab PRIVATE $ENV{XED_ROOT}/obj/)
+target_link_libraries(pin_lib_for_scarab PUBLIC xed)
+
 
