@@ -629,6 +629,7 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
             }
           }
         } else {
+          packet_break = PB_BREAK_AFTER;
           *break_fetch = BREAK_OFFPATH;
         }
 
