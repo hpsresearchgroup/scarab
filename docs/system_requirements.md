@@ -7,12 +7,18 @@ Other versions of the same software may work, but have not been tested.
 Scarab relies on the following software packages:
 
 ## Required Packages
-* [Intel PIN 3.5](https://software.intel.com/en-us/articles/program-recordreplay-toolkit)
+* [Intel PIN (see below)](#tested-intel-pin-versions)
 * g++ 7.3.1
 * gcc 7.3.1
 * Clang 5.0.1
 * Python 3.6.3
 * [Intel XED 12.01](https://github.com/intelxed/xed/releases) (included as a git submodule)
+
+## Tested Intel PIN versions:
+* [PIN-Play 3.5](https://software.intel.com/en-us/articles/program-recordreplay-toolkit)
+* [PIN 3.15](https://www.intel.com/content/www/us/en/developer/articles/tool/pin-a-binary-instrumentation-tool-downloads.html)
+
+Note: Our checkpoint creater scripts only work with PIN-Play currently (due to a despendency with their simpoint scripts).
 
 ## Required Python Packages
 See `$SCARAB_ROOT/bin/requirements.txt`
