@@ -809,6 +809,10 @@ int cycle_mlcq_insert_count    = 0;
 int cycle_busoutq_insert_count = 0;
 int l1_in_buf_count            = 0;
 
+/**
+ * @brief Not sure what this func is doing 
+ * 
+ */
 void update_memory_queues() {
   // here!!! mix the requests
   if(ROUND_ROBIN_TO_L1 && l1_in_buf_count > 0) {
@@ -857,6 +861,12 @@ void update_on_chip_memory_stats() {
   }
 }
 
+/**
+ * @brief simulate the memory system for one cycle
+ * functions are called in reverse order, that's fill queues (req going back to cpu), 
+ * first, then ramulator (DRAM), then request queues (reg going down to mem)
+ * 
+ */
 void update_memory() {
   if(freq_is_ready(FREQ_DOMAIN_L1)) {
     cycle_count = freq_cycle_count(FREQ_DOMAIN_L1);
@@ -2412,9 +2422,10 @@ static void remove_from_l1_fill_queue(uns  proc_id,
   *p_l1fill_queue_removal_count = 0;
 }
 
-/**************************************************************************************/
-/* mem_process_l1_fill_reqs: */
-
+/**
+ * @brief 
+ * 
+ */
 static void mem_process_l1_fill_reqs() {
   Mem_Req* req = NULL;
   int      ii;
@@ -4207,9 +4218,13 @@ void op_nuke_mem_req(Op* op) {
   // FIXME: why is this here?
 }
 
-/**************************************************************************************/
-/* l1_fill_line: */
 
+/**
+ * @brief 
+ * 
+ * @param req 
+ * @return Flag 1 on successful fill 
+ */
 Flag l1_fill_line(Mem_Req* req) {
   L1_Data* data;
   Addr     line_addr, repl_line_addr = 0;

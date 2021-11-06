@@ -425,9 +425,16 @@ void cache_invalidate(Cache* cache, Addr addr, Addr* line_addr) {
 }
 
 
-/**************************************************************************************/
-/* get_next_repl_line:  Return a pointer to the lru item in the cache set */
-
+/**
+ * @brief Return a pointer to the lru item in the cache set
+ * 
+ * @param cache 
+ * @param proc_id 
+ * @param addr 
+ * @param repl_line_addr 
+ * @param valid 
+ * @return void* 
+ */
 void* get_next_repl_line(Cache* cache, uns8 proc_id, Addr addr,
                          Addr* repl_line_addr, Flag* valid) {
   Addr         line_tag, line_addr;
@@ -442,10 +449,16 @@ void* get_next_repl_line(Cache* cache, uns8 proc_id, Addr addr,
 }
 
 
-/**************************************************************************************/
-/* find_repl_entry: Returns the cache lib entry that will be the next to be
-   replaced. This call should not change any of the state information. */
-
+/**
+ * @brief Returns the cache lib entry that will be the next to be
+   replaced. This call should not change any of the state information.
+ * 
+ * @param cache 
+ * @param proc_id 
+ * @param set 
+ * @param way 
+ * @return Cache_Entry* 
+ */
 Cache_Entry* find_repl_entry(Cache* cache, uns8 proc_id, uns set, uns* way) {
   int ii;
   switch(cache->repl_policy) {
@@ -495,6 +508,13 @@ Cache_Entry* find_repl_entry(Cache* cache, uns8 proc_id, uns set, uns* way) {
       return new_line;
     } break;
     case REPL_PARTITION: {
+      /**
+       * @brief If cache is partitioned, the target partition is given by
+       * num_ways_allocated_core[proc_id]. Here (where the partition is enforced) 
+       * the actual occption of everycore is calculated first, and it's very 
+       * likely the victim comes from the very over-occupied partition instead of request's
+       * own partition. 
+       */
       uns8 way_proc_id;
       uns  lru_ind             = 0;
       uns  total_assigned_ways = 0;
@@ -506,7 +526,10 @@ Cache_Entry* find_repl_entry(Cache* cache, uns8 proc_id, uns set, uns* way) {
         total_assigned_ways += cache->num_ways_allocted_core[way_proc_id];
       }
 
-      ASSERT(proc_id, total_assigned_ways == cache->assoc);
+      ASSERT(proc_id, total_assigned_ways <= cache->assoc);
+      if(total_assigned_ways != cache->assoc){
+        printf("WARN: total allocated cache way smaller than all ways");
+      }
 
       for(ii = 0; ii < cache->assoc; ii++) {
         Cache_Entry* entry = &cache->entries[set][ii];
@@ -528,16 +551,18 @@ Cache_Entry* find_repl_entry(Cache* cache, uns8 proc_id, uns set, uns* way) {
       for(way_proc_id = 0; way_proc_id < NUM_CORES; way_proc_id++) {
         if(cache->num_ways_allocted_core[way_proc_id] <
            cache->num_ways_occupied_core[way_proc_id]) {
-          int extra_occ = cache->num_ways_occupied_core[way_proc_id] -
-                          cache->num_ways_allocted_core[way_proc_id];
-          if(extra_occ > max_extra_occ) {
-            max_extra_occ = extra_occ;
-            repl_proc_id  = way_proc_id;
-          }
+            int extra_occ = cache->num_ways_occupied_core[way_proc_id] -
+                            cache->num_ways_allocted_core[way_proc_id];
+            if(extra_occ > max_extra_occ) {
+              max_extra_occ = extra_occ;
+              repl_proc_id  = way_proc_id;
+            }
         }
       }
+
       int proc_id_extra_occ = cache->num_ways_occupied_core[proc_id] -
                               cache->num_ways_allocted_core[proc_id];
+
       if(cache->num_ways_allocted_core[proc_id] >
            cache->num_ways_occupied_core[proc_id] ||
          max_extra_occ > proc_id_extra_occ + 1 ||
