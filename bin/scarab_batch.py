@@ -116,6 +116,7 @@ def get_stats(stat_name, cores, results_dirs, base=None):
   df.print()
 
 def __main():
+  # The jobfile is used as a runnable and executed
   import_jobfile(args.jobfile)
 
   if (args.run):

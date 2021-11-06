@@ -493,7 +493,7 @@ class StatFileParser:
 
 def __main():
   args = parser.parse_args()
-  stat = StatFrame(args.results_dir)
+  stat = StatFrame('single_frame', args.results_dir)
   print(stat.get(core_id=args.core_id, stat_name=args.stat).df)
 
 if __name__ == "__main__":

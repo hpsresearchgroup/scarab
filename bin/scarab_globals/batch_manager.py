@@ -111,7 +111,7 @@ class Phase:
     return flat_command_list
 
 class BatchManager:
-  """Launches jobs on your local system. Runs phses sequentially, but jobs within a phase can be run in parallel.
+  """Launches jobs on your local system. Runs phases sequentially, but jobs within a phase can be run in parallel.
 
   Args:
     phase_list: The ordered list of phases. Phases will be run sequentially in the provided order.

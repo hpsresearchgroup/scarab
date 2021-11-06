@@ -142,7 +142,8 @@ def initialize_globals():
 
 def verify_spec_run_dirs_exist():
     for benchmark, input_name in product(__benchmarks__, __args__.inputs):
-        find_spec_run_dir(benchmark, input_name)
+        if not find_spec_run_dir(benchmark, input_name):
+            print('WARN: Verify run dir for ', __benchmarks__, __args__.inputs, " failed")
 
 
 def verify_workload_output_dirs_do_no_exist():
@@ -187,10 +188,10 @@ def find_spec_run_dir(benchmark, input_name):
     glob_search_path = create_run_dir_glob_search_path(benchmark, input_name)
     glob_result = glob.glob(glob_search_path)
     if len(glob_result) == 0:
-        print('Could not find the SPEC run directory for workload {},{} with '
-              'glob search path {}'.format(
+        print('WARN: Could not find the SPEC run directory for workload {},{} with '
+              'glob search path {}, skipping'.format(
                   benchmark, input_name, glob_search_path))
-        sys.exit(1)
+        return None
     elif len(glob_result) > 1:
         print('Found multiple SPEC run directories for workload {},{} with '
               'glob search path {}'.format(
@@ -200,10 +201,17 @@ def find_spec_run_dir(benchmark, input_name):
 
 
 def setup_run_dir(benchmark, input_name, run_dir_path):
+    success = False
     os.makedirs(run_dir_path, exist_ok=True)
     spec_run_dir = find_spec_run_dir(benchmark, input_name)
-    print("Copying {} to {} ...".format(spec_run_dir, run_dir_path))
-    distutils.dir_util.copy_tree(spec_run_dir, run_dir_path)
+    if not spec_run_dir:
+        success = False
+        return success
+    else:
+        print("Copying {} to {} ...".format(spec_run_dir, run_dir_path))
+        distutils.dir_util.copy_tree(spec_run_dir, run_dir_path)
+        success = True
+    return success
 
 
 def parse_benchmark_name_version(benchmark):
@@ -296,9 +304,13 @@ def copy_programs():
         workload_path = os.path.abspath(
             '{}/{}/{}'.format(__args__.output_dir, benchmark, input_name))
         run_dir_path = '{}/run_dir'.format(workload_path)
-        setup_run_dir(benchmark, input_name, run_dir_path)
-        _, spec_version = parse_benchmark_name_version(benchmark)
-        create_run_commands(run_dir_path, spec_version)
+        succ = setup_run_dir(benchmark, input_name, run_dir_path)
+        if succ:
+            _, spec_version = parse_benchmark_name_version(benchmark)
+            create_run_commands(run_dir_path, spec_version)
+        else:
+            __benchmarks__.remove(benchmark)
+
 
 
 def create_checkpoints_descriptor_file():
