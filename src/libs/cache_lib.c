@@ -1081,7 +1081,8 @@ int cache_find_pos_in_lru_stack(Cache* cache, uns8 proc_id, Addr addr,
 
 
 void set_partition_allocate(Cache* cache, uns8 proc_id, uns num_ways) {
-  ASSERT(proc_id, cache->repl_policy == REPL_PARTITION);
+  //ASSERT(proc_id, cache->repl_policy == REPL_PARTITION);
+  ASSERT(proc_id, L1_PART_ON);
   ASSERT(proc_id, cache->num_ways_allocted_core);
   cache->num_ways_allocted_core[proc_id] = num_ways;
 }

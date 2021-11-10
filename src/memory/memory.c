@@ -390,6 +390,10 @@ void init_memory() {
   init_perf_pred();
 }
 
+/**
+ * @brief this function should only be called once in warmup mode
+ * 
+ */
 void init_uncores(void) {
   mem->uncores = (Uncore*)malloc(sizeof(Uncore) * NUM_CORES);
 
@@ -408,7 +412,7 @@ void init_uncores(void) {
     MLC(proc_id) = mlc;
   }
 
-  /* Initialize L2 cache */
+  /* Initialize LLC */
   if(PRIVATE_L1) {
     ASSERTM(
       0, L1_SIZE % NUM_CORES == 0,
@@ -433,7 +437,7 @@ void init_uncores(void) {
       }
       L1(proc_id) = l1;
     }
-  } else {  // shared L2
+  } else {  
     Ported_Cache* l1 = (Ported_Cache*)malloc(sizeof(Ported_Cache));
     init_cache(&l1->cache, "L1_CACHE", L1_SIZE, L1_ASSOC, L1_LINE_SIZE,
                sizeof(L1_Data), L1_CACHE_REPL_POLICY);
@@ -447,9 +451,6 @@ void init_uncores(void) {
     for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
       L1(proc_id) = l1;
     }
-    if(L1_CACHE_REPL_POLICY == REPL_PARTITION && !L1_PART_WARMUP) {
-      l1->cache.repl_policy = REPL_TRUE_LRU;
-    }
   }
 
   if(L1_CACHE_REPL_POLICY == REPL_PARTITION) {
@@ -458,6 +459,8 @@ void init_uncores(void) {
     for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
       set_partition_allocate(&L1(proc_id)->cache, proc_id, num_ways);
     }
+
+    //set static partition (if used)
     if(L1_STATIC_PARTITION_ENABLE) {
       ASSERT(0, !L1_DYNAMIC_PARTITION_ENABLE);
       ASSERTM(0, L1_STATIC_PARTITION, "Please specify L1_STATIC_PARTITION\n");
@@ -471,6 +474,7 @@ void init_uncores(void) {
       }
     }
 
+    //set dynamic partition (if used)
     if(L1_DYNAMIC_PARTITION_ENABLE && L1_DYNAMIC_PARTITION_POLICY == UMON_DSS) {
       mem->umon_cache_core = (Cache*)malloc(sizeof(Cache) * NUM_CORES);
       mem->umon_cache_hit_count_core = (double**)malloc(sizeof(double*) *

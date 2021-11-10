@@ -65,8 +65,8 @@ typedef void (*Search_Func)(void);
 /* Global variables */
 
 Proc_Info*  proc_infos;
-Trigger*    l1_part_start;
-Trigger*    l1_part_trigger;
+Trigger*    l1_part_start; //indicates the L1 partition has been enabled
+Trigger*    l1_part_trigger; //indicates ??
 Stat_Mon*   stat_mon;
 Metric_Func metric_func;
 Search_Func search_func;
@@ -511,10 +511,12 @@ void cache_part_update(void) {
   if(!L1_PART_ON)
     return;
 
-  //check whether current cycle switch the l1_part_on
+  //the REPL is set to LRU initially only when L1_PART_WARM is on
   if(trigger_fired(l1_part_start)) {
-    ASSERT(0, mem->uncores[0].l1->cache.repl_policy == REPL_TRUE_LRU);
-    mem->uncores[0].l1->cache.repl_policy = REPL_PARTITION;
+    if(L1_PART_WARMUP){
+      ASSERT(0, mem->uncores[0].l1->cache.repl_policy == REPL_TRUE_LRU);
+      mem->uncores[0].l1->cache.repl_policy = REPL_PARTITION;
+    }
   }
   if(!trigger_fired(l1_part_trigger))
     return;

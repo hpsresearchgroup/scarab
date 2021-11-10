@@ -259,9 +259,10 @@ DEF_PARAM(pref_i_together, PREF_I_TOGETHER, Flag, Flag, FALSE, )
 DEF_PARAM(one_more_cache_line_enable, ONE_MORE_CACHE_LINE_ENABLE, Flag, Flag,
           FALSE, )
 
-// STATIC PARTITIO
-// work with REPL_PARTITION if l1_dynamic_partition_enable is not set
 
+// Knobs for L1 partitioning
+// Static Partition
+// work with REPL_PARTITION if l1_dynamic_partition_enable is not set
 DEF_PARAM(l1_static_partition_enable, L1_STATIC_PARTITION_ENABLE, uns, uns, 0, )
 DEF_PARAM(l1_static_partition, L1_STATIC_PARTITION, char*, string, NULL, )
 
@@ -287,6 +288,7 @@ DEF_PARAM(l1_part_search, L1_PART_SEARCH, uns, Cache_Part_Search, 0, )
 DEF_PARAM(l1_part_use_stalling, L1_PART_USE_STALLING, Flag, Flag, TRUE, )
 DEF_PARAM(l1_part_fill_delay, L1_PART_FILL_DELAY, uns, uns, 0, )
 DEF_PARAM(l1_shadow_tags_modulo, L1_SHADOW_TAGS_MODULO, uns, uns, 1, )
+// L1 partitioning done
 
 // Hierarchical MSHR behavior for MLC and L1 queues
 DEF_PARAM(hier_mshr_on, HIER_MSHR_ON, Flag, Flag, FALSE, )
