@@ -66,7 +66,7 @@ typedef void (*Search_Func)(void);
 
 Proc_Info*  proc_infos;
 Trigger*    l1_part_start; //indicates the L1 partition has been enabled
-Trigger*    l1_part_trigger; //indicates ??
+Trigger*    l1_part_trigger; //external trigger for trigger repart (should not be set too often)
 Stat_Mon*   stat_mon;
 Metric_Func metric_func;
 Search_Func search_func;
@@ -387,6 +387,10 @@ void cache_part_init(void) {
     L1_SHADOW_DEMAND_HIT_POS126,
     L1_SHADOW_DEMAND_HIT_POS127
   };
+
+  
+  //monitor here observe various global stats, and reset its internal 
+  //counting periodically
   stat_mon = stat_mon_create_from_array(monitored_stats,
                                         NUM_ELEMENTS(monitored_stats));
 
@@ -432,9 +436,19 @@ void cache_part_init(void) {
   tie_breaker_proc_id = 0;
 }
 
-/**************************************************************************************/
-/* cache_part_l1_access: */
 
+/**
+ * @brief Update the shadow cache content and stats
+ * 
+ * Update various shadow cache stats, especially the hit positions. 
+ * and insert the blk into shadow cache on a miss
+ * 
+ * Note the stat are directly commited to global_stat_array 
+ * 
+ * Consumer later use a monitor to observe these stats
+ * 
+ * @param req 
+ */
 void cache_part_l1_access(Mem_Req* req) {
   if(!L1_PART_ON)
     return;
@@ -461,12 +475,13 @@ void cache_part_l1_access(Mem_Req* req) {
   if(demand)
     STAT_EVENT(req->proc_id, L1_SHADOW_ACCESS_DEMAND);
   if(!miss && !untimely_hit) {
-    STAT_EVENT(req->proc_id, L1_SHADOW_HIT_POS0 + MIN2(pos, 15));
+    STAT_EVENT(req->proc_id, L1_SHADOW_HIT_POS0 + MIN2(pos, 127));
     if(stalling)
-      STAT_EVENT(req->proc_id, L1_SHADOW_STALLING_HIT_POS0 + MIN2(pos, 15));
+      STAT_EVENT(req->proc_id, L1_SHADOW_STALLING_HIT_POS0 + MIN2(pos, 127));
     if(demand)
-      STAT_EVENT(req->proc_id, L1_SHADOW_DEMAND_HIT_POS0 + MIN2(pos, 15));
+      STAT_EVENT(req->proc_id, L1_SHADOW_DEMAND_HIT_POS0 + MIN2(pos, 127));
   }
+
   INC_STAT_EVENT(req->proc_id, L1_SHADOW_HIT, !miss);
   INC_STAT_EVENT(req->proc_id, L1_SHADOW_HIT_STALLING, stalling && !miss);
   INC_STAT_EVENT(req->proc_id, L1_SHADOW_HIT_DEMAND, demand && !miss);
@@ -475,6 +490,8 @@ void cache_part_l1_access(Mem_Req* req) {
                  stalling && untimely_hit);
   INC_STAT_EVENT(req->proc_id, L1_SHADOW_UNTIMELY_HIT_DEMAND,
                  demand && untimely_hit);
+  
+  //update shadow tag
   if(miss) {
     L1_Data* data     = cache_insert(&proc_info->shadow_cache, req->proc_id,
                                  req->addr, &dummy_line_addr, &dummy_line_addr);
@@ -518,6 +535,7 @@ void cache_part_update(void) {
       mem->uncores[0].l1->cache.repl_policy = REPL_PARTITION;
     }
   }
+
   if(!trigger_fired(l1_part_trigger))
     return;
 
@@ -526,6 +544,10 @@ void cache_part_update(void) {
     measure_miss_curves();
     set_partition();
   }
+
+  //TODO: if this func is called too often (controlled by user through l1_part_trigger)
+  //the misscurve calculated will be incorrect (no additional shadow access between two 
+  //triggers, thus divide by 0), corrently there is not check for this case
   stat_mon_reset(stat_mon);
 }
 
@@ -712,6 +734,12 @@ void set_partition(void) {
   STAT_EVENT_ALL(L1_PARTITION_INTERVALS);
 }
 
+/**
+ * @brief Print misscurve and partition result
+ * 
+ * @param old_partition 
+ * @param new_partition 
+ */
 void debug_cache_part(uns* old_partition, uns* new_partition) {
   char  buf[MAX_STR_LENGTH + 1];
   char* ptr = buf;

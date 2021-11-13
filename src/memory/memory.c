@@ -1482,8 +1482,7 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
   Flag     update_l1_lru = TRUE;
 
   if(L1_CACHE_HIT_POSITION_COLLECT ||
-     (L1_DYNAMIC_PARTITION_ENABLE &&
-      L1_DYNAMIC_PARTITION_POLICY == MARGINAL_UTIL)) {
+     (L1_DYNAMIC_PARTITION_ENABLE && L1_DYNAMIC_PARTITION_POLICY == MARGINAL_UTIL)) {
     if((req->type == MRT_DFETCH) || (req->type == MRT_DSTORE) ||
        (req->type == MRT_IFETCH)) {
       lru_position = cache_find_pos_in_lru_stack(
