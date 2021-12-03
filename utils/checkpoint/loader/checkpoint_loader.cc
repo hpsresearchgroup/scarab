@@ -25,6 +25,7 @@
 #include <iomanip>
 #include <set>
 #include <sstream>
+#include <string_view>
 #include <sys/utsname.h>
 
 #include "checkpoint_reader.h"
@@ -56,6 +57,7 @@ void print_os_info_difference_then_exit(const char* what_was_different,
 std::set<std::string> split_cpuinfo_flags(std::string all_flags);
 void                  check_os_info();
 void                  check_cpuinfo();
+
 
 void execute_tracee(const char* application, char* const argv[],
                     char* const envp[], bool print_argv_envp) {
@@ -116,6 +118,74 @@ static const char* force_even_if_wrong_kernel_option =
   "force_even_if_wrong_kernel";
 static const char* force_even_if_wrong_cpu_option = "force_even_if_wrong_cpu";
 static const char* pintool_args_option            = "pintool_args";
+
+namespace {
+
+template <typename T>
+std::string hex_str(T x) {
+  std::stringstream ss;
+  ss << "0x" << std::hex << x;
+  return ss.str();
+}
+
+template <typename F>
+void for_each_extra_pintool_arg(F f) {
+  for(size_t pos = 0; pos < pintool_args.size();) {
+    size_t delim_pos = pintool_args.find(' ', pos);
+    if(delim_pos == std::string::npos) {
+      delim_pos = pintool_args.size();
+    }
+
+    if(delim_pos > pos) {
+      f(std::string_view(&pintool_args[pos], delim_pos - pos));
+    }
+
+    pos = delim_pos + 1;
+  }
+}
+
+
+std::vector<std::vector<char>> create_pin_cmd_argv_vectors(
+  pid_t child_pid, bool external_pintool) {
+  std::vector<std::vector<char>> argv;
+
+  auto add_arg = [&argv](std::string_view str) {
+    argv.emplace_back(str.begin(), str.end());
+    auto& new_arg = argv[argv.size() - 1];
+    new_arg.push_back('\0');
+  };
+
+  add_arg(std::string(getenv("PIN_ROOT")) + "/pin");
+  add_arg("-mt");
+  add_arg("0");
+  add_arg("-pid");
+  add_arg(std::to_string(child_pid));
+  add_arg("-t");
+  add_arg(pintool_path);
+  if(!external_pintool) {
+    add_arg("-rip");
+    add_arg(hex_str(get_checkpoint_start_rip()));
+    add_arg("-socket_path");
+    add_arg(socket_path);
+    add_arg("-core_id");
+    add_arg(std::to_string(core_id));
+  }
+
+  for_each_extra_pintool_arg(add_arg);
+  return argv;
+}
+
+std::vector<char*> convert_argv_vectors_to_charptr(
+  std::vector<std::vector<char>>& argv_vectors) {
+  std::vector<char*> ptrs(argv_vectors.size() + 1);
+  for(size_t i = 0; i < argv_vectors.size(); ++i) {
+    ptrs[i] = argv_vectors[i].data();
+  }
+  ptrs[ptrs.size() - 1] = nullptr;
+  return ptrs;
+}
+
+}  // namespace
 
 void usage(const char* name_of_loader_exe, int longest_option_length) {
   assert(NULL != name_of_loader_exe);
@@ -431,18 +501,14 @@ void load_fp_state(pid_t pid) {
 }
 
 int attach_pin_to_child(pid_t child_pid, bool external_pintool) {
-  std::string       pin_path = std::string(getenv("PIN_ROOT")) + "/pin";
-  std::stringstream pin_command_ss;
-  pin_command_ss << pin_path << " -mt 0"
-                 << " -pid " << std::dec << child_pid << " -t " << pintool_path
-                 << " " << pintool_args;
-  if(!external_pintool) {
-    pin_command_ss << " -rip 0x" << std::hex << get_checkpoint_start_rip()
-                   << " -socket_path " << socket_path << " -core_id "
-                   << std::dec << core_id << " " << pintool_args;
-  }
-  std::string pin_command_str = pin_command_ss.str();
+  auto pin_cmd_argv_vectors = create_pin_cmd_argv_vectors(child_pid,
+                                                          external_pintool);
+  auto pin_cmd_argv_ptrs    = convert_argv_vectors_to_charptr(
+    pin_cmd_argv_vectors);
 
-  debug("PIN COMMAND: %s", pin_command_str.c_str());
-  return system(pin_command_str.c_str());
+  for(auto& arg : pin_cmd_argv_vectors) {
+    debug("PIN COMMAND ARGV: %s", arg.data());
+  }
+
+  return execv(pin_cmd_argv_ptrs[0], pin_cmd_argv_ptrs.data());
 }
