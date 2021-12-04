@@ -622,6 +622,14 @@ void change_working_directory() {
   }
 }
 
+
+// DEPRACTED: This function is used to filter out memory regions in the
+// checkpoint that correspond to the checkpoint creator pintool, which are not
+// actually part of the checkpointed process. Later, the checkpoint creator
+// tool was changed to filter out these regions at creation time, so this is
+// not necessary anymore. However, we keep this function in the loader to
+// remain compatible with the checkpoints created before the creator was
+// updated.
 bool is_pin_library(std::string filename) {
   std::string pin_root = std::string(std::getenv("PIN_ROOT"));
 
