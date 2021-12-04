@@ -380,7 +380,7 @@ void processMapsLine(FILE* out, const std::string& line) {
 int dumpMemoryData(const char* path, UINT8* start, UINT8* end) {
   //    FILE * out = fopen(path, "w");
   std::stringstream bzip_cmd;
-  bzip_cmd << "/usr/bin/bzip2 > " << path;
+  bzip_cmd << "bzip2 > " << path;
   FILE* out = popen(bzip_cmd.str().c_str(), "w");
 
   const UINT64 BUF_SIZE = 4096;
