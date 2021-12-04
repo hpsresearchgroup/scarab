@@ -297,6 +297,21 @@ void dumpMemory(FILE* out, UINT pid) {
   endChild(out);
 }
 
+bool is_pin_library(const std::string& path) {
+  auto pin_root = std::string(std::getenv("PIN_ROOT"));
+
+  if(path.find(pin_root) != std::string::npos) {
+    return true;
+
+  } else {
+    auto create_checkpoint = std::string("create_checkpoint.so");
+    if(path.find(create_checkpoint) != std::string::npos)
+      return true;
+    else
+      return false;
+  }
+}
+
 void processMapsLine(FILE* out, const std::string& line) {
   std::stringstream ss(line);
   // maps format ([xy] means either x or y, numbers except inode are in hex,
@@ -346,6 +361,12 @@ void processMapsLine(FILE* out, const std::string& line) {
   std::cout << "Pin query results: " << query.generic_err << std::endl;
   std::cout << "Pin query base addr: " << memory_info.BaseAddress
             << ", page size: " << memory_info.MapSize << std::endl;
+
+  if(is_pin_library(path)) {
+    std::cout << "Skipping the page because it corresponds to a PIN library"
+              << std::endl;
+    return;
+  }
 
   if(dumpMemoryData(
        (KnobOutputDir.Value() + "/" + dataIdSS.str() + ".dat").c_str(),
