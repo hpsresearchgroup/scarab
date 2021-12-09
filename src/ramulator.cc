@@ -66,10 +66,10 @@ void enqueue_response(Request& req);
 
 void stats_callback(int coreid, int type);
 
-deque<pair<long, Mem_Req*>> resp_queue;  // completed read request that need to send back to
-                             // Scarab
+deque<pair<long, Mem_Req*>> resp_queue;  // completed read request that need to
+                                         // send back to Scarab
 
-//map<long, list<Mem_Req*>> inflight_read_reqs;
+// map<long, list<Mem_Req*>> inflight_read_reqs;
 map<long, Mem_Req*> inflight_read_reqs;
 
 void ramulator_init() {
@@ -178,12 +178,13 @@ int ramulator_send(Mem_Req* scarab_req) {
 
   // does inflight_read_reqs have the proc_id in the req?
   auto it_scarab_req = inflight_read_reqs.find(req.addr);
-  if(it_scarab_req != inflight_read_reqs.end() && req.type == Request::Type::READ) {
+  if(it_scarab_req != inflight_read_reqs.end() &&
+     req.type == Request::Type::READ) {
     DEBUG(scarab_req->proc_id,
           "Ramulator: Duplicate (%s) request to address %llx\n",
           Mem_Req_Type_str(scarab_req->type), scarab_req->addr);
-    //ASSERT if duplicate request found in ramulator queue. 
-    //Is handled in memory.c while creating new requests
+    // ASSERT if duplicate request found in ramulator queue.
+    // Is handled in memory.c while creating new requests
     ASSERT(0, FALSE);
     /*
     if(req.type == Request::Type::READ)
@@ -235,7 +236,7 @@ void enqueue_response(Request& req) {
           req.addr);
 
   auto it_scarab_req = inflight_read_reqs.find(req.addr);
-  //for(auto req : it_scarab_req->second)
+  // for(auto req : it_scarab_req->second)
   //  resp_queue.push_back(req);
   resp_queue.push_back(make_pair(it_scarab_req->first, it_scarab_req->second));
   inflight_read_reqs.erase(it_scarab_req);
@@ -321,21 +322,22 @@ int ramulator_get_chip_row_buffer_size() {
 }
 
 Mem_Req* ramulator_search_queue(long phys_addr, Mem_Req_Type type) {
-   
-  ASSERTM(0, (type == MRT_IFETCH) || (type == MRT_DFETCH) || (type == MRT_IPRF) || (type == MRT_DPRF), "Ramulator: Cannot search write requests in Ramulator request queue\n");
+  ASSERTM(
+    0,
+    (type == MRT_IFETCH) || (type == MRT_DFETCH) || (type == MRT_IPRF) ||
+      (type == MRT_DPRF),
+    "Ramulator: Cannot search write requests in Ramulator request queue\n");
   auto it_req = inflight_read_reqs.find(phys_addr);
 
-  //Search request queue
+  // Search request queue
   if(it_req != inflight_read_reqs.end())
     return it_req->second;
-  
-  //Search response queue
-  for(auto resp : resp_queue)
-  {
+
+  // Search response queue
+  for(auto resp : resp_queue) {
     if(resp.first == phys_addr)
       return resp.second;
   }
-  
+
   return NULL;
 }
-
