@@ -23,9 +23,7 @@
  * File         : pin/pin_lib/pin_api_to_xed.h
  * Author       : Heiner Litz
  * Date         : 05/15/2020
- * Notes        : This code has been adapted from zsim which was released under
- *                GNU General Public License as published by the Free Software
- *                Foundation, version 2.
+ * Notes        : Translates between the PIN and XED APIs
  * Description  :
  ***************************************************************************************/
 
@@ -34,8 +32,8 @@
  * Currently we support PIN (execution driven) and Intel xed (trace driven)
  */
 
-#ifndef THIRD_PARTY_ZSIM_SRC_WRAPPED_PIN_H_
-#define THIRD_PARTY_ZSIM_SRC_WRAPPED_PIN_H_
+#ifndef PIN_API_TO_XED_H_
+#define PIN_API_TO_XED_H_
 
 extern "C" {
 #include "xed-interface.h"
@@ -163,10 +161,6 @@ struct InstInfo {
 #define XED_REGWIDTH_256 256
 #define XED_REGWIDTH_512 512
 
-//#define REG_GR_BASE REG_RDI
-// Used in decoder.h. zsim (pin) requires REG_LAST whereas zsim_trace requires
-// XED_REG_LAST #define REG_LAST XED_REG_LAST
-
 // XED expansion macros (enable us to type opcodes at a reasonable speed)
 #define XC(cat) (XED_CATEGORY_##cat)
 #define XO(opcode) (XED_ICLASS_##opcode)
@@ -174,6 +168,4 @@ struct InstInfo {
 #define ADDRINT uint64_t
 #define THREADID uint32_t
 
-//#define BOOL bool
-
-#endif  // THIRD_PARTY_ZSIM_SRC_WRAPPED_PIN_H_
+#endif  // PIN_API_TO_XED_H_
