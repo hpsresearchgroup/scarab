@@ -689,12 +689,12 @@ static uns generate_uops(uns8 proc_id, ctype_pin_inst* pi,
     if((has_alu && !has_push && !has_pop) || has_store ||
        has_control) {  // load result used further down
       Reg_Id dest_reg = REG_TMP0 + i;
-      ASSERT(proc_id, dest_reg < REG_OTHER);
+      ASSERT(proc_id, dest_reg <= REG_OTHER);
       add_t_uop_dest_reg(uop, dest_reg);
     } else {
       for(uns j = 0; j < pi->num_dst_regs; ++j) {
         Reg_Id dest_reg = pi->dst_regs[j];
-        ASSERT(proc_id, dest_reg < REG_OTHER);
+        ASSERT(proc_id, dest_reg <= REG_OTHER);
         add_t_uop_dest_reg(uop, dest_reg);
       }
     }
