@@ -325,7 +325,7 @@ Mem_Req* ramulator_search_queue(long phys_addr, Mem_Req_Type type) {
   ASSERTM(
     0,
     (type == MRT_IFETCH) || (type == MRT_DFETCH) || (type == MRT_IPRF) ||
-      (type == MRT_DPRF),
+      (type == MRT_DPRF) || (type == MRT_DSTORE) || (type == MRT_MIN_PRIORITY),
     "Ramulator: Cannot search write requests in Ramulator request queue\n");
   auto it_req = inflight_read_reqs.find(phys_addr);
 
