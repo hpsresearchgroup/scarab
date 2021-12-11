@@ -43,6 +43,7 @@ bool                      op_mailbox_full           = false;
 bool                      pending_fetch_op          = false;
 bool                      pending_syscall           = false;
 bool                      pending_exception         = false;
+ADDRINT                   pending_magic_inst        = NOT_MAGIC;
 bool                      on_wrongpath              = false;
 bool                      on_wrongpath_nop_mode     = false;
 Wrongpath_Nop_Mode_Reason wrongpath_nop_mode_reason = WPNM_NOT_IN_WPNM;

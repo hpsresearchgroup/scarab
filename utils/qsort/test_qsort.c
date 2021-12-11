@@ -36,7 +36,7 @@ int int32_compare(const void* A, const void* B, const void* arg) {
   return A_data < B_data ? -1 : (A_data == B_data) ? 0 : 1;
 }
 
-void main(void) {
+int main(void) {
   printf("Starting Main\n");
 
   srand(42);

@@ -785,7 +785,10 @@ void node_retire() {
                        op->table_info->bar_type & BAR_FETCH ||
                        (inst_count[node->proc_id] % NODE_RETIRE_RATE == 0);
 
-      if(retire_op) {
+      if(op->exit) {
+        retired_exit[op->proc_id] = TRUE;
+        frontend_retire(op->proc_id, -1);
+      } else if(retire_op) {
         frontend_retire(op->proc_id, op->inst_uid);
       }
     }
@@ -819,9 +822,6 @@ void node_retire() {
     }
     if(op->table_info->mem_type == MEM_LD) {
       STAT_EVENT(op->proc_id, LD_NO_DEPENDENTS + (op->wake_up_head ? 1 : 0));
-    }
-    if(op->exit) {
-      retired_exit[node->proc_id] = TRUE;
     }
     STAT_EVENT(op->proc_id, RET_OP_EXEC_COUNT_0 + MIN2(32, op->exec_count));
 
