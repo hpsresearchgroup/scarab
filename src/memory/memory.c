@@ -157,18 +157,17 @@ static inline Mem_Req* mem_search_queue(Mem_Queue* queue, uns8 proc_id,
                                         Mem_Queue_Entry** queue_entry,
                                         Flag              collect_stats);
 
-static inline Mem_Req* mem_search_reqbuf(uns8 proc_id, Addr addr,
-                                         Mem_Req_Type type, uns size,
-                                         Flag*             demand_hit_prefetch,
-                                         Flag*             demand_hit_writeback,
-                                         uns               queues_to_search,
-                                         Mem_Queue_Entry** queue_entry);
+static inline Mem_Req* mem_search_reqbuf(
+  uns8 proc_id, Addr addr, Mem_Req_Type type, uns size,
+  Flag* demand_hit_prefetch, Flag* demand_hit_writeback, uns queues_to_search,
+  Mem_Queue_Entry** queue_entry, Flag* ramulator_match);
 
 static Flag mem_adjust_matching_request(
   Mem_Req* req, Mem_Req_Type type, Addr addr, uns size, Destination destination,
   uns delay, Op* op, Flag done_func(Mem_Req*), Counter unique_num,
   Flag demand_hit_prefetch, Flag demand_hit_writeback,
-  Mem_Queue_Entry** queue_entry, Counter new_priority);
+  Mem_Queue_Entry** queue_entry, Counter new_priority, Flag ramulator_match);
+
 static inline Mem_Req* mem_allocate_req_buffer(uns proc_id, Mem_Req_Type type,
                                                Flag for_l1_writeback);
 static Mem_Req* mem_kick_out_prefetch_from_queue(uns mem_bank, Mem_Queue* queue,
@@ -2790,7 +2789,7 @@ static inline Mem_Req* mem_search_reqbuf(
   Flag* demand_hit_prefetch, /* set if the matching req is a prefetch and a
                                 demand hits it */
   Flag* demand_hit_writeback, uns queues_to_search,
-  Mem_Queue_Entry** queue_entry) {
+  Mem_Queue_Entry** queue_entry, Flag* ramulator_match) {
   Mem_Req* req;
   ASSERTM(proc_id, proc_id == get_proc_id_from_cmp_addr(addr),
           "Proc ID (%d) does not match proc ID in address (%d)!\n", proc_id,
@@ -2812,12 +2811,23 @@ static inline Mem_Req* mem_search_reqbuf(
       return req;
   }
 
-  ASSERT(proc_id, !(queues_to_search & QUEUE_MEM));
-  // if (queues_to_search &  QUEUE_MEM) {
-  // req = mem_search_queue(&mem->mem_queue, proc_id, addr, type, size,
-  // demand_hit_prefetch, demand_hit_writeback, queue_entry, TRUE);  if (req)
-  //    return req;
-  //}
+  // ASSERT(proc_id, !(queues_to_search & QUEUE_MEM));
+  if(queues_to_search & QUEUE_MEM) {
+    req = ramulator_search_queue(addr_translate(addr), type);
+    if(req) {
+      *ramulator_match = TRUE;
+      if(req->type == MRT_IPRF) {
+        if(type == MRT_IFETCH)
+          *demand_hit_prefetch = TRUE;
+        if((type == MRT_WB) || (type == MRT_WB_NODIRTY))
+          STAT_EVENT(req->proc_id, WB_MATCH_PREF);
+      } else if(req->type == MRT_DPRF) {
+        if((type == MRT_DFETCH) || (type == MRT_DSTORE))
+          *demand_hit_prefetch = TRUE;
+      }
+      return req;
+    }
+  }
 
   if(queues_to_search & QUEUE_BUS_OUT) {
     req = mem_search_queue(&mem->bus_out_queue, proc_id, addr, type, size,
@@ -2858,9 +2868,12 @@ Flag mem_adjust_matching_request(Mem_Req* req, Mem_Req_Type type, Addr addr,
                                  Flag              demand_hit_prefetch,
                                  Flag              demand_hit_writeback,
                                  Mem_Queue_Entry** queue_entry,
-                                 Counter           new_priority) {
+                                 Counter new_priority, Flag ramulator_match) {
   Flag    higher_priority;
-  Counter old_priority = (*queue_entry)->priority; /* this is the old priority
+  Counter old_priority = 0;
+  // TODO: Should we change ramulator queue priority on match?
+  if(!ramulator_match)
+    old_priority = (*queue_entry)->priority; /* this is the old priority
                                                       of request in the queue */
   Op**     op_ptr    = NULL;
   Counter* op_unique = NULL;
@@ -3000,9 +3013,10 @@ Flag mem_adjust_matching_request(Mem_Req* req, Mem_Req_Type type, Addr addr,
        (req->queue->type == QUEUE_BUS_OUT) ||
        ORDER_BEYOND_BUS) { /* FIXME: are we going to be able to promote mem &
                               l1fill requests? */
-      req->priority            = new_priority; /* Change the priority of req */
-      (*queue_entry)->priority = new_priority; /* Change the priority in the
-                                                  queue entry */
+      req->priority = new_priority; /* Change the priority of req */
+      if(!ramulator_match)
+        (*queue_entry)->priority = new_priority; /* Change the priority in the
+                               queue entry */
       if(PROMOTE_TO_HIGHER_PRIORITY_MEM_REQ_TYPE &&
          Mem_Req_Priority[type] < Mem_Req_Priority[req->type]) {
         /* Promote to the higher priority type (DRAM model
@@ -3580,6 +3594,7 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
   Flag             demand_hit_writeback = FALSE;
   Flag             kicked_out =
     FALSE; /* did this request kick out another one in the queue */
+  Flag    ramulator_match = FALSE;
   Counter priority_offset = freq_cycle_count(FREQ_DOMAIN_L1);
   Counter new_priority;
   Flag    to_mlc = MLC_PRESENT && (!pref_info || pref_info->dest != DEST_L1);
@@ -3597,11 +3612,12 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
   new_priority = Mem_Req_Priority_Offset[type] + priority_offset;
 
   /* Step 1: Figure out if this access is already in the request buffer */
-  matching_req = mem_search_reqbuf(
-    proc_id, addr, type, size, &demand_hit_prefetch, &demand_hit_writeback,
-    QUEUE_MLC | QUEUE_L1 | QUEUE_BUS_OUT | /*QUEUE_MEM |*/ QUEUE_L1FILL |
-      QUEUE_MLC_FILL,
-    &queue_entry);
+  // Search ramulator queue
+  matching_req = mem_search_reqbuf(proc_id, addr, type, size,
+                                   &demand_hit_prefetch, &demand_hit_writeback,
+                                   QUEUE_MLC | QUEUE_L1 | QUEUE_BUS_OUT |
+                                     QUEUE_MEM | QUEUE_L1FILL | QUEUE_MLC_FILL,
+                                   &queue_entry, &ramulator_match);
 
   // if HIER_MSHR_ON, we do not allow matching non-writebacks to writebacks
   // (otherwise the reserved entry counts get messed up)
@@ -3649,7 +3665,7 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
       else
         STAT_EVENT(proc_id, PREF_NEWREQ_MATCHED);
     }
-    ASSERT(matching_req->proc_id, queue_entry);
+    ASSERT(matching_req->proc_id, queue_entry || ramulator_match);
     DEBUG(matching_req->proc_id,
           "Hit in mem buffer  index:%d  type:%s  addr:0x%s  size:%d  op_num:%d "
           " off_path:%d\n",
@@ -3667,7 +3683,7 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
     return (mem_adjust_matching_request(
       matching_req, type, addr, size, destination, delay, op, done_func,
       unique_num, demand_hit_prefetch, demand_hit_writeback, &queue_entry,
-      new_priority));
+      new_priority, ramulator_match));
   }
 
   /* Step 2.5: Check if there is space in the appropriate queue */
@@ -3869,6 +3885,7 @@ Flag new_mem_dc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
   Flag             demand_hit_writeback = FALSE;
   Flag             kicked_out =
     FALSE; /* did this request kick out another one in the queue */
+  Flag    ramulator_match = FALSE;
   Counter priority_offset = freq_cycle_count(FREQ_DOMAIN_L1);
   Counter new_priority;
 
@@ -3883,9 +3900,9 @@ Flag new_mem_dc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
 
   matching_req = mem_search_reqbuf(
     proc_id, addr, type, size, &demand_hit_prefetch, &demand_hit_writeback,
-    QUEUE_L1 | QUEUE_BUS_OUT | /*QUEUE_MEM |*/ QUEUE_L1FILL,
-    &queue_entry);  // CMP: QUEUE_L1FILL: this is a bug? Seems like no.
-                    // Doublecheck!!
+    QUEUE_L1 | QUEUE_BUS_OUT | /*QUEUE_MEM |*/ QUEUE_L1FILL, &queue_entry,
+    &ramulator_match);  // CMP: QUEUE_L1FILL: this is a bug? Seems like no.
+                        // Doublecheck!!
 
   /* Step 2: Found matching request. Adjust it based on the current request */
 
@@ -3900,7 +3917,7 @@ Flag new_mem_dc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
     return (mem_adjust_matching_request(
       matching_req, type, addr, size, DEST_MLC, delay, op, done_func,
       unique_num, demand_hit_prefetch, demand_hit_writeback, &queue_entry,
-      new_priority));
+      new_priority, ramulator_match));
   }
 
   /* Step 2.5: Check if there is space in the appropriate queue */
@@ -3968,6 +3985,7 @@ static Flag new_mem_mlc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
   Flag             demand_hit_writeback = FALSE;
   Flag             kicked_out =
     FALSE; /* did this request kick out another one in the queue */
+  Flag    ramulator_match = FALSE;
   Counter priority_offset = freq_cycle_count(FREQ_DOMAIN_L1);
   Counter new_priority;
 
@@ -3982,9 +4000,9 @@ static Flag new_mem_mlc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
 
   matching_req = mem_search_reqbuf(
     proc_id, addr, type, size, &demand_hit_prefetch, &demand_hit_writeback,
-    QUEUE_L1 | QUEUE_BUS_OUT | /*QUEUE_MEM |*/ QUEUE_L1FILL,
-    &queue_entry);  // CMP: QUEUE_L1FILL: this is a bug? Seems like no.
-                    // Doublecheck!!
+    QUEUE_L1 | QUEUE_BUS_OUT | /*QUEUE_MEM |*/ QUEUE_L1FILL, &queue_entry,
+    &ramulator_match);  // CMP: QUEUE_L1FILL: this is a bug? Seems like no.
+                        // Doublecheck!!
 
   /* Step 2: Found matching request. Adjust it based on the current request */
 
@@ -3998,7 +4016,8 @@ static Flag new_mem_mlc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
           op ? (int)op->op_num : -1, op ? op->off_path : FALSE);
     return (mem_adjust_matching_request(
       matching_req, type, addr, size, DEST_L1, delay, op, done_func, unique_num,
-      demand_hit_prefetch, demand_hit_writeback, &queue_entry, new_priority));
+      demand_hit_prefetch, demand_hit_writeback, &queue_entry, new_priority,
+      ramulator_match));
   }
 
   /* Step 2.5: Check if there is space in the L1 queue */
@@ -4058,6 +4077,7 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
   Flag             demand_hit_writeback = FALSE;
   Flag             kicked_out =
     FALSE; /* did this request kick out another one in the queue */
+  Flag    ramulator_match = FALSE;
   Counter priority_offset = freq_cycle_count(FREQ_DOMAIN_L1);
   Counter new_priority;
   Flag    is_sent = FALSE;
@@ -4082,9 +4102,10 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
   // after integration with Ramulator, we should no longer be using the bus_out
   // queue
   ASSERT(proc_id, 0 == mem->bus_out_queue.entry_count);
-  matching_req = mem_search_reqbuf(
-    proc_id, addr, type, size, &demand_hit_prefetch, &demand_hit_writeback,
-    /*QUEUE_BUS_OUT | QUEUE_MEM |*/ QUEUE_L1FILL, &queue_entry);
+  matching_req = mem_search_reqbuf(proc_id, addr, type, size,
+                                   &demand_hit_prefetch, &demand_hit_writeback,
+                                   /*QUEUE_BUS_OUT | QUEUE_MEM |*/ QUEUE_L1FILL,
+                                   &queue_entry, &ramulator_match);
 
   /* Step 2: Found matching request. Adjust it based on the current request */
 
@@ -4099,7 +4120,7 @@ static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
     return (mem_adjust_matching_request(
       matching_req, type, addr, size, DEST_MEM, delay, op, done_func,
       unique_num, demand_hit_prefetch, demand_hit_writeback, &queue_entry,
-      new_priority));
+      new_priority, ramulator_match));
   }
 
   // TODO: obsolete now that we don't have a bus_out queue after Ramulator
