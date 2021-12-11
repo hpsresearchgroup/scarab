@@ -788,8 +788,7 @@ void node_retire() {
       if(op->exit) {
         retired_exit[op->proc_id] = TRUE;
         frontend_retire(op->proc_id, -1);
-      }
-      else if(retire_op) {
+      } else if(retire_op) {
         frontend_retire(op->proc_id, op->inst_uid);
       }
     }

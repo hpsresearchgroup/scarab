@@ -362,8 +362,8 @@ void do_fe_null(bool& have_consumed_op) {
         // so we update uid_ctr here to prep. for next instruction
         uid_ctr++;
       }
-    } else if (pending_magic_inst == SCARAB_END){
-      cop->exit = 1; 
+    } else if(pending_magic_inst == SCARAB_END) {
+      cop->exit = 1;
       insert_scarab_op_in_buffer(*cop);
       compressed_op sentinel_cop = create_sentinel();
       insert_scarab_op_in_buffer(sentinel_cop);
