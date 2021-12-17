@@ -69,8 +69,8 @@ void stats_callback(int coreid, int type);
 deque<pair<long, Mem_Req*>> resp_queue;  // completed read request that need to
                                          // send back to Scarab
 
-// map<long, list<Mem_Req*>> inflight_read_reqs;
-map<long, Mem_Req*> inflight_read_reqs;
+map<long, list<Mem_Req*>> inflight_read_reqs;
+// map<long, Mem_Req*> inflight_read_reqs;
 
 void ramulator_init() {
   ASSERTM(0, ICACHE_LINE_SIZE == DCACHE_LINE_SIZE,
@@ -183,10 +183,9 @@ int ramulator_send(Mem_Req* scarab_req) {
     DEBUG(scarab_req->proc_id,
           "Ramulator: Duplicate (%s) request to address %llx\n",
           Mem_Req_Type_str(scarab_req->type), scarab_req->addr);
-    // ASSERT if duplicate request found in ramulator queue.
-    // Is handled in memory.c while creating new requests
-    ASSERT(0, FALSE);
-    /*
+    // Can have duplicate Ifetch and Dfetch requests, but only one of each
+    ASSERT(0, it_scarab_req->second.size() <= 1);
+
     if(req.type == Request::Type::READ)
       inflight_read_reqs[req.addr].push_back(
         scarab_req);  // save it as an inflight request so later it will be
@@ -194,7 +193,6 @@ int ramulator_send(Mem_Req* scarab_req) {
                       // request
     scarab_req->mem_queue_cycle = cycle_count;
     return true;  // a request to the same address is already issued
-    */
   }
 
   bool is_sent = wrapper->send(req);
@@ -206,8 +204,8 @@ int ramulator_send(Mem_Req* scarab_req) {
       ASSERTM(0, inflight_read_reqs.find(req.addr) == inflight_read_reqs.end(),
               "ERROR: A read request to the same address shouldn't be sent "
               "multiple times to Ramulator\n");
-      inflight_read_reqs[req.addr] = scarab_req;
-      // inflight_read_reqs[req.addr].push_back(scarab_req);
+      // inflight_read_reqs[req.addr] = scarab_req;
+      inflight_read_reqs[req.addr].push_back(scarab_req);
       STAT_EVENT(scarab_req->proc_id, POWER_MEMORY_CTRL_READ);
     } else if(req.type == Request::Type::WRITE) {
       STAT_EVENT(scarab_req->proc_id, POWER_MEMORY_CTRL_WRITE);
@@ -236,9 +234,10 @@ void enqueue_response(Request& req) {
           req.addr);
 
   auto it_scarab_req = inflight_read_reqs.find(req.addr);
-  // for(auto req : it_scarab_req->second)
-  //  resp_queue.push_back(req);
-  resp_queue.push_back(make_pair(it_scarab_req->first, it_scarab_req->second));
+  for(auto req : it_scarab_req->second)
+    resp_queue.push_back(make_pair(it_scarab_req->first, req));
+  // resp_queue.push_back(make_pair(it_scarab_req->first,
+  // it_scarab_req->second));
   inflight_read_reqs.erase(it_scarab_req);
 }
 
@@ -330,13 +329,30 @@ Mem_Req* ramulator_search_queue(long phys_addr, Mem_Req_Type type) {
   auto it_req = inflight_read_reqs.find(phys_addr);
 
   // Search request queue
-  if(it_req != inflight_read_reqs.end())
-    return it_req->second;
+  if(it_req != inflight_read_reqs.end()) {
+    for(auto req : it_req->second) {
+      if((req->type == MRT_IFETCH || req->type == MRT_IPRF) &&
+         (type == MRT_IFETCH || type == MRT_IPRF))
+        return req;
+      else if((req->type == MRT_DFETCH || req->type == MRT_DPRF ||
+               req->type == MRT_DSTORE) &&
+              (type == MRT_DFETCH || type == MRT_DPRF || type == MRT_DSTORE))
+        return req;
+    }
+  }
 
   // Search response queue
   for(auto resp : resp_queue) {
-    if(resp.first == phys_addr)
-      return resp.second;
+    if(resp.first == phys_addr) {
+      if((resp.second->type == MRT_IFETCH || resp.second->type == MRT_IPRF) &&
+         (type == MRT_IFETCH || type == MRT_IPRF))
+        return resp.second;
+      else if((resp.second->type == MRT_DFETCH ||
+               resp.second->type == MRT_DPRF ||
+               resp.second->type == MRT_DSTORE) &&
+              (type == MRT_DFETCH || type == MRT_DPRF || type == MRT_DSTORE))
+        return resp.second;
+    }
   }
 
   return NULL;
