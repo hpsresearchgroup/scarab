@@ -1633,9 +1633,9 @@ void init_pin_opcode_convert(void) {
   iclass_to_scarab_map[XED_ICLASS_VPERMQ]     = {OP_MOV, 8, -1,
                                              NONE};  // TODO: Move or shift?
   iclass_to_scarab_map[XED_ICLASS_VPERMILPS]  = {OP_MOV, 8, -1,
-                                             NONE};  // TODO: Move or shift?
+                                                NONE};  // TODO: Move or shift?
   iclass_to_scarab_map[XED_ICLASS_VPERMILPD]  = {OP_MOV, 4, -1,
-                                             NONE};  // TODO: Move or shift?
+                                                NONE};  // TODO: Move or shift?
   iclass_to_scarab_map[XED_ICLASS_VPERMT2B]  = {OP_PIPELINED_FAST, 1, -1, NONE};
   iclass_to_scarab_map[XED_ICLASS_VPERMT2D]  = {OP_PIPELINED_FAST, 4, -1, NONE};
   iclass_to_scarab_map[XED_ICLASS_VPERMT2PD] = {OP_PIPELINED_FAST, 8, -1, NONE};
