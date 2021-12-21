@@ -259,5 +259,7 @@ class Address_Tracker {
   std::unordered_map<ADDRINT, bool> tracked_addresses;
 };
 
+enum Magic_Inst_Type { NOT_MAGIC = 0, SCARAB_START = 1, SCARAB_END = 2 };
+
 
 #endif  // PIN_EXEC_UTILS_H__

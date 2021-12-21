@@ -297,6 +297,21 @@ void dumpMemory(FILE* out, UINT pid) {
   endChild(out);
 }
 
+bool is_pin_library(const std::string& path) {
+  auto pin_root = std::string(std::getenv("PIN_ROOT"));
+
+  if(path.find(pin_root) != std::string::npos) {
+    return true;
+
+  } else {
+    auto create_checkpoint = std::string("create_checkpoint.so");
+    if(path.find(create_checkpoint) != std::string::npos)
+      return true;
+    else
+      return false;
+  }
+}
+
 void processMapsLine(FILE* out, const std::string& line) {
   std::stringstream ss(line);
   // maps format ([xy] means either x or y, numbers except inode are in hex,
@@ -347,6 +362,12 @@ void processMapsLine(FILE* out, const std::string& line) {
   std::cout << "Pin query base addr: " << memory_info.BaseAddress
             << ", page size: " << memory_info.MapSize << std::endl;
 
+  if(is_pin_library(path)) {
+    std::cout << "Skipping the page because it corresponds to a PIN library"
+              << std::endl;
+    return;
+  }
+
   if(dumpMemoryData(
        (KnobOutputDir.Value() + "/" + dataIdSS.str() + ".dat").c_str(),
        (UINT8*)addr1, (UINT8*)addr2)) {
@@ -380,7 +401,7 @@ void processMapsLine(FILE* out, const std::string& line) {
 int dumpMemoryData(const char* path, UINT8* start, UINT8* end) {
   //    FILE * out = fopen(path, "w");
   std::stringstream bzip_cmd;
-  bzip_cmd << "/usr/bin/bzip2 > " << path;
+  bzip_cmd << "bzip2 > " << path;
   FILE* out = popen(bzip_cmd.str().c_str(), "w");
 
   const UINT64 BUF_SIZE = 4096;
