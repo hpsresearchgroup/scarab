@@ -1,4 +1,4 @@
-CMAKE = $(shell if which cmake3 ; then echo "cmake"; else echo "cmake"; fi)
+CMAKE = $(shell which cmake3 || which cmake)
 GITREV = $(shell git rev-parse --short HEAD)
 SRCPWD = $(shell pwd)
 

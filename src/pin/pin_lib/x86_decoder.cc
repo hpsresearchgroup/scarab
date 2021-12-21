@@ -1632,6 +1632,10 @@ void init_pin_opcode_convert(void) {
                                              NONE};  // TODO: Move or shift?
   iclass_to_scarab_map[XED_ICLASS_VPERMQ]     = {OP_MOV, 8, -1,
                                              NONE};  // TODO: Move or shift?
+  iclass_to_scarab_map[XED_ICLASS_VPERMILPS]  = {OP_MOV, 8, -1,
+                                                NONE};  // TODO: Move or shift?
+  iclass_to_scarab_map[XED_ICLASS_VPERMILPD]  = {OP_MOV, 4, -1,
+                                                NONE};  // TODO: Move or shift?
   iclass_to_scarab_map[XED_ICLASS_VPERMT2B]  = {OP_PIPELINED_FAST, 1, -1, NONE};
   iclass_to_scarab_map[XED_ICLASS_VPERMT2D]  = {OP_PIPELINED_FAST, 4, -1, NONE};
   iclass_to_scarab_map[XED_ICLASS_VPERMT2PD] = {OP_PIPELINED_FAST, 8, -1, NONE};
@@ -1845,6 +1849,7 @@ void init_pin_opcode_convert(void) {
   iclass_to_scarab_map[XED_ICLASS_VSCATTERQPS]    = {OP_SCATTER, 8, -1, NONE};
   iclass_to_scarab_map[XED_ICLASS_VSHUFPD]        = {OP_MOV, 8, -1, NONE};
   iclass_to_scarab_map[XED_ICLASS_VSHUFPS]        = {OP_MOV, 4, -1, NONE};
+  iclass_to_scarab_map[XED_ICLASS_VSHUFI32X4]     = {OP_MOV, 2, -1, NONE};
   iclass_to_scarab_map[XED_ICLASS_VSQRTPD]        = {OP_FDIV, 8, -1, NONE};
   iclass_to_scarab_map[XED_ICLASS_VSQRTPS]        = {OP_FDIV, 4, -1, NONE};
   iclass_to_scarab_map[XED_ICLASS_VSQRTSD]        = {OP_FDIV, 8, 1, NONE};

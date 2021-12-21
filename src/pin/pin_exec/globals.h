@@ -60,6 +60,7 @@ extern bool                      op_mailbox_full;
 extern bool                      pending_fetch_op;
 extern bool                      pending_syscall;
 extern bool                      pending_exception;
+extern ADDRINT                   pending_magic_inst;
 extern bool                      on_wrongpath;
 extern bool                      on_wrongpath_nop_mode;
 extern Wrongpath_Nop_Mode_Reason wrongpath_nop_mode_reason;

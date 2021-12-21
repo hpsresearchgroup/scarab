@@ -132,12 +132,13 @@ class Pin:
     return self.cmd
 
   def __get_pin_checkpoint_command(self):
-    self.cmd = "{checkpoint_loader} {checkpoint_path} {socket} {core_id} {pin_tool}".format(
+    self.cmd = '{checkpoint_loader} {checkpoint_path} {socket} {core_id} {pin_tool} -pintool_args="{pintool_args}"'.format(
         checkpoint_loader=args.checkpoint_loader,
         checkpoint_path=self.program_path,
         socket=self.socket_path,
         core_id=self.core_id,
-        pin_tool=args.frontend_pin_tool
+        pin_tool=args.frontend_pin_tool,
+        pintool_args=args.pintool_args,
       )
 
     print("\nCore {core_id} is running checkpoint: {checkpoint_path}".format(

@@ -144,7 +144,7 @@ int main(int argc, char* argv[]) {
 
   if(!Knob_output.Value().empty()) {
     char popename[1024];
-    sprintf(popename, "/usr/bin/bzip2 > %s", Knob_output.Value().c_str());
+    sprintf(popename, "bzip2 > %s", Knob_output.Value().c_str());
     output_stream = popen(popename, "w");
   } else {
     cout << "No trace specified. Only verifying opcodes." << endl;

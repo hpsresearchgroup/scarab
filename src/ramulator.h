@@ -30,6 +30,7 @@
 #define __RAMULATOR_H__
 
 #include "globals/global_types.h"
+#include "memory/memory.h"
 
 #ifdef __cplusplus
 #define EXTERNC extern "C"
@@ -48,6 +49,7 @@ EXTERNC int ramulator_get_chip_size();
 EXTERNC int ramulator_get_num_chips();
 EXTERNC int ramulator_get_chip_row_buffer_size();
 
+EXTERNC Mem_Req* ramulator_search_queue(long phys_addr, Mem_Req_Type type);
 #undef EXTERNC
 
 #endif  // __RAMULATOR_H__
