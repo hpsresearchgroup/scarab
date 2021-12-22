@@ -65,9 +65,9 @@ typedef void (*Search_Func)(void);
 /* Global variables */
 
 Proc_Info* proc_infos;
-Trigger*   l1_part_start;    // indicates the L1 partition has been enabled
-Trigger*   l1_part_trigger;  // external trigger for trigger repart (should not be
-                             // set too often)
+Trigger*   l1_part_start;  // indicates the L1 partition has been enabled
+Trigger* l1_part_trigger;  // external trigger for trigger repart (should not be
+                           // set too often)
 Stat_Mon*   stat_mon;
 Metric_Func metric_func;
 Search_Func search_func;
