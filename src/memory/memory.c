@@ -389,6 +389,10 @@ void init_memory() {
   init_perf_pred();
 }
 
+/**
+ * @brief this function should only be called once in warmup mode
+ *
+ */
 void init_uncores(void) {
   mem->uncores = (Uncore*)malloc(sizeof(Uncore) * NUM_CORES);
 
@@ -407,7 +411,7 @@ void init_uncores(void) {
     MLC(proc_id) = mlc;
   }
 
-  /* Initialize L2 cache */
+  /* Initialize LLC */
   if(PRIVATE_L1) {
     ASSERTM(
       0, L1_SIZE % NUM_CORES == 0,
@@ -432,7 +436,7 @@ void init_uncores(void) {
       }
       L1(proc_id) = l1;
     }
-  } else {  // shared L2
+  } else {
     Ported_Cache* l1 = (Ported_Cache*)malloc(sizeof(Ported_Cache));
     init_cache(&l1->cache, "L1_CACHE", L1_SIZE, L1_ASSOC, L1_LINE_SIZE,
                sizeof(L1_Data), L1_CACHE_REPL_POLICY);
@@ -446,9 +450,6 @@ void init_uncores(void) {
     for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
       L1(proc_id) = l1;
     }
-    if(L1_CACHE_REPL_POLICY == REPL_PARTITION && !L1_PART_WARMUP) {
-      l1->cache.repl_policy = REPL_TRUE_LRU;
-    }
   }
 
   if(L1_CACHE_REPL_POLICY == REPL_PARTITION) {
@@ -457,6 +458,8 @@ void init_uncores(void) {
     for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
       set_partition_allocate(&L1(proc_id)->cache, proc_id, num_ways);
     }
+
+    // set static partition (if used)
     if(L1_STATIC_PARTITION_ENABLE) {
       ASSERT(0, !L1_DYNAMIC_PARTITION_ENABLE);
       ASSERTM(0, L1_STATIC_PARTITION, "Please specify L1_STATIC_PARTITION\n");
@@ -470,6 +473,7 @@ void init_uncores(void) {
       }
     }
 
+    // set dynamic partition (if used)
     if(L1_DYNAMIC_PARTITION_ENABLE && L1_DYNAMIC_PARTITION_POLICY == UMON_DSS) {
       mem->umon_cache_core = (Cache*)malloc(sizeof(Cache) * NUM_CORES);
       mem->umon_cache_hit_count_core = (double**)malloc(sizeof(double*) *
@@ -808,6 +812,10 @@ int cycle_mlcq_insert_count    = 0;
 int cycle_busoutq_insert_count = 0;
 int l1_in_buf_count            = 0;
 
+/**
+ * @brief Not sure what this func is doing
+ *
+ */
 void update_memory_queues() {
   // here!!! mix the requests
   if(ROUND_ROBIN_TO_L1 && l1_in_buf_count > 0) {
@@ -856,6 +864,13 @@ void update_on_chip_memory_stats() {
   }
 }
 
+/**
+ * @brief simulate the memory system for one cycle
+ * functions are called in reverse order, that's fill queues (req going back to
+ * cpu), first, then ramulator (DRAM), then request queues (reg going down to
+ * mem)
+ *
+ */
 void update_memory() {
   if(freq_is_ready(FREQ_DOMAIN_L1)) {
     cycle_count = freq_cycle_count(FREQ_DOMAIN_L1);
@@ -2411,9 +2426,10 @@ static void remove_from_l1_fill_queue(uns  proc_id,
   *p_l1fill_queue_removal_count = 0;
 }
 
-/**************************************************************************************/
-/* mem_process_l1_fill_reqs: */
-
+/**
+ * @brief
+ *
+ */
 static void mem_process_l1_fill_reqs() {
   Mem_Req* req = NULL;
   int      ii;
@@ -4228,9 +4244,13 @@ void op_nuke_mem_req(Op* op) {
   // FIXME: why is this here?
 }
 
-/**************************************************************************************/
-/* l1_fill_line: */
 
+/**
+ * @brief
+ *
+ * @param req
+ * @return Flag 1 on successful fill
+ */
 Flag l1_fill_line(Mem_Req* req) {
   L1_Data* data;
   Addr     line_addr, repl_line_addr = 0;

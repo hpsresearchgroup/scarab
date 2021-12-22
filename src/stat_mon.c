@@ -117,6 +117,11 @@ double stat_mon_get_value(Stat_Mon* mon, uns proc_id, uns stat_idx) {
 /**************************************************************************************/
 /* stat_mon_get_reset: */
 
+/**
+ * @brief
+ * TODO: check how stat->count and stat->value is reset
+ * @param mon
+ */
 void stat_mon_reset(Stat_Mon* mon) {
   for(uns i = 0; i < mon->num_stats; i++) {
     Stat_Info* info = &mon->stat_infos[i];
