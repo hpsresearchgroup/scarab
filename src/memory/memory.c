@@ -391,7 +391,7 @@ void init_memory() {
 
 /**
  * @brief this function should only be called once in warmup mode
- * 
+ *
  */
 void init_uncores(void) {
   mem->uncores = (Uncore*)malloc(sizeof(Uncore) * NUM_CORES);
@@ -436,7 +436,7 @@ void init_uncores(void) {
       }
       L1(proc_id) = l1;
     }
-  } else {  
+  } else {
     Ported_Cache* l1 = (Ported_Cache*)malloc(sizeof(Ported_Cache));
     init_cache(&l1->cache, "L1_CACHE", L1_SIZE, L1_ASSOC, L1_LINE_SIZE,
                sizeof(L1_Data), L1_CACHE_REPL_POLICY);
@@ -459,7 +459,7 @@ void init_uncores(void) {
       set_partition_allocate(&L1(proc_id)->cache, proc_id, num_ways);
     }
 
-    //set static partition (if used)
+    // set static partition (if used)
     if(L1_STATIC_PARTITION_ENABLE) {
       ASSERT(0, !L1_DYNAMIC_PARTITION_ENABLE);
       ASSERTM(0, L1_STATIC_PARTITION, "Please specify L1_STATIC_PARTITION\n");
@@ -473,7 +473,7 @@ void init_uncores(void) {
       }
     }
 
-    //set dynamic partition (if used)
+    // set dynamic partition (if used)
     if(L1_DYNAMIC_PARTITION_ENABLE && L1_DYNAMIC_PARTITION_POLICY == UMON_DSS) {
       mem->umon_cache_core = (Cache*)malloc(sizeof(Cache) * NUM_CORES);
       mem->umon_cache_hit_count_core = (double**)malloc(sizeof(double*) *
@@ -813,8 +813,8 @@ int cycle_busoutq_insert_count = 0;
 int l1_in_buf_count            = 0;
 
 /**
- * @brief Not sure what this func is doing 
- * 
+ * @brief Not sure what this func is doing
+ *
  */
 void update_memory_queues() {
   // here!!! mix the requests
@@ -866,9 +866,10 @@ void update_on_chip_memory_stats() {
 
 /**
  * @brief simulate the memory system for one cycle
- * functions are called in reverse order, that's fill queues (req going back to cpu), 
- * first, then ramulator (DRAM), then request queues (reg going down to mem)
- * 
+ * functions are called in reverse order, that's fill queues (req going back to
+ * cpu), first, then ramulator (DRAM), then request queues (reg going down to
+ * mem)
+ *
  */
 void update_memory() {
   if(freq_is_ready(FREQ_DOMAIN_L1)) {
@@ -1481,7 +1482,8 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
   Flag     update_l1_lru = TRUE;
 
   if(L1_CACHE_HIT_POSITION_COLLECT ||
-     (L1_DYNAMIC_PARTITION_ENABLE && L1_DYNAMIC_PARTITION_POLICY == MARGINAL_UTIL)) {
+     (L1_DYNAMIC_PARTITION_ENABLE &&
+      L1_DYNAMIC_PARTITION_POLICY == MARGINAL_UTIL)) {
     if((req->type == MRT_DFETCH) || (req->type == MRT_DSTORE) ||
        (req->type == MRT_IFETCH)) {
       lru_position = cache_find_pos_in_lru_stack(
@@ -2425,8 +2427,8 @@ static void remove_from_l1_fill_queue(uns  proc_id,
 }
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 static void mem_process_l1_fill_reqs() {
   Mem_Req* req = NULL;
@@ -4244,10 +4246,10 @@ void op_nuke_mem_req(Op* op) {
 
 
 /**
- * @brief 
- * 
- * @param req 
- * @return Flag 1 on successful fill 
+ * @brief
+ *
+ * @param req
+ * @return Flag 1 on successful fill
  */
 Flag l1_fill_line(Mem_Req* req) {
   L1_Data* data;
