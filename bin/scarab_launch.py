@@ -34,6 +34,7 @@ from scarab_globals import *
 parser = argparse.ArgumentParser(description="Launch Scarab")
 parser.add_argument('--program', default=None, action='append', help="Command line for the program to be simulated.")
 parser.add_argument('--checkpoint', default=None, action='append', help="Path to the checkpoint to be simulated.")
+parser.add_argument('--trace', default=None, action='append', help="Path to the program trace to be simulated.")
 parser.add_argument('--params', default=None, help="Path to PARAMS file. Will copy to currect directory and name PARAMS.in")
 
 parser.add_argument('--scarab_args', default="", help="Arguments to pass to scarab directly.")
@@ -54,10 +55,26 @@ parser.add_argument('--checkpoint_loader', default=scarab_paths.checkpoint_loade
 parser.add_argument('--frontend', default="exec", choices=["exec", "trace"], help="Selects between the Trace fronend and the Exec-driven frontend.")
 
 args = parser.parse_args()
-if (not args.program) and (not args.checkpoint):
-  print("Usage: At least one program (--program) or checkpoint (--checkpoint) must be specified")
-  progress.notify("Scarab run terminated, cleaning up...")
-  sys.exit(-1)
+
+def determine_frontend():
+  trace_mode = args.trace
+  exec_driven_mode = args.program or args.checkpoint
+  
+  if not trace_mode and not exec_driven_mode:
+    print("Usage: At least one program (--program) or checkpoint (--checkpoint) or trace (--trace) must be specified")
+    progress.notify("Scarab run terminated, cleaning up...")
+    sys.exit(-1)
+  
+  elif trace_mode and exec_driven_mode:
+    print("Usage: Cannot use exec_driven mode (--program or --checkpoint) along with trace mode (--trace)")
+    progress.notify("Scarab run terminated, cleaning up...")
+    sys.exit(-1)
+  
+  elif trace_mode:
+    return 'trace'
+  
+  else:
+    return 'exec_driven'
 
 def get_num_cores():
   cores = 0
@@ -79,8 +96,15 @@ class Scarab:
   """
   Setup the Scarab process from command line args and launch it.
   """
-  def __init__(self, socket_path):
-    self.socket_path = os.path.abspath(socket_path)
+  def __init__(self, frontend, *, trace_list=None, socket_path=None):
+    assert frontend in ['trace', 'exec_driven']
+    self.frontend = frontend
+    if frontend == 'trace':
+      assert trace_list is not None
+      self.trace_list = [os.path.abspath(trace) for trace in trace_list]
+    if frontend == 'exec_driven':
+      assert socket_path is not None
+      self.socket_path = os.path.abspath(socket_path)
 
   def __copy_params_file_to_simdir(self):
     if args.params:
@@ -89,10 +113,18 @@ class Scarab:
       scarab_utils.warn("Using existing PARAMS.in file in current directory!")
 
   def __get_scarab_command(self):
-    self.cmd = "{scarab} --num_cores {num_cores} --pin_exec_driven_fe_socket {socket_path} --bindir {bin_dir} {additional_args}".format(
+    if self.frontend == 'trace':
+      frontend_specific_args = f'--fetch_off_path_ops 0 --frontend trace'
+      for i, trace in enumerate(self.trace_list):
+        frontend_specific_args += f' --cbp_trace_r{i} {trace}'
+    
+    elif self.frontend == 'exec_driven':
+      frontend_specific_args = f'--frontend pin_exec_driven --pin_exec_driven_fe_socket {self.socket_path}'
+
+    self.cmd = "{scarab} --num_cores {num_cores} {frontend_args} --bindir {bin_dir} {additional_args}".format(
       scarab=args.scarab,
       num_cores=get_num_cores(),
-      socket_path=self.socket_path,
+      frontend_args=frontend_specific_args,
       bin_dir=scarab_paths.bin_dir,
       additional_args=args.scarab_args
     )
@@ -197,21 +229,28 @@ def launch_checkpoints(proc_list, core, socket_path):
   return core
 
 def main():
-  core = 0
+  frontend = determine_frontend()
+  assert frontend in ['trace', 'exec_driven']
+
   proc_list = command.CommandTracker()
-  socket_path = scarab_utils.get_temp_socket_path()
 
   if args.checkpoint:
     make_checkpoint_loader()
 
   return_code = 0
   try:
-    proc_list.push(Scarab(socket_path).launch())
+    if frontend == 'exec_driven':
+      socket_path = scarab_utils.get_temp_socket_path()
+      proc_list.push(Scarab(frontend, socket_path=socket_path).launch())
+    elif frontend == 'trace':
+      proc_list.push(Scarab(frontend, trace_list=args.trace).launch())
 
-    time.sleep(1)
 
-    core = launch_programs(proc_list, core, socket_path)
-    core = launch_checkpoints(proc_list, core, socket_path)
+    if frontend == 'exec_driven':
+      time.sleep(1)
+      core = 0
+      core = launch_programs(proc_list, core, socket_path)
+      core = launch_checkpoints(proc_list, core, socket_path)
 
     return_code = proc_list.wait_on_processes()
 
