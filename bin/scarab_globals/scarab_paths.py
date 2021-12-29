@@ -53,6 +53,8 @@ src_dir                 = sim_dir + "/src"
 scarab_bin              = src_dir + "/scarab"
 pin_exec_dir            = src_dir + "/pin/pin_exec"
 pin_bin                 = pin_exec_dir   + "/obj-intel64/pin_exec.so"
+pin_trace_dir           = src_dir + "/pin/pin_trace"
+pin_trace               = pin_trace_dir  + "/obj-intel64/gen_trace.so"
 
 checkpoint_creator_dir  = utils_dir + "/checkpoint/creator"
 checkpoint_loader_dir   = utils_dir + "/checkpoint/loader"

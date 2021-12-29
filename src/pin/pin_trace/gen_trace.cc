@@ -59,8 +59,13 @@ END_LEGAL */
 #include <stdio.h>
 #include <string>
 
+#include "control_manager.H"
+#include "instlib.H"
 #include "pin.H"
 #include "pinplay.H"
+
+using namespace INSTLIB;
+using namespace CONTROLLER;
 
 #undef UNUSED   // there is a name conflict between PIN and Scarab
 #undef WARNING  // there is a name conflict between PIN and Scarab
@@ -91,17 +96,41 @@ KNOB<BOOL> KnobPinPlayReplayer(KNOB_MODE_WRITEONCE, "pintool", "replay", "0",
 KNOB<string> Knob_output(KNOB_MODE_WRITEONCE, "pintool", "o", "trace.bz2",
                          "trace outputfilename");
 
+// Trace start and end options
+KNOB<UINT64> KnobStartRip(
+  KNOB_MODE_WRITEONCE, "pintool", "start_rip", "0",
+  "If non-zero, redirect RIP to this address after attaching the pintool");
+KNOB<UINT64> KnobTraceLen(
+  KNOB_MODE_WRITEONCE, "pintool", "trace_len", "200000000",
+  "Maximum number of instructions in the generated trace");
+KNOB<UINT64> KnobFastForward(
+  KNOB_MODE_WRITEONCE, "pintool", "fast_forward", "0",
+  "Number of instructions to fast-forward before generating the trace");
+
 /*** globals ***/
 FILE* output_stream;
 
 ctype_pin_inst mailbox;
 bool           mailbox_full = false;
 
+bool    need_to_change_rip        = false;
+bool    skip_dumping_instructions = false;
+int64_t fast_forward_insts_left   = 0;
+int64_t trace_insts_left          = 0;
+
 /*** function definitions ***/
 INT32 Usage() {
   std::cerr << "This pin tool creates a trace that Scarab Trace frontend\n";
   std::cerr << KNOB_BASE::StringKnobSummary() << endl;
   return -1;
+}
+
+void change_rip(CONTEXT* ctx) {
+  std::cout << "Changing RIP to " << std::hex << KnobStartRip.Value() << "\n";
+  need_to_change_rip = false;
+  PIN_SetContextReg(ctx, REG_INST_PTR, KnobStartRip.Value());
+  PIN_RemoveInstrumentation();
+  PIN_ExecuteAt(ctx);
 }
 
 LOCALFUN VOID Fini(int n, void* v) {
@@ -114,7 +143,38 @@ LOCALFUN VOID Fini(int n, void* v) {
   }
 }
 
+void fast_forward_trace(UINT32 trace_size) {
+  fast_forward_insts_left -= trace_size;
+  if(fast_forward_insts_left < 500) {
+    std::cout << "Fast-forward almost done, switching to per instruction "
+                 "fast-forward.\n";
+    PIN_RemoveInstrumentation();
+  }
+}
+
+void fast_forward_ins() {
+  if(fast_forward_insts_left > 0) {
+    fast_forward_insts_left -= 1;
+    skip_dumping_instructions = true;
+  } else if(skip_dumping_instructions) {
+    std::cout << "Fast-forward finished, starting tracing\n";
+    skip_dumping_instructions = false;
+  }
+}
+
+void check_end_of_trace() {
+  if(trace_insts_left <= 0) {
+    std::cout << "Reaching trace length limit, terminating early.\n";
+    PIN_ExitApplication(0);
+  }
+
+  trace_insts_left -= 1;
+}
+
 void dump_instruction() {
+  if(skip_dumping_instructions)
+    return;
+
   ctype_pin_inst* info = pin_decoder_get_latest_inst();
   if(mailbox_full) {
     mailbox.instruction_next_addr = info->instruction_addr;
@@ -124,14 +184,33 @@ void dump_instruction() {
   mailbox_full = true;
 }
 
-void insert_instrumentation(TRACE trace, void* v) {
+template <typename Func>
+void for_ins_in_trace(const TRACE& trace, Func f) {
   for(BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
     for(INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
+      f(ins);
+    }
+  }
+}
+
+void insert_instrumentation(TRACE trace, void* v) {
+  if(need_to_change_rip) {
+    for_ins_in_trace(trace, [](const INS& ins) {
+      INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)change_rip, IARG_CONTEXT,
+                     IARG_END);
+    });
+  } else if(fast_forward_insts_left > 500) {
+    TRACE_InsertCall(trace, IPOINT_BEFORE, (AFUNPTR)fast_forward_trace,
+                     IARG_UINT32, TRACE_NumIns(trace), IARG_END);
+  } else {
+    for_ins_in_trace(trace, [](const INS& ins) {
+      INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)fast_forward_ins, IARG_END);
+      INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)check_end_of_trace, IARG_END);
       pin_decoder_insert_analysis_functions(ins);
       if(output_stream) {
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)dump_instruction, IARG_END);
       }
-    }
+    });
   }
 }
 
@@ -150,10 +229,15 @@ int main(int argc, char* argv[]) {
     cout << "No trace specified. Only verifying opcodes." << endl;
   }
 
+  need_to_change_rip      = (KnobStartRip.Value() != 0);
+  trace_insts_left        = KnobTraceLen.Value();
+  fast_forward_insts_left = KnobFastForward.Value();
+
   pin_decoder_init(true, &std::cerr);
 
   TRACE_AddInstrumentFunction(insert_instrumentation, 0);
   PIN_AddFiniFunction(Fini, 0);
+
   PIN_StartProgram();
 
   return 0;
