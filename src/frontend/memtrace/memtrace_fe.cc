@@ -39,9 +39,9 @@
 #include "ctype_pin_inst.h"
 #include "frontend/memtrace/memtrace_fe.h"
 #include "isa/isa.h"
-#include "statistics.h"
 #include "pin/pin_lib/uop_generator.h"
 #include "pin/pin_lib/x86_decoder.h"
+#include "statistics.h"
 
 #define DR_DO_NOT_DEFINE_int64
 
@@ -56,63 +56,66 @@
 /**************************************************************************************/
 /* Global Variables */
 
-char* trace_files[MAX_NUM_PROCS];
-TraceReader *trace_readers[MAX_NUM_PROCS];
+char*           trace_files[MAX_NUM_PROCS];
+TraceReader*    trace_readers[MAX_NUM_PROCS];
 ctype_pin_inst* next_pi;
-uint64_t ins_id = 0;
-uint64_t prior_tid = 0;
-uint64_t prior_pid = 0;
+uint64_t        ins_id    = 0;
+uint64_t        prior_tid = 0;
+uint64_t        prior_pid = 0;
 
 /**************************************************************************************/
 /* Private Functions */
 
-void fill_in_dynamic_info(ctype_pin_inst* info, const InstInfo *insi) {
-    uint8_t ld = 0;
-    uint8_t st = 0;
+void fill_in_dynamic_info(ctype_pin_inst* info, const InstInfo* insi) {
+  uint8_t ld = 0;
+  uint8_t st = 0;
 
-    // Note: should be overwritten for a taken control flow instruction
-    info->instruction_addr = insi->pc;
-    info->instruction_next_addr = insi->target;
-    info->actually_taken = insi->taken;
-    info->branch_target = insi->target;
-    info->inst_uid = ins_id;
+  // Note: should be overwritten for a taken control flow instruction
+  info->instruction_addr      = insi->pc;
+  info->instruction_next_addr = insi->target;
+  info->actually_taken        = insi->taken;
+  info->branch_target         = insi->target;
+  info->inst_uid              = ins_id;
 
 #ifdef PRINT_INSTRUCTION_INFO
-    std::cout << std::hex << info->instruction_addr << " Next " << info->instruction_next_addr
-	      << " size " << (uint32_t)info->size << " taken " << (uint32_t)info->actually_taken
-	      << " target " << info->branch_target << " pid " << insi->pid << " tid " << insi->tid
-	      << " asm " << std::string(xed_iclass_enum_t2str(xed_decoded_inst_get_iclass(insi->ins)))
-	      << " uid " << std::dec << info->inst_uid << std::endl;
+  std::cout << std::hex << info->instruction_addr << " Next "
+            << info->instruction_next_addr << " size " << (uint32_t)info->size
+            << " taken " << (uint32_t)info->actually_taken << " target "
+            << info->branch_target << " pid " << insi->pid << " tid "
+            << insi->tid << " asm "
+            << std::string(
+                 xed_iclass_enum_t2str(xed_decoded_inst_get_iclass(insi->ins)))
+            << " uid " << std::dec << info->inst_uid << std::endl;
 #endif
 
-    if (xed_decoded_inst_get_iclass(insi->ins) == XED_ICLASS_RET_FAR ||
-	xed_decoded_inst_get_iclass(insi->ins) == XED_ICLASS_RET_NEAR)
-      info->actually_taken = 1;
+  if(xed_decoded_inst_get_iclass(insi->ins) == XED_ICLASS_RET_FAR ||
+     xed_decoded_inst_get_iclass(insi->ins) == XED_ICLASS_RET_NEAR)
+    info->actually_taken = 1;
 
-    for (uint8_t op = 0; op < xed_decoded_inst_number_of_memory_operands(insi->ins); op++) {
-	//predicated true ld/st are handled just as regular ld/st
-	if(xed_decoded_inst_mem_read(insi->ins, op) && !insi->mem_used[op]) {
-	    //Handle predicated stores specially?
-	    info->ld_vaddr[ld++] = insi->mem_addr[op];
-	}
-	else if(xed_decoded_inst_mem_read(insi->ins, op)) {
-	    info->ld_vaddr[ld++] = insi->mem_addr[op];
-	}
-	if(xed_decoded_inst_mem_written(insi->ins, op) && !insi->mem_used[op]) {
-	    //Handle predicated stores specially?
-	    info->st_vaddr[st++] = insi->mem_addr[op];
-	}
-	else if(xed_decoded_inst_mem_written(insi->ins, op)) {
-	    info->st_vaddr[st++] = insi->mem_addr[op];
-	}
+  for(uint8_t op = 0;
+      op < xed_decoded_inst_number_of_memory_operands(insi->ins); op++) {
+    // predicated true ld/st are handled just as regular ld/st
+    if(xed_decoded_inst_mem_read(insi->ins, op) && !insi->mem_used[op]) {
+      // Handle predicated stores specially?
+      info->ld_vaddr[ld++] = insi->mem_addr[op];
+    } else if(xed_decoded_inst_mem_read(insi->ins, op)) {
+      info->ld_vaddr[ld++] = insi->mem_addr[op];
     }
+    if(xed_decoded_inst_mem_written(insi->ins, op) && !insi->mem_used[op]) {
+      // Handle predicated stores specially?
+      info->st_vaddr[st++] = insi->mem_addr[op];
+    } else if(xed_decoded_inst_mem_written(insi->ins, op)) {
+      info->st_vaddr[st++] = insi->mem_addr[op];
+    }
+  }
 }
 
 int ffwd(const xed_decoded_inst_t* ins) {
-  if (!FAST_FORWARD) {
+  if(!FAST_FORWARD) {
     return 0;
   }
-  if(XED_INS_Opcode(ins) == XED_ICLASS_XCHG && XED_INS_OperandReg(ins, 0) == XED_REG_RCX &&
+  if(XED_INS_Opcode(ins) == XED_ICLASS_XCHG &&
+     XED_INS_OperandReg(ins, 0) == XED_REG_RCX &&
      XED_INS_OperandReg(ins, 1) == XED_REG_RCX) {
     return 0;
   }
@@ -123,7 +126,8 @@ int ffwd(const xed_decoded_inst_t* ins) {
 }
 
 int roi(const xed_decoded_inst_t* ins) {
-  if(XED_INS_Opcode(ins) == XED_ICLASS_XCHG && XED_INS_OperandReg(ins, 0) == XED_REG_RCX &&
+  if(XED_INS_Opcode(ins) == XED_ICLASS_XCHG &&
+     XED_INS_OperandReg(ins, 0) == XED_REG_RCX &&
      XED_INS_OperandReg(ins, 1) == XED_REG_RCX) {
     return 1;
   }
@@ -131,17 +135,17 @@ int roi(const xed_decoded_inst_t* ins) {
 }
 
 int memtrace_trace_read(int proc_id, ctype_pin_inst* next_pi) {
-  InstInfo *insi;
+  InstInfo* insi;
 
   do {
-     insi = const_cast<InstInfo *>(trace_readers[proc_id]->nextInstruction());
-     ins_id++;
-     if (!insi->valid) {
-       insi = const_cast<InstInfo *>(trace_readers[proc_id]->nextInstruction());
-       ins_id++;
-       return 0; //end of trace
-     }
-  } while (insi->pid != prior_pid || insi->tid != prior_tid);
+    insi = const_cast<InstInfo*>(trace_readers[proc_id]->nextInstruction());
+    ins_id++;
+    if(!insi->valid) {
+      insi = const_cast<InstInfo*>(trace_readers[proc_id]->nextInstruction());
+      ins_id++;
+      return 0;  // end of trace
+    }
+  } while(insi->pid != prior_pid || insi->tid != prior_tid);
 
   memset(next_pi, 0, sizeof(ctype_pin_inst));
   fill_in_dynamic_info(next_pi, insi);
@@ -152,8 +156,8 @@ int memtrace_trace_read(int proc_id, ctype_pin_inst* next_pi) {
   fill_in_cf_info(next_pi, insi->ins);
   print_err_if_invalid(next_pi, insi->ins);
 
-  //End of ROI
-  if (roi(insi->ins))
+  // End of ROI
+  if(roi(insi->ins))
     return 0;
 
   return 1;
@@ -211,17 +215,17 @@ void memtrace_setup(uns proc_id) {
 
   trace_readers[proc_id] = new TraceReaderMemtrace(trace, binaries, 1);
 
-  //FFWD
-  const InstInfo *insi = trace_readers[proc_id]->nextInstruction();
+  // FFWD
+  const InstInfo* insi = trace_readers[proc_id]->nextInstruction();
 
   if(FAST_FORWARD) {
     std::cout << "Enter fast forward " << ins_id << std::endl;
   }
 
-  while (!insi->valid || ffwd(insi->ins)) {
+  while(!insi->valid || ffwd(insi->ins)) {
     insi = trace_readers[proc_id]->nextInstruction();
     ins_id++;
-    if ((ins_id % 10000000) == 0)
+    if((ins_id % 10000000) == 0)
       std::cout << "Fast forwarded " << ins_id << " instructions." << std::endl;
   }
 
@@ -249,13 +253,13 @@ Addr memtrace_next_fetch_addr(uns proc_id) {
 void memtrace_done() {
   uns proc_id;
   for(proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    //delete trace_readers[proc_id];
+    // delete trace_readers[proc_id];
   }
   printf("done\n");
 }
 
 void memtrace_close_trace_file(uns proc_id) {
-  //delete trace_readers[proc_id];
+  // delete trace_readers[proc_id];
   printf("close\n");
 }
 
@@ -266,15 +270,15 @@ Flag memtrace_can_fetch_op(uns proc_id) {
 
 void memtrace_fetch_op(uns proc_id, Op* op) {
   if(uop_generator_get_bom(proc_id)) {
-    //ASSERT(proc_id, !trace_read_done[proc_id] && !reached_exit[proc_id]);
+    // ASSERT(proc_id, !trace_read_done[proc_id] && !reached_exit[proc_id]);
     uop_generator_get_uop(proc_id, op, &next_pi[proc_id]);
   } else {
     uop_generator_get_uop(proc_id, op, NULL);
   }
 
   if(uop_generator_get_eom(proc_id)) {
-    int success = memtrace_trace_read(proc_id, &next_pi[proc_id]);
-    static int ins = 0;
+    int        success = memtrace_trace_read(proc_id, &next_pi[proc_id]);
+    static int ins     = 0;
     ins++;
     if(!success) {
       trace_read_done[proc_id] = TRUE;
@@ -286,13 +290,15 @@ void memtrace_fetch_op(uns proc_id, Op* op) {
 
 void memtrace_redirect(uns proc_id, uns64 inst_uid, Addr fetch_addr) {
   assert(0);
-  //FATAL_ERROR(proc_id, "Trace frontend does not support wrong path. Turn off "
+  // FATAL_ERROR(proc_id, "Trace frontend does not support wrong path. Turn off
+  // "
   //                     "FETCH_OFF_PATH_OPS\n");
 }
 
 void memtrace_recover(uns proc_id, uns64 inst_uid) {
   assert(0);
-  //FATAL_ERROR(proc_id, "Trace frontend does not support wrong path. Turn off "
+  // FATAL_ERROR(proc_id, "Trace frontend does not support wrong path. Turn off
+  // "
   //                     "FETCH_OFF_PATH_OPS\n");
 }
 

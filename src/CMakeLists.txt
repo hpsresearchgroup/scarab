@@ -62,9 +62,6 @@ add_executable(scarab
 )
 
 target_include_directories(scarab PRIVATE .)
-if(DEFINED ENV{SCARAB_ENABLE_MEMTRACE})
-  target_include_directories(scarab PRIVATE memtrace ${CMAKE_BINARY_DIR}/deps/dynamorio/include/)
-endif()
 
 target_link_libraries(scarab
     PRIVATE

@@ -33,6 +33,7 @@ if(DEFINED ENV{SCARAB_ENABLE_MEMTRACE})
 
   target_include_directories(memtrace
     INTERFACE
+    ${CMAKE_BINARY_DIR}/deps/dynamorio/include/
     ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/ext/drcovlib/
     ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/ext/drmgr/
     ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/ext/drcontainers/
