@@ -42,6 +42,10 @@
 #include "statistics.h"
 #include "thread.h"
 
+#ifdef ENABLE_MEMTRACE
+#include "frontend/memtrace/memtrace_fe.h"
+#endif
+
 /**************************************************************************************/
 /* Macros */
 
@@ -65,6 +69,12 @@ void frontend_init() {
       trace_init();
       break;
     }
+#ifdef ENABLE_MEMTRACE
+    case FE_MEMTRACE: {
+      memtrace_init();
+      break;
+    }
+#endif
     default:
       ASSERT(0, 0);
       break;
@@ -81,6 +91,12 @@ void frontend_done(Flag* retired_exit) {
       trace_done();
       break;
     }
+#ifdef ENABLE_MEMTRACE
+    case FE_MEMTRACE: {
+      memtrace_done();
+      break;
+    }
+#endif
     default:
       ASSERT(0, 0);
       break;

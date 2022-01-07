@@ -203,6 +203,14 @@ class Checkpoint(Executable):
   def typestr(self):
     return "Checkpoint"
 
+class Trace(Executable):
+  def __init__(self, name, path, scarab_args="", pintool_args="", weight=1.0):
+    super().__init__(name, path, scarab_args, pintool_args, weight)
+    trace_manager.register(self)
+
+  def typestr(self):
+    return "Trace"
+
 class Program(Executable):
   def __init__(self, name, run_cmd, path=None, scarab_args="", pintool_args="", weight=1.0, copy=False):
     super().__init__(name, path, scarab_args, pintool_args, weight)
@@ -359,9 +367,11 @@ def get_program_or_checkpoint_options(job):
   run_exec = ""
 
   if type(job) is Program:
-    run_exec = " --program=\"" + job.run_cmd + "\""
+    run_exec = f' --program="{job.run_cmde}"'
   elif type(job) is Checkpoint:
-    run_exec = " --checkpoint=\"" + job.path + "\""
+    run_exec = f' --checkpoint="{job.path}"'
+  elif type(job) is Trace:
+    run_exec = f' --trace="{job.path}"'
   elif type(job) is Mix:
     for mix in job.mix_list:
       run_exec += " " + get_program_or_checkpoint_options(mix)

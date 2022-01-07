@@ -64,9 +64,10 @@ typedef void (*Search_Func)(void);
 /**************************************************************************************/
 /* Global variables */
 
-Proc_Info*  proc_infos;
-Trigger*    l1_part_start;
-Trigger*    l1_part_trigger;
+Proc_Info* proc_infos;
+Trigger*   l1_part_start;  // indicates the L1 partition has been enabled
+Trigger* l1_part_trigger;  // external trigger for trigger repart (should not be
+                           // set too often)
 Stat_Mon*   stat_mon;
 Metric_Func metric_func;
 Search_Func search_func;
@@ -96,17 +97,21 @@ static void   search_bruteforce(void);
 static void   set_partition(void);
 static void   debug_cache_part(uns* old_partition, uns* new_partition);
 
-/**************************************************************************************/
-/* cache_part_init: */
 
+/**
+ * @brief Create per-core shadow cache and set init part allocation
+ * called once when init cmp model
+ *
+ */
 void cache_part_init(void) {
   if(!L1_PART_ON)
     return;
 
   ASSERTM(0, !PRIVATE_L1, "Cache partitioning works only on shared cache.\n");
   ASSERT(0, L1_CACHE_REPL_POLICY == REPL_PARTITION);
-  ASSERT(0, L1_ASSOC <= 16);
+  ASSERT(0, L1_ASSOC <= 128);
 
+  // create shadow cache for each core
   proc_infos = calloc(NUM_CORES, sizeof(Proc_Info));
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
     Proc_Info* proc_info = &proc_infos[proc_id];
@@ -120,45 +125,271 @@ void cache_part_init(void) {
   l1_part_trigger = trigger_create("L1 PART TRIGGER", L1_PART_TRIGGER,
                                    TRIGGER_REPEAT);
   l1_part_start = trigger_create("L1 PART START", L1_PART_START, TRIGGER_ONCE);
-  Stat_Enum monitored_stats[] = {
-    NODE_CYCLE,
-    RET_BLOCKED_L1_MISS,
-    CORE_MEM_BLOCKED,
-    L1_SHADOW_ACCESS_STALLING,
-    L1_SHADOW_ACCESS_DEMAND,
-    L1_SHADOW_STALLING_HIT_POS0,
-    L1_SHADOW_STALLING_HIT_POS1,
-    L1_SHADOW_STALLING_HIT_POS2,
-    L1_SHADOW_STALLING_HIT_POS3,
-    L1_SHADOW_STALLING_HIT_POS4,
-    L1_SHADOW_STALLING_HIT_POS5,
-    L1_SHADOW_STALLING_HIT_POS6,
-    L1_SHADOW_STALLING_HIT_POS7,
-    L1_SHADOW_STALLING_HIT_POS8,
-    L1_SHADOW_STALLING_HIT_POS9,
-    L1_SHADOW_STALLING_HIT_POS10,
-    L1_SHADOW_STALLING_HIT_POS11,
-    L1_SHADOW_STALLING_HIT_POS12,
-    L1_SHADOW_STALLING_HIT_POS13,
-    L1_SHADOW_STALLING_HIT_POS14,
-    L1_SHADOW_STALLING_HIT_POS15,
-    L1_SHADOW_DEMAND_HIT_POS0,
-    L1_SHADOW_DEMAND_HIT_POS1,
-    L1_SHADOW_DEMAND_HIT_POS2,
-    L1_SHADOW_DEMAND_HIT_POS3,
-    L1_SHADOW_DEMAND_HIT_POS4,
-    L1_SHADOW_DEMAND_HIT_POS5,
-    L1_SHADOW_DEMAND_HIT_POS6,
-    L1_SHADOW_DEMAND_HIT_POS7,
-    L1_SHADOW_DEMAND_HIT_POS8,
-    L1_SHADOW_DEMAND_HIT_POS9,
-    L1_SHADOW_DEMAND_HIT_POS10,
-    L1_SHADOW_DEMAND_HIT_POS11,
-    L1_SHADOW_DEMAND_HIT_POS12,
-    L1_SHADOW_DEMAND_HIT_POS13,
-    L1_SHADOW_DEMAND_HIT_POS14,
-    L1_SHADOW_DEMAND_HIT_POS15,
-  };
+  Stat_Enum monitored_stats[] = {NODE_CYCLE,
+                                 RET_BLOCKED_L1_MISS,
+                                 CORE_MEM_BLOCKED,
+                                 L1_SHADOW_ACCESS_STALLING,
+                                 L1_SHADOW_ACCESS_DEMAND,
+                                 L1_SHADOW_STALLING_HIT_POS0,
+                                 L1_SHADOW_STALLING_HIT_POS1,
+                                 L1_SHADOW_STALLING_HIT_POS2,
+                                 L1_SHADOW_STALLING_HIT_POS3,
+                                 L1_SHADOW_STALLING_HIT_POS4,
+                                 L1_SHADOW_STALLING_HIT_POS5,
+                                 L1_SHADOW_STALLING_HIT_POS6,
+                                 L1_SHADOW_STALLING_HIT_POS7,
+                                 L1_SHADOW_STALLING_HIT_POS8,
+                                 L1_SHADOW_STALLING_HIT_POS9,
+                                 L1_SHADOW_STALLING_HIT_POS10,
+                                 L1_SHADOW_STALLING_HIT_POS11,
+                                 L1_SHADOW_STALLING_HIT_POS12,
+                                 L1_SHADOW_STALLING_HIT_POS13,
+                                 L1_SHADOW_STALLING_HIT_POS14,
+                                 L1_SHADOW_STALLING_HIT_POS15,
+                                 L1_SHADOW_STALLING_HIT_POS16,
+                                 L1_SHADOW_STALLING_HIT_POS17,
+                                 L1_SHADOW_STALLING_HIT_POS18,
+                                 L1_SHADOW_STALLING_HIT_POS19,
+                                 L1_SHADOW_STALLING_HIT_POS20,
+                                 L1_SHADOW_STALLING_HIT_POS21,
+                                 L1_SHADOW_STALLING_HIT_POS22,
+                                 L1_SHADOW_STALLING_HIT_POS23,
+                                 L1_SHADOW_STALLING_HIT_POS24,
+                                 L1_SHADOW_STALLING_HIT_POS25,
+                                 L1_SHADOW_STALLING_HIT_POS26,
+                                 L1_SHADOW_STALLING_HIT_POS27,
+                                 L1_SHADOW_STALLING_HIT_POS28,
+                                 L1_SHADOW_STALLING_HIT_POS29,
+                                 L1_SHADOW_STALLING_HIT_POS30,
+                                 L1_SHADOW_STALLING_HIT_POS31,
+                                 L1_SHADOW_STALLING_HIT_POS32,
+                                 L1_SHADOW_STALLING_HIT_POS33,
+                                 L1_SHADOW_STALLING_HIT_POS34,
+                                 L1_SHADOW_STALLING_HIT_POS35,
+                                 L1_SHADOW_STALLING_HIT_POS36,
+                                 L1_SHADOW_STALLING_HIT_POS37,
+                                 L1_SHADOW_STALLING_HIT_POS38,
+                                 L1_SHADOW_STALLING_HIT_POS39,
+                                 L1_SHADOW_STALLING_HIT_POS40,
+                                 L1_SHADOW_STALLING_HIT_POS41,
+                                 L1_SHADOW_STALLING_HIT_POS42,
+                                 L1_SHADOW_STALLING_HIT_POS43,
+                                 L1_SHADOW_STALLING_HIT_POS44,
+                                 L1_SHADOW_STALLING_HIT_POS45,
+                                 L1_SHADOW_STALLING_HIT_POS46,
+                                 L1_SHADOW_STALLING_HIT_POS47,
+                                 L1_SHADOW_STALLING_HIT_POS48,
+                                 L1_SHADOW_STALLING_HIT_POS49,
+                                 L1_SHADOW_STALLING_HIT_POS50,
+                                 L1_SHADOW_STALLING_HIT_POS51,
+                                 L1_SHADOW_STALLING_HIT_POS52,
+                                 L1_SHADOW_STALLING_HIT_POS53,
+                                 L1_SHADOW_STALLING_HIT_POS54,
+                                 L1_SHADOW_STALLING_HIT_POS55,
+                                 L1_SHADOW_STALLING_HIT_POS56,
+                                 L1_SHADOW_STALLING_HIT_POS57,
+                                 L1_SHADOW_STALLING_HIT_POS58,
+                                 L1_SHADOW_STALLING_HIT_POS59,
+                                 L1_SHADOW_STALLING_HIT_POS60,
+                                 L1_SHADOW_STALLING_HIT_POS61,
+                                 L1_SHADOW_STALLING_HIT_POS62,
+                                 L1_SHADOW_STALLING_HIT_POS63,
+                                 L1_SHADOW_STALLING_HIT_POS64,
+                                 L1_SHADOW_STALLING_HIT_POS65,
+                                 L1_SHADOW_STALLING_HIT_POS66,
+                                 L1_SHADOW_STALLING_HIT_POS67,
+                                 L1_SHADOW_STALLING_HIT_POS68,
+                                 L1_SHADOW_STALLING_HIT_POS69,
+                                 L1_SHADOW_STALLING_HIT_POS70,
+                                 L1_SHADOW_STALLING_HIT_POS71,
+                                 L1_SHADOW_STALLING_HIT_POS72,
+                                 L1_SHADOW_STALLING_HIT_POS73,
+                                 L1_SHADOW_STALLING_HIT_POS74,
+                                 L1_SHADOW_STALLING_HIT_POS75,
+                                 L1_SHADOW_STALLING_HIT_POS76,
+                                 L1_SHADOW_STALLING_HIT_POS77,
+                                 L1_SHADOW_STALLING_HIT_POS78,
+                                 L1_SHADOW_STALLING_HIT_POS79,
+                                 L1_SHADOW_STALLING_HIT_POS80,
+                                 L1_SHADOW_STALLING_HIT_POS81,
+                                 L1_SHADOW_STALLING_HIT_POS82,
+                                 L1_SHADOW_STALLING_HIT_POS83,
+                                 L1_SHADOW_STALLING_HIT_POS84,
+                                 L1_SHADOW_STALLING_HIT_POS85,
+                                 L1_SHADOW_STALLING_HIT_POS86,
+                                 L1_SHADOW_STALLING_HIT_POS87,
+                                 L1_SHADOW_STALLING_HIT_POS88,
+                                 L1_SHADOW_STALLING_HIT_POS89,
+                                 L1_SHADOW_STALLING_HIT_POS90,
+                                 L1_SHADOW_STALLING_HIT_POS91,
+                                 L1_SHADOW_STALLING_HIT_POS92,
+                                 L1_SHADOW_STALLING_HIT_POS93,
+                                 L1_SHADOW_STALLING_HIT_POS94,
+                                 L1_SHADOW_STALLING_HIT_POS95,
+                                 L1_SHADOW_STALLING_HIT_POS96,
+                                 L1_SHADOW_STALLING_HIT_POS97,
+                                 L1_SHADOW_STALLING_HIT_POS98,
+                                 L1_SHADOW_STALLING_HIT_POS99,
+                                 L1_SHADOW_STALLING_HIT_POS100,
+                                 L1_SHADOW_STALLING_HIT_POS101,
+                                 L1_SHADOW_STALLING_HIT_POS102,
+                                 L1_SHADOW_STALLING_HIT_POS103,
+                                 L1_SHADOW_STALLING_HIT_POS104,
+                                 L1_SHADOW_STALLING_HIT_POS105,
+                                 L1_SHADOW_STALLING_HIT_POS106,
+                                 L1_SHADOW_STALLING_HIT_POS107,
+                                 L1_SHADOW_STALLING_HIT_POS108,
+                                 L1_SHADOW_STALLING_HIT_POS109,
+                                 L1_SHADOW_STALLING_HIT_POS110,
+                                 L1_SHADOW_STALLING_HIT_POS111,
+                                 L1_SHADOW_STALLING_HIT_POS112,
+                                 L1_SHADOW_STALLING_HIT_POS113,
+                                 L1_SHADOW_STALLING_HIT_POS114,
+                                 L1_SHADOW_STALLING_HIT_POS115,
+                                 L1_SHADOW_STALLING_HIT_POS116,
+                                 L1_SHADOW_STALLING_HIT_POS117,
+                                 L1_SHADOW_STALLING_HIT_POS118,
+                                 L1_SHADOW_STALLING_HIT_POS119,
+                                 L1_SHADOW_STALLING_HIT_POS120,
+                                 L1_SHADOW_STALLING_HIT_POS121,
+                                 L1_SHADOW_STALLING_HIT_POS122,
+                                 L1_SHADOW_STALLING_HIT_POS123,
+                                 L1_SHADOW_STALLING_HIT_POS124,
+                                 L1_SHADOW_STALLING_HIT_POS125,
+                                 L1_SHADOW_STALLING_HIT_POS126,
+                                 L1_SHADOW_STALLING_HIT_POS127,
+                                 L1_SHADOW_DEMAND_HIT_POS0,
+                                 L1_SHADOW_DEMAND_HIT_POS1,
+                                 L1_SHADOW_DEMAND_HIT_POS2,
+                                 L1_SHADOW_DEMAND_HIT_POS3,
+                                 L1_SHADOW_DEMAND_HIT_POS4,
+                                 L1_SHADOW_DEMAND_HIT_POS5,
+                                 L1_SHADOW_DEMAND_HIT_POS6,
+                                 L1_SHADOW_DEMAND_HIT_POS7,
+                                 L1_SHADOW_DEMAND_HIT_POS8,
+                                 L1_SHADOW_DEMAND_HIT_POS9,
+                                 L1_SHADOW_DEMAND_HIT_POS10,
+                                 L1_SHADOW_DEMAND_HIT_POS11,
+                                 L1_SHADOW_DEMAND_HIT_POS12,
+                                 L1_SHADOW_DEMAND_HIT_POS13,
+                                 L1_SHADOW_DEMAND_HIT_POS14,
+                                 L1_SHADOW_DEMAND_HIT_POS15,
+                                 L1_SHADOW_DEMAND_HIT_POS16,
+                                 L1_SHADOW_DEMAND_HIT_POS17,
+                                 L1_SHADOW_DEMAND_HIT_POS18,
+                                 L1_SHADOW_DEMAND_HIT_POS19,
+                                 L1_SHADOW_DEMAND_HIT_POS20,
+                                 L1_SHADOW_DEMAND_HIT_POS21,
+                                 L1_SHADOW_DEMAND_HIT_POS22,
+                                 L1_SHADOW_DEMAND_HIT_POS23,
+                                 L1_SHADOW_DEMAND_HIT_POS24,
+                                 L1_SHADOW_DEMAND_HIT_POS25,
+                                 L1_SHADOW_DEMAND_HIT_POS26,
+                                 L1_SHADOW_DEMAND_HIT_POS27,
+                                 L1_SHADOW_DEMAND_HIT_POS28,
+                                 L1_SHADOW_DEMAND_HIT_POS29,
+                                 L1_SHADOW_DEMAND_HIT_POS30,
+                                 L1_SHADOW_DEMAND_HIT_POS31,
+                                 L1_SHADOW_DEMAND_HIT_POS32,
+                                 L1_SHADOW_DEMAND_HIT_POS33,
+                                 L1_SHADOW_DEMAND_HIT_POS34,
+                                 L1_SHADOW_DEMAND_HIT_POS35,
+                                 L1_SHADOW_DEMAND_HIT_POS36,
+                                 L1_SHADOW_DEMAND_HIT_POS37,
+                                 L1_SHADOW_DEMAND_HIT_POS38,
+                                 L1_SHADOW_DEMAND_HIT_POS39,
+                                 L1_SHADOW_DEMAND_HIT_POS40,
+                                 L1_SHADOW_DEMAND_HIT_POS41,
+                                 L1_SHADOW_DEMAND_HIT_POS42,
+                                 L1_SHADOW_DEMAND_HIT_POS43,
+                                 L1_SHADOW_DEMAND_HIT_POS44,
+                                 L1_SHADOW_DEMAND_HIT_POS45,
+                                 L1_SHADOW_DEMAND_HIT_POS46,
+                                 L1_SHADOW_DEMAND_HIT_POS47,
+                                 L1_SHADOW_DEMAND_HIT_POS48,
+                                 L1_SHADOW_DEMAND_HIT_POS49,
+                                 L1_SHADOW_DEMAND_HIT_POS50,
+                                 L1_SHADOW_DEMAND_HIT_POS51,
+                                 L1_SHADOW_DEMAND_HIT_POS52,
+                                 L1_SHADOW_DEMAND_HIT_POS53,
+                                 L1_SHADOW_DEMAND_HIT_POS54,
+                                 L1_SHADOW_DEMAND_HIT_POS55,
+                                 L1_SHADOW_DEMAND_HIT_POS56,
+                                 L1_SHADOW_DEMAND_HIT_POS57,
+                                 L1_SHADOW_DEMAND_HIT_POS58,
+                                 L1_SHADOW_DEMAND_HIT_POS59,
+                                 L1_SHADOW_DEMAND_HIT_POS60,
+                                 L1_SHADOW_DEMAND_HIT_POS61,
+                                 L1_SHADOW_DEMAND_HIT_POS62,
+                                 L1_SHADOW_DEMAND_HIT_POS63,
+                                 L1_SHADOW_DEMAND_HIT_POS64,
+                                 L1_SHADOW_DEMAND_HIT_POS65,
+                                 L1_SHADOW_DEMAND_HIT_POS66,
+                                 L1_SHADOW_DEMAND_HIT_POS67,
+                                 L1_SHADOW_DEMAND_HIT_POS68,
+                                 L1_SHADOW_DEMAND_HIT_POS69,
+                                 L1_SHADOW_DEMAND_HIT_POS70,
+                                 L1_SHADOW_DEMAND_HIT_POS71,
+                                 L1_SHADOW_DEMAND_HIT_POS72,
+                                 L1_SHADOW_DEMAND_HIT_POS73,
+                                 L1_SHADOW_DEMAND_HIT_POS74,
+                                 L1_SHADOW_DEMAND_HIT_POS75,
+                                 L1_SHADOW_DEMAND_HIT_POS76,
+                                 L1_SHADOW_DEMAND_HIT_POS77,
+                                 L1_SHADOW_DEMAND_HIT_POS78,
+                                 L1_SHADOW_DEMAND_HIT_POS79,
+                                 L1_SHADOW_DEMAND_HIT_POS80,
+                                 L1_SHADOW_DEMAND_HIT_POS81,
+                                 L1_SHADOW_DEMAND_HIT_POS82,
+                                 L1_SHADOW_DEMAND_HIT_POS83,
+                                 L1_SHADOW_DEMAND_HIT_POS84,
+                                 L1_SHADOW_DEMAND_HIT_POS85,
+                                 L1_SHADOW_DEMAND_HIT_POS86,
+                                 L1_SHADOW_DEMAND_HIT_POS87,
+                                 L1_SHADOW_DEMAND_HIT_POS88,
+                                 L1_SHADOW_DEMAND_HIT_POS89,
+                                 L1_SHADOW_DEMAND_HIT_POS90,
+                                 L1_SHADOW_DEMAND_HIT_POS91,
+                                 L1_SHADOW_DEMAND_HIT_POS92,
+                                 L1_SHADOW_DEMAND_HIT_POS93,
+                                 L1_SHADOW_DEMAND_HIT_POS94,
+                                 L1_SHADOW_DEMAND_HIT_POS95,
+                                 L1_SHADOW_DEMAND_HIT_POS96,
+                                 L1_SHADOW_DEMAND_HIT_POS97,
+                                 L1_SHADOW_DEMAND_HIT_POS98,
+                                 L1_SHADOW_DEMAND_HIT_POS99,
+                                 L1_SHADOW_DEMAND_HIT_POS100,
+                                 L1_SHADOW_DEMAND_HIT_POS101,
+                                 L1_SHADOW_DEMAND_HIT_POS102,
+                                 L1_SHADOW_DEMAND_HIT_POS103,
+                                 L1_SHADOW_DEMAND_HIT_POS104,
+                                 L1_SHADOW_DEMAND_HIT_POS105,
+                                 L1_SHADOW_DEMAND_HIT_POS106,
+                                 L1_SHADOW_DEMAND_HIT_POS107,
+                                 L1_SHADOW_DEMAND_HIT_POS108,
+                                 L1_SHADOW_DEMAND_HIT_POS109,
+                                 L1_SHADOW_DEMAND_HIT_POS110,
+                                 L1_SHADOW_DEMAND_HIT_POS111,
+                                 L1_SHADOW_DEMAND_HIT_POS112,
+                                 L1_SHADOW_DEMAND_HIT_POS113,
+                                 L1_SHADOW_DEMAND_HIT_POS114,
+                                 L1_SHADOW_DEMAND_HIT_POS115,
+                                 L1_SHADOW_DEMAND_HIT_POS116,
+                                 L1_SHADOW_DEMAND_HIT_POS117,
+                                 L1_SHADOW_DEMAND_HIT_POS118,
+                                 L1_SHADOW_DEMAND_HIT_POS119,
+                                 L1_SHADOW_DEMAND_HIT_POS120,
+                                 L1_SHADOW_DEMAND_HIT_POS121,
+                                 L1_SHADOW_DEMAND_HIT_POS122,
+                                 L1_SHADOW_DEMAND_HIT_POS123,
+                                 L1_SHADOW_DEMAND_HIT_POS124,
+                                 L1_SHADOW_DEMAND_HIT_POS125,
+                                 L1_SHADOW_DEMAND_HIT_POS126,
+                                 L1_SHADOW_DEMAND_HIT_POS127};
+
+
+  // monitor here observe various global stats, and reset its internal
+  // counting periodically
   stat_mon = stat_mon_create_from_array(monitored_stats,
                                         NUM_ELEMENTS(monitored_stats));
 
@@ -204,9 +435,19 @@ void cache_part_init(void) {
   tie_breaker_proc_id = 0;
 }
 
-/**************************************************************************************/
-/* cache_part_l1_access: */
 
+/**
+ * @brief Update the shadow cache content and stats
+ *
+ * Update various shadow cache stats, especially the hit positions.
+ * and insert the blk into shadow cache on a miss
+ *
+ * Note the stat are directly commited to global_stat_array
+ *
+ * Consumer later use a monitor to observe these stats
+ *
+ * @param req
+ */
 void cache_part_l1_access(Mem_Req* req) {
   if(!L1_PART_ON)
     return;
@@ -233,12 +474,13 @@ void cache_part_l1_access(Mem_Req* req) {
   if(demand)
     STAT_EVENT(req->proc_id, L1_SHADOW_ACCESS_DEMAND);
   if(!miss && !untimely_hit) {
-    STAT_EVENT(req->proc_id, L1_SHADOW_HIT_POS0 + MIN2(pos, 15));
+    STAT_EVENT(req->proc_id, L1_SHADOW_HIT_POS0 + MIN2(pos, 127));
     if(stalling)
-      STAT_EVENT(req->proc_id, L1_SHADOW_STALLING_HIT_POS0 + MIN2(pos, 15));
+      STAT_EVENT(req->proc_id, L1_SHADOW_STALLING_HIT_POS0 + MIN2(pos, 127));
     if(demand)
-      STAT_EVENT(req->proc_id, L1_SHADOW_DEMAND_HIT_POS0 + MIN2(pos, 15));
+      STAT_EVENT(req->proc_id, L1_SHADOW_DEMAND_HIT_POS0 + MIN2(pos, 127));
   }
+
   INC_STAT_EVENT(req->proc_id, L1_SHADOW_HIT, !miss);
   INC_STAT_EVENT(req->proc_id, L1_SHADOW_HIT_STALLING, stalling && !miss);
   INC_STAT_EVENT(req->proc_id, L1_SHADOW_HIT_DEMAND, demand && !miss);
@@ -247,6 +489,8 @@ void cache_part_l1_access(Mem_Req* req) {
                  stalling && untimely_hit);
   INC_STAT_EVENT(req->proc_id, L1_SHADOW_UNTIMELY_HIT_DEMAND,
                  demand && untimely_hit);
+
+  // update shadow tag
   if(miss) {
     L1_Data* data     = cache_insert(&proc_info->shadow_cache, req->proc_id,
                                  req->addr, &dummy_line_addr, &dummy_line_addr);
@@ -273,17 +517,24 @@ void cache_part_l1_warmup(uns proc_id, Addr addr) {
   }
 }
 
-/**************************************************************************************/
-/* cache_part_update: */
 
+/**
+ * @brief Update the partition allocation
+ * called once every cmp_cycle(), after update_memory()
+ *
+ */
 void cache_part_update(void) {
   if(!L1_PART_ON)
     return;
 
+  // the REPL is set to LRU initially only when L1_PART_WARM is on
   if(trigger_fired(l1_part_start)) {
-    ASSERT(0, mem->uncores[0].l1->cache.repl_policy == REPL_TRUE_LRU);
-    mem->uncores[0].l1->cache.repl_policy = REPL_PARTITION;
+    if(L1_PART_WARMUP) {
+      ASSERT(0, mem->uncores[0].l1->cache.repl_policy == REPL_TRUE_LRU);
+      mem->uncores[0].l1->cache.repl_policy = REPL_PARTITION;
+    }
   }
+
   if(!trigger_fired(l1_part_trigger))
     return;
 
@@ -292,6 +543,11 @@ void cache_part_update(void) {
     measure_miss_curves();
     set_partition();
   }
+
+  // TODO: if this func is called too often (controlled by user through
+  // l1_part_trigger)  the misscurve calculated will be incorrect (no additional
+  // shadow access between two  triggers, thus divide by 0), corrently there is
+  // not check for this case
   stat_mon_reset(stat_mon);
 }
 
@@ -461,6 +717,7 @@ void search_lookahead(void) {
 /* Set target partition */
 
 void set_partition(void) {
+  // the one bind at config time (lookahead/brutal force)
   search_func();
 
   if(ENABLE_GLOBAL_DEBUG_PRINT && DEBUG_RANGE_COND(0)) {
@@ -477,6 +734,12 @@ void set_partition(void) {
   STAT_EVENT_ALL(L1_PARTITION_INTERVALS);
 }
 
+/**
+ * @brief Print misscurve and partition result
+ *
+ * @param old_partition
+ * @param new_partition
+ */
 void debug_cache_part(uns* old_partition, uns* new_partition) {
   char  buf[MAX_STR_LENGTH + 1];
   char* ptr = buf;

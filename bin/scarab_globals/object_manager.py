@@ -88,5 +88,6 @@ class ScarabRunManager(ObjectManager):
 scarab_run_manager = ScarabRunManager()
 program_manager = ObjectManager()
 checkpoint_manager = ObjectManager()
+trace_manager = ObjectManager()
 mix_manager = ObjectManager()
 collection_manager = ObjectManager()

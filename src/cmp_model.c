@@ -66,6 +66,8 @@ static void warmup_uncore(uns proc_id, Addr addr, Flag write);
 
 void cmp_init(uns mode) {
   if(mode == SIMULATION_MODE) {
+    // set repl to LRU for warming up, waiting for partition trigger to switch
+    // it back  to REPL_PARTITION
     if(L1_PART_ON && L1_PART_WARMUP) {
       ASSERT(
         0, cmp_model.memory.uncores[0].l1->cache.repl_policy == REPL_PARTITION);
@@ -73,6 +75,12 @@ void cmp_init(uns mode) {
     }
     return;
   }
+
+  /**
+   * The real initialization is done in warmup (guaranteed to happence once
+   * before switch into simulation mode)
+   *
+   */
   ASSERT(0, mode == WARMUP_MODE);
 
   uns8 proc_id;
@@ -109,10 +117,13 @@ void cmp_init(uns mode) {
   cmp_model.window_size = NODE_TABLE_SIZE;
 
   set_memory(&cmp_model.memory);
+
+  // init_memory will call init_uncores, which setup the partition stuffs
   init_memory();
 
   if(DVFS_ON)
     dvfs_init();
+
   cache_part_init();
 
   ASSERTM(0, !USE_LATE_BP || LATE_BP_LATENCY < (DECODE_CYCLES + MAP_CYCLES),
