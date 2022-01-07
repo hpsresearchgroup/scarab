@@ -286,5 +286,7 @@ DEF_PARAM(cbp_trace_r61, CBP_TRACE_R61, char*, string, NULL, )
 DEF_PARAM(cbp_trace_r62, CBP_TRACE_R62, char*, string, NULL, )
 DEF_PARAM(cbp_trace_r63, CBP_TRACE_R63, char*, string, NULL, )
 
+DEF_PARAM(memtrace_modules_log, MEMTRACE_MODULES_LOG, char*, string, NULL, )
+
 DEF_PARAM(dumb_core_on, DUMB_CORE_ON, Flag, Flag, FALSE, )
 DEF_PARAM(dumb_core, DUMB_CORE, uns, uns, 1, )

@@ -25,3 +25,46 @@ set($ENV{TARGET} ia32)
 add_library(xed INTERFACE)
 target_include_directories(xed INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/xed/include/public/xed/)
 target_include_directories(xed INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/xed/obj/)
+target_link_libraries(xed INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/xed/obj/libxed.a)
+
+if(DEFINED ENV{SCARAB_ENABLE_MEMTRACE})
+  add_subdirectory(dynamorio)
+  add_library(memtrace INTERFACE)
+
+  target_include_directories(memtrace
+    INTERFACE
+    ${CMAKE_BINARY_DIR}/deps/dynamorio/include/
+    ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/ext/drcovlib/
+    ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/ext/drmgr/
+    ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/ext/drcontainers/
+    ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/core/lib/
+    ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/clients/drcachesim/reader/
+    ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/clients/drcachesim/common/
+    ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/clients/drcachesim/tracer/
+    ${CMAKE_CURRENT_SOURCE_DIR}/dynamorio/clients/drcachesim/
+    )
+
+  target_link_libraries(memtrace
+    INTERFACE
+    drmemtrace_raw2trace
+    directory_iterator
+    drfrontendlib
+    drutil_static
+    drmgr_static
+    drmemfuncs
+    dynamorio_static
+    drlibc
+    drcovlib_static
+    drx_static
+    drreg_static
+    drcontainers
+    drmemtrace_analyzer
+    xed
+    snappy
+    dl
+    config++
+    z
+    rt
+    pthread
+    )
+endif()
