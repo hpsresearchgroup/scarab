@@ -130,8 +130,10 @@ def define_commandline_arguments(all_benchmarks, benchmark_suites_dict):
 def initialize_globals():
     global __args__
     global __benchmarks__
+    global __avail_benchmarks__
 
     all_benchmarks, benchmark_suites_dict = define_benchmarks_and_suites()
+    __avail_benchmarks__ = []
     __args__ = define_commandline_arguments(
         all_benchmarks, benchmark_suites_dict)
     if __args__.suite:
@@ -143,7 +145,9 @@ def initialize_globals():
 def verify_spec_run_dirs_exist():
     for benchmark, input_name in product(__benchmarks__, __args__.inputs):
         if not find_spec_run_dir(benchmark, input_name):
-            print('WARN: Verify run dir for ', __benchmarks__, __args__.inputs, " failed")
+            print('WARN: ', benchmark, __args__.inputs, " is not available, exclude in the descriptor")
+        else:
+            __avail_benchmarks__.append(benchmark)
 
 
 def verify_workload_output_dirs_do_no_exist():
@@ -300,7 +304,7 @@ def copy_programs():
         verify_workload_output_dirs_do_no_exist()
 
     print('Copying programs to output directory ...')
-    for benchmark, input_name in product(__benchmarks__, __args__.inputs):
+    for benchmark, input_name in product(__avail_benchmarks__, __args__.inputs):
         workload_path = os.path.abspath(
             '{}/{}/{}'.format(__args__.output_dir, benchmark, input_name))
         run_dir_path = '{}/run_dir'.format(workload_path)
@@ -309,7 +313,7 @@ def copy_programs():
             _, spec_version = parse_benchmark_name_version(benchmark)
             create_run_commands(run_dir_path, spec_version)
         else:
-            __benchmarks__.remove(benchmark)
+            __avail_benchmarks__.remove(benchmark)
 
 
 
@@ -320,7 +324,7 @@ def create_checkpoints_descriptor_file():
     descriptor_str = 'import os\n\n'
     name_list = []
     suite_list = []
-    for benchmark, input_name in product(__benchmarks__, __args__.inputs):
+    for benchmark, input_name in product(__avail_benchmarks__, __args__.inputs):
         run_dir_path = os.path.abspath(
             '{}/{}/{}/run_dir'.format(__args__.output_dir, benchmark, input_name))
         cmd_file_path = '{}/RUN_CMDS'.format(run_dir_path)
