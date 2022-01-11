@@ -613,7 +613,7 @@ void uop_sim() {
 
 void full_sim() {
   uns8 proc_id;
-  Flag all_sim_done = FALSE;
+  Flag all_sim_done         = FALSE;
   Flag sim_process_finished = FALSE;
 
   /* perform initialization  */
@@ -653,10 +653,12 @@ void full_sim() {
 
   /* main loop */
   while(!trigger_fired(sim_limit)) {
-    //sim control
-    if(all_sim_done) break;
-    else if(EXIT_COND == FIRST_DONE){
-      if(sim_process_finished) break;
+    // sim control
+    if(all_sim_done)
+      break;
+    else if(EXIT_COND == FIRST_DONE) {
+      if(sim_process_finished)
+        break;
     }
     freq_advance_time();
     sim_time = freq_time();
@@ -680,7 +682,7 @@ void full_sim() {
       reset_stats(TRUE);
     }
 
-    all_sim_done = TRUE;
+    all_sim_done         = TRUE;
     sim_process_finished = FALSE;
     for(proc_id = 0; proc_id < NUM_CORES; proc_id++) {
       Flag reachedInstLimit = (INST_LIMIT &&
@@ -691,7 +693,7 @@ void full_sim() {
         if(model->per_core_done_func)
           model->per_core_done_func(proc_id);
         dump_stats(proc_id, TRUE, global_stat_array[proc_id], NUM_GLOBAL_STATS);
-        sim_done[proc_id] = TRUE;
+        sim_done[proc_id]    = TRUE;
         sim_process_finished = TRUE;
         check_heartbeat(proc_id, TRUE);
 
