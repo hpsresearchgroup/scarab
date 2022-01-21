@@ -87,6 +87,10 @@ def define_commandline_arguments():
       '-n', '--num_threads',
       type=int,
       help='Number of parallel threads to run')
+  parser.add_argument(
+      '--dump_ckpts_name',
+      action='store_true',
+      help='dump a test file contains names of all ckpts, maybe useful when interfacing with other scripts to generate random simpts mixes')
 
   ################### Simpoints Configuration ###################
   parser.add_argument(
@@ -481,7 +485,7 @@ def get_descriptor_definitions(benchmark, benchmark_name, checkpoint_paths):
     weight=benchmark_info[benchmark_name]
   )
 
-  return definitions
+  return definitions, checkpoint_name_list
 
 def create_descriptor_file_phase():
   print('================================================')
@@ -489,13 +493,15 @@ def create_descriptor_file_phase():
 
   descriptor_str = 'import os\n\n'
   name_list = []
+  all_ckpts = []
   for benchmark in __programs__:
     workload_path = os.path.abspath(benchmark._results_dir(__args__.output_dir) if benchmark.copy else benchmark.path)
     workload_parent = Path(workload_path).parent
     checkpoint_paths = get_all_checkpoint_paths(workload_parent, benchmark.name)
     verify_checkpoints_are_sane(checkpoint_paths)
-    benchmarks_descriptor_str = get_descriptor_definitions(
+    benchmarks_descriptor_str, ckpts_objs = get_descriptor_definitions(
         benchmark, benchmark.name, checkpoint_paths)
+    all_ckpts += ckpts_objs
     descriptor_str += benchmarks_descriptor_str
     name_list.append(benchmark.name)
 
@@ -509,6 +515,11 @@ def create_descriptor_file_phase():
 
   with open(__args__.output_dir + '/descriptor.def', 'w') as f:
     f.write(descriptor_str)
+
+  if __args__.dump_ckpts_name:
+    ckpts_literal = ["'" + ckpt + "'" for ckpt in all_ckpts]
+    with open(__args__.output_dir + '/ckpts_names.txt', 'w') as cf:
+      cf.write(", ".join(ckpts_literal))
 
 def main():
   initialize_globals()
