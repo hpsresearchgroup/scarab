@@ -613,8 +613,8 @@ void uop_sim() {
 
 void full_sim() {
   uns8 proc_id;
-  Flag all_sim_done         = FALSE;
-  Flag sim_process_finished = FALSE;
+  Flag all_sim_done = FALSE;
+  Flag any_sim_done = FALSE;
 
   /* perform initialization  */
   init_model(WARMUP_MODE);  // make sure this happens before init_op_pool
@@ -654,12 +654,9 @@ void full_sim() {
   /* main loop */
   while(!trigger_fired(sim_limit)) {
     // sim control
-    if(all_sim_done)
+    if((EXIT_COND == LAST_DONE && all_sim_done) ||
+       (EXIT_COND == FIRST_DONE && any_sim_done))
       break;
-    else if(EXIT_COND == FIRST_DONE) {
-      if(sim_process_finished)
-        break;
-    }
     freq_advance_time();
     sim_time = freq_time();
     model->cycle_func();
@@ -682,8 +679,8 @@ void full_sim() {
       reset_stats(TRUE);
     }
 
-    all_sim_done         = TRUE;
-    sim_process_finished = FALSE;
+    all_sim_done = TRUE;
+    any_sim_done = FALSE;
     for(proc_id = 0; proc_id < NUM_CORES; proc_id++) {
       Flag reachedInstLimit = (INST_LIMIT &&
                                inst_count[proc_id] >= inst_limit[proc_id]);
@@ -693,8 +690,8 @@ void full_sim() {
         if(model->per_core_done_func)
           model->per_core_done_func(proc_id);
         dump_stats(proc_id, TRUE, global_stat_array[proc_id], NUM_GLOBAL_STATS);
-        sim_done[proc_id]    = TRUE;
-        sim_process_finished = TRUE;
+        sim_done[proc_id] = TRUE;
+        any_sim_done      = TRUE;
         check_heartbeat(proc_id, TRUE);
 
         if(retired_exit[proc_id] && FRONTEND == FE_TRACE) {

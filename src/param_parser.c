@@ -76,10 +76,10 @@ the program.  This way, an exact duplicate run can be performed.
 /**************************************************************************************/
 /* Global Variables */
 
-const char* help_options[]   = {"-help", "-h", "--help",
+const char* help_options[]    = {"-help", "-h", "--help",
                               "--h"}; /* cmd-line help options strings */
-const char* sim_mode_names[] = {"uop", "full"};
-const char* exit_cond[]      = {"last_done", "first_done"};
+const char* sim_mode_names[]  = {"uop", "full"};
+const char* exit_cond_names[] = {"last_done", "first_done"};
 
 /**************************************************************************************/
 /* include all header files with enum declarations used as parameters */
@@ -288,7 +288,7 @@ void get_exit_cond_param(const char* name, Generic_Enum* variable) {
     uns ii;
 
     for(ii = 0; ii < NUM_EXIT_CONDS; ii++)
-      if(strncmp(optarg, exit_cond[ii], MAX_STR_LENGTH) == 0) {
+      if(strncmp(optarg, exit_cond_names[ii], MAX_STR_LENGTH) == 0) {
         *variable = ii;
         return;
       }
