@@ -40,6 +40,7 @@ struct Mem_Queue_struct;
 /**************************************************************************************/
 /* Types */
 
+// M(em)R(eq)S(tate)
 typedef enum Mem_Req_State_enum {
   MRS_INV, /* if you change this order or add anything, fix mem_req_state_names
               [] and is_final_state() in memory.c and */
@@ -63,6 +64,7 @@ typedef enum Mem_Req_State_enum {
   MRS_FILL_DONE, /* final state */
 } Mem_Req_State;
 
+// M(em)R(eq)T(ype)
 #define MRT_LIST(elem)                               \
   elem(IFETCH)         /* instruction fetch */       \
     elem(DFETCH)       /* data fetch */              \
