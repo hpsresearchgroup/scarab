@@ -471,7 +471,11 @@ void cache_invalidate(Cache* cache, Addr addr, Addr* line_addr) {
 
 
 /**
- * @brief Return a pointer to the lru item in the cache set
+ * @brief Return a pointer to the victim to be replaced
+ * 
+ * The caller of this func is supposed to handle the possible
+ * writeback correctly, otherwise the correctness of simulation 
+ * is compromised
  *
  * @param cache
  * @param proc_id
