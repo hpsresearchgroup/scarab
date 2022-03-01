@@ -131,7 +131,15 @@ struct Mem_Req_struct {
   uns  op_count;  /* number of ops that are waiting for the miss */
   uns  req_count; /* number of requests coalesced into this one */
   Flag (*done_func)(struct Mem_Req_struct*); /* pointer to function to call when
-                                                the memory request is finished
+                                                the memory request is finished,
+                                                this is the mechanism scarab
+                                                used to implement a "callback".
+                                                i.e. when a req is finally
+                                                returned from the mem system,
+                                                continue with the rest of the
+                                                process. This is mostly used by
+                                                I$ and D$ to fill the line when
+                                                req returned from uncore/mem
                                               */
   Flag mlc_miss;                             /* did this request miss in MLC */
   Flag mlc_miss_satisfied;   /* did this request miss in MLC and it is already

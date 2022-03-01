@@ -282,6 +282,9 @@
 #define MIN4(v0, v1, v2, v3) (MIN2(MIN2((v0), (v1)), MIN2((v2), (v3))))
 #define MAX4(v0, v1, v2, v3) (MAX2(MAX2((v0), (v1)), MAX2((v2), (v3))))
 
+// a is the original addr, num is the shift amt before interleaving (usually
+// the cacheline), int is the interleave factor. The bank idx computed here
+// is simply the lower bits
 #define BANK(a, num, int) ((a) >> LOG2(int) & N_BIT_MASK(LOG2(num)))
 #define CHANNEL(bank, num) ((bank) >> LOG2(num))
 #define BANK_IN_CHANNEL(bank, num) ((bank)&N_BIT_MASK(LOG2(num)))
