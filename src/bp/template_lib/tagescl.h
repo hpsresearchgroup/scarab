@@ -31,6 +31,7 @@ struct Tage_SC_L_Prediction_Info {
   bool                                        tage_or_loop_prediction;
   SC_Prediction_Info                          sc;
   bool                                        final_prediction;
+  uint64_t                                    br_pc;
 };
 
 class Tage_SC_L_Base {
@@ -215,7 +216,7 @@ void Tage_SC_L<CONFIG>::flush_branch_and_repair_state(int64_t     branch_id,
     }
     if(CONFIG::USE_SC) {
       statistical_corrector_.local_recover_speculative_state(
-        br_pc, prediction_info.sc);
+        prediction_info.br_pc, prediction_info.sc);
     }
   }
   prediction_info_buffer_.deallocate_after(branch_id);
@@ -279,4 +280,5 @@ void Tage_SC_L<CONFIG>::update_speculative_state(int64_t     branch_id,
     statistical_corrector_.update_speculative_state(
       br_pc, branch_dir, br_target, br_type, &prediction_info.sc);
   }
+  prediction_info.br_pc = br_pc;
 }
