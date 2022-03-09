@@ -45,6 +45,7 @@ void   get_btb_mech_param(const char*, uns*);
 void   get_ibtb_mech_param(const char*, uns*);
 void   get_conf_mech_param(const char*, uns*);
 void   get_sim_mode_param(const char*, Generic_Enum*);
+void   get_exit_cond_param(const char*, Generic_Enum*);
 void   get_sim_model_param(const char*, uns*);
 void   get_frontend_param(const char*, uns*);
 // void get_dram_sched_param(const char *, uns *); // Ramulator_remove

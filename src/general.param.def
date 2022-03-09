@@ -96,3 +96,5 @@ DEF_PARAM( use_unsure_free_lists        , USE_UNSURE_FREE_LISTS     , Flag   , F
 
 DEF_PARAM( optimizer2_max_num_slaves    , OPTIMIZER2_MAX_NUM_SLAVES , uns    , uns       , 64       ,       )
 DEF_PARAM( optimizer2_perfect_memoryless, OPTIMIZER2_PERFECT_MEMORYLESS, Flag, Flag      , FALSE    ,       )
+
+DEF_PARAM( exit_cond                    , EXIT_COND                 , int    , exit_cond , 0        ,       )

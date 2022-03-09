@@ -39,6 +39,8 @@ enum operating_mode_enum {
   WARMUP_MODE /* not implemented yet */
 };
 
+enum exit_cond_enum { LAST_DONE, FIRST_DONE, NUM_EXIT_CONDS };
+
 /**************************************************************************************/
 /* External Variables */
 
