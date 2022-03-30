@@ -28,20 +28,50 @@
 
 #include "globals/global_defs.h"
 #include "libs/list_lib.h"
+#include <vector>
 
+Class Cache_entry {
+  public:
+    uns8 proc_id;
+    Flag valid;
+    Addr tag;
+    Addr base;
+    Flag dirty;
+
+    //how should data be represented?
+    
+    //replacement info should include last_access_time, insertion_time, pf
+}
+
+template <typename T> 
 Class Cache {
   public:
     String name;
 
-    uns data_size; //size used for malloc
-    uns assoc;
-    uns num_lines;
-    uns num_sets;
-    uns num_lines;
-    uns shift_amount; 
+    uns8 data_size; //size used for malloc
+    uns8 assoc;
+    uns8 num_lines;
+    uns8 num_sets;
+    uns8 num_lines;
+    uns8 shift_amount; 
 
-    uns set_bits;
-    Cache(String name, uns cache_size, uns assoc, uns line_size, uns data_size, );
-    ~Cache();
+    uns8 set_bits;
+
+    std::vector<Cache_entry> entries;   
+    std::vector<T> data;
 }
-Cache::Cache(String name, uns cache_size, uns assoc, uns line_size, uns data_size, );
+
+template <typename T> 
+Cache::Cache(String name, uns cache_size, uns assoc, uns line_size, );
+
+template <typename T> 
+Cache::~Cache(String name, uns cache_size, uns assoc, uns line_size, uns data_size, );
+
+template <typename T> 
+T Cache::insert(uns proc_id, Addr addr);
+
+template <typename T> 
+T Cache::invalidate(uns proc_id, Addr addr);
+
+template <typename T> 
+T Cache::get_next_repl_line();
