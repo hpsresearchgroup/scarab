@@ -25,3 +25,10 @@
  * Date         : 3/10/2022
  * Description  : This is a library of cache functions.
  ***************************************************************************************/
+#include "libs/new_cache_lib.h"
+#include "libs/cache_lib.h"
+
+template <typename T> 
+Cache::Cache(string name, uns cache_size, uns assoc, uns line_size, Repl_Policy_enum repl){
+    
+}

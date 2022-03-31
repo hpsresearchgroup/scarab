@@ -29,8 +29,9 @@
 #include "globals/global_defs.h"
 #include "libs/list_lib.h"
 #include <vector>
+#include <string>
 
-Class Cache_entry {
+class Cache_entry {
   public:
     uns8 proc_id;
     Flag valid;
@@ -41,37 +42,47 @@ Class Cache_entry {
     //how should data be represented?
     
     //replacement info should include last_access_time, insertion_time, pf
-}
+};
+
+typedef enum Repl_Policy_enum {
+  REPL_TRUE_LRU,    /* actual least-recently-used replacement */
+  REPL_RANDOM,      /* random replacement */
+  REPL_NOT_MRU,     /* not-most-recently-used replacement */
+  REPL_MRU,
+  NUM_REPL
+} Repl_Policy;
 
 template <typename T> 
-Class Cache {
+class Cache {
   public:
     String name;
 
     uns8 data_size; //size used for malloc
     uns8 assoc;
-    uns8 num_lines;
-    uns8 num_sets;
-    uns8 num_lines;
+    uns num_lines;
+    uns num_sets;
     uns8 shift_amount; 
 
     uns8 set_bits;
+    Repl_Policy_enum repl
 
     std::vector<Cache_entry> entries;   
     std::vector<T> data;
-}
 
-template <typename T> 
-Cache::Cache(String name, uns cache_size, uns assoc, uns line_size, );
-
-template <typename T> 
-Cache::~Cache(String name, uns cache_size, uns assoc, uns line_size, uns data_size, );
-
-template <typename T> 
-T Cache::insert(uns proc_id, Addr addr);
-
-template <typename T> 
-T Cache::invalidate(uns proc_id, Addr addr);
-
-template <typename T> 
-T Cache::get_next_repl_line();
+    Cache(string name, uns cache_size, uns assoc, uns line_size, Repl_Policy_enum repl){
+      this->name = name;
+      this->assoc = assoc;
+      this->line_size = line_size;
+      
+      this->num_lines = cache_size / line_size;
+      this->num_sets  = cache_size / line_size / assoc;
+    }
+    
+    ~Cache();
+    
+    T insert(uns proc_id, Addr addr);
+    
+    T invalidate(uns proc_id, Addr addr);
+    
+    T get_next_repl_line();
+};
