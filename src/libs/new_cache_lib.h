@@ -28,6 +28,7 @@
 
 #include "globals/global_defs.h"
 #include "libs/list_lib.h"
+#include "globals/utils.h"
 #include <vector>
 #include <string>
 
@@ -39,8 +40,6 @@ class Cache_entry {
     Addr base;
     Flag dirty;
 
-    //how should data be represented?
-    
     //replacement info should include last_access_time, insertion_time, pf
 };
 
@@ -57,17 +56,23 @@ class Cache {
   public:
     String name;
 
-    uns8 data_size; //size used for malloc
+    //uns8 data_size; //size used for malloc
     uns8 assoc;
     uns num_lines;
     uns num_sets;
     uns8 shift_amount; 
+    Addr set_mask;    /* mask applied after shifting to get the index */
+    Addr tag_mask;    /* mask used to get the tag after shifting */
+    Addr offset_mask; /* mask used to get the line offset */
 
     uns8 set_bits;
     Repl_Policy_enum repl
 
     std::vector<Cache_entry> entries;   
     std::vector<T> data;
+
+    Counter num_demand_access;
+    Counter last_update; /* last update cycle */
 
     Cache(string name, uns cache_size, uns assoc, uns line_size, Repl_Policy_enum repl){
       this->name = name;
@@ -76,13 +81,96 @@ class Cache {
       
       this->num_lines = cache_size / line_size;
       this->num_sets  = cache_size / line_size / assoc;
+
+      this->set_bits = LOG2(num_sets);
+      this->shift_amount = LOG2(line_size);
+      this->set_mask = N_BIT_MASK(LOG2(num_sets));
+      this->tag_mask = ~this->set_mask;
+      this->offset_mask = N_BIT_MASK(cache->shift_bits);
+
+
+
+      entries.resize(num_lines);
+      data.resize(num_lines);
+
+      num_demand_access = 0;
+      last_update = 0;
     }
     
-    ~Cache();
+    ~Cache(); //do i need this?
     
-    T insert(uns proc_id, Addr addr);
+    inline uns cache_index(Addr addr) {
+      return addr >> cache->shift_bits & cache->set_mask;
+    }
+
+    inline Addr cache_tag(Addr addr) {
+      return addr >> this->shift_bits & this->tag_mask;
+    }
+
+    inline Addr cache_line_addr(Addr addr) {
+      return addr & ~this->offset_mask;
+    }
+
+    T* access(uns proc_id, Addr addr){
+      uns index = search(proc_id, addr);
+      if(index != 0xFFFFFFFF)  
+        if(entries[index]->pref) {
+          line->pref = FALSE;
+        }
+        cache->num_demand_access++;
+        //TODO: add the replacement policy update
+        return data[index]; 
+      }
+      return NULL; 
+    }
+
+    T* probe(uns proc_id, Addr addr){
+      uns index = search(proc_id, addr);
+      if(index != 0xFFFFFFFF)  
+        return data[index]; 
+      }
+      return NULL; 
+    }
+
+    //searches the cache for the line, returns the index into data and entries vector if found,
+    //returns 0xFFFFFFFF if not found
+    uns search(uns proc_id, Addr addr){
+      Addr tag = cache_tag (addr);
+      uns  set = cache_index(addr);
+      uns  ii;
+
+      for(ii = 0; ii < cache->assoc; ii++) {
+        Cache_Entry line = entries[set*assoc + ii];
+
+        if(line.valid && line.tag == tag) {
+          /* update replacement state if necessary */
+          ASSERT(proc_id, line->data);
+          DEBUG(proc_id, "Found line in cache '%s' at (set %u, way %u, base 0x%s)\n",
+                this->name, set, ii, hexstr64s(line->base));
+          if(update_repl) {
+          }
+          ASSERT(porc_id, ~(set*assoc + ii));
+          return set*assoc + ii;
+        }
+      }
+      DEBUG(0, "Didn't find line in set %u in cache '%s' base 0x%s\n", set,
+            this->name, hexstr64s(addr));
+      return 0xFFFFFFFF;
+    }
     
-    T invalidate(uns proc_id, Addr addr);
+    T insert(uns proc_id, Addr addr){
+      return NULL;
+    }
+    
+    T invalidate(uns proc_id, Addr addr){
+      uns index = search(proc_id, addr);
+      if(index != 0xFFFFFFFF){
+        entries[index].tag = 0;  
+        entries[index].valid= FALSE;  
+        entries[index].base= FALSE;  
+      }
+      return NULL;
+    }
     
     T get_next_repl_line();
 };
