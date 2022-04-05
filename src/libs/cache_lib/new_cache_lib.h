@@ -66,10 +66,11 @@ class Cache {
     Addr offset_mask; /* mask used to get the line offset */
 
     uns8 set_bits;
-    Repl_Policy_enum repl
+    Repl_Policy_enum repl;
 
     std::vector<Cache_entry> entries;   
     std::vector<T> data;
+    std::vector<uns> repl_set;
 
     Counter num_demand_access;
     Counter last_update; /* last update cycle */
@@ -92,6 +93,7 @@ class Cache {
 
       entries.resize(num_lines);
       data.resize(num_lines);
+      repl_set.resize(assoc);
 
       num_demand_access = 0;
       last_update = 0;
@@ -159,6 +161,22 @@ class Cache {
     }
     
     T insert(uns proc_id, Addr addr){
+      Addr tag = cache_tag (addr);
+      Addr line_addr = cache_line_addr(addr);
+      uns  set = cache_index(addr);
+
+      uns base = set * assoc;
+      for(uns ii = 0; ii < assoc; i++){
+        repl_set[ii] = base + ii;
+      }
+      
+      uns new_line_index = find_next_repl_index(repl_set);
+
+      entries[new_line_index].valid = true;
+      entries[new_line_index].tag = tag;
+      entries[new_line_index].proc_id = proc_id;
+      entries[new_line_index].base = line_addr;
+      
       return NULL;
     }
     
