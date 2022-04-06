@@ -93,8 +93,6 @@ class Cache {
       last_update = 0;
     }
     
-    ~Cache(); //do i need this?
-    
     inline uns cache_index(Addr addr) {
       return addr >> cache->shift_bits & cache->set_mask;
     }
@@ -183,6 +181,6 @@ class Cache {
     }
     
     T get_next_repl_line(){
-
+        
     }
 };

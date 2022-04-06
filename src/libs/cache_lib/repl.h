@@ -36,7 +36,6 @@
 typedef enum Repl_Policy_enum {
   REPL_TRUE_LRU,    /* actual least-recently-used replacement */
   REPL_RANDOM,      /* random replacement */
-  REPL_NOT_MRU,     /* not-most-recently-used replacement */
   REPL_MRU,
   NUM_REPL
 } Repl_Policy;
@@ -50,8 +49,8 @@ class per_line_data {
 
     per_line_data() {
         valid = false;
-        repl_data[pos].access_cycle = MAX_CTR;
-        repl_data[pos].insert_cycle = MAX_CTR;
+        access_cycle = MAX_CTR;
+        insert_cycle = MAX_CTR;
     }
 };
 
@@ -67,25 +66,54 @@ class repl {
     uns get_next_repl(std::vector<uns> list){
         switch(repl_policy){
             case REPL_TRUE_LRU:
-                uns index;
-                int prefetch_index = -1;
-                int min_access_cycle_index = -1; 
+                int index;
+                int res = -1;
+                int prefetch_res = -1;
+                Counter min_access_cycle = MAX_INT; 
+                Counter min_prefetch_cycle = MAX_INT; 
                 Counter current_min_cycle;
                 for(index:list){
                     if(repl_data.at(index).valid == false)
                         return index;
-                    if(repl_data.at(index).prefetch){
-                        prefetch_index = index;
+                    if(repl_data.at(index).prefetch && repl_data.at(index).insert_cycle < min_prefetch_cycle){
+                        prefetch_res = index;
+                        min_prefetch_cycle = repl_data.at(index).insert_cycle;
                     }
-
+                    if(repl_data.at(index).access_cycle < min_access_cycle){
+                        res = index;
+                        min_access_cycle = repl_data.at(index).access_cycle;
+                    }
                 }
-                 
+                if(prefetch_res != -1){
+                    return (uns)prefetch_res;
+                }
+                return (uns)res;
                 break;
             case REPL_RANDOM:
                 break;
-            case REPL_NOT_MRU:
-                break;
             case REPL_MRU:
+                int index;
+                int res = -1;
+                int prefetch_res = -1;
+                Counter max_access_cycle = 0; 
+                Counter max_prefetch_cycle = 0; 
+                Counter current_min_cycle;
+                for(index:list){
+                    if(repl_data.at(index).valid == false)
+                        return index;
+                    if(repl_data.at(index).prefetch && repl_data.at(index).insert_cycle > min_prefetch_cycle){
+                        prefetch_res = index;
+                        min_prefetch_cycle = repl_data.at(index).insert_cycle;
+                    }
+                    if(repl_data.at(index).access_cycle > min_access_cycle){
+                        res = index;
+                        min_access_cycle = repl_data.at(index).access_cycle;
+                    }
+                }
+                if(prefetch_res != -1){
+                    return (uns)prefetch_res;
+                }
+                return (uns)res;
                 break;
             default:
                 ASSERT(0, false);
