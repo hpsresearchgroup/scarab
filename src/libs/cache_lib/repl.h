@@ -32,6 +32,7 @@
 #include "globals/assert.h"
 #include <vector>
 #include <string>
+#include <cstdlib>
 
 typedef enum Repl_Policy_enum {
   REPL_TRUE_LRU,    /* actual least-recently-used replacement */
@@ -90,6 +91,7 @@ class repl {
                 return (uns)res;
                 break;
             case REPL_RANDOM:
+                return list[rand()%list.size()];
                 break;
             case REPL_MRU:
                 int index;
@@ -118,6 +120,8 @@ class repl {
             default:
                 ASSERT(0, false);
         }
+        //should never reach here
+        return 0;
     }
 
     void insert(uns pos, uns proc_id, Flog is_prefetch){
