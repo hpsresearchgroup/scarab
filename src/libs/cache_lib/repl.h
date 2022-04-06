@@ -67,9 +67,19 @@ class repl {
     uns get_next_repl(std::vector<uns> list){
         switch(repl_policy){
             case REPL_TRUE_LRU:
-                for(uns item:list){
-                    
+                uns index;
+                int prefetch_index = -1;
+                int min_access_cycle_index = -1; 
+                Counter current_min_cycle;
+                for(index:list){
+                    if(repl_data.at(index).valid == false)
+                        return index;
+                    if(repl_data.at(index).prefetch){
+                        prefetch_index = index;
+                    }
+
                 }
+                 
                 break;
             case REPL_RANDOM:
                 break;
