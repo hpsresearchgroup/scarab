@@ -42,6 +42,7 @@ typedef enum Repl_Policy_enum {
 } Repl_Policy;
 
 class per_line_data {
+    public:
     Flag valid;
     Flag prefetch;
     uns proc_id;
@@ -57,91 +58,18 @@ class per_line_data {
 
 class repl {   
     public:
-        Repl_Policy repl_policy;
-        std::vector<per_line_data> repl_data;
 
-    repl(Repl_Policy policy, uns num_lines) :
-        repl_policy(policy), repl_data(num_lines) {
-    }
+    Repl_Policy repl_policy;
+    std::vector<per_line_data> repl_data;
 
-    uns get_next_repl(std::vector<uns> list){
-        switch(repl_policy){
-            case REPL_TRUE_LRU:
-                int index;
-                int res = -1;
-                int prefetch_res = -1;
-                Counter min_access_cycle = MAX_INT; 
-                Counter min_prefetch_cycle = MAX_INT; 
-                Counter current_min_cycle;
-                for(index:list){
-                    if(repl_data.at(index).valid == false)
-                        return index;
-                    if(repl_data.at(index).prefetch && repl_data.at(index).insert_cycle < min_prefetch_cycle){
-                        prefetch_res = index;
-                        min_prefetch_cycle = repl_data.at(index).insert_cycle;
-                    }
-                    if(repl_data.at(index).access_cycle < min_access_cycle){
-                        res = index;
-                        min_access_cycle = repl_data.at(index).access_cycle;
-                    }
-                }
-                if(prefetch_res != -1){
-                    return (uns)prefetch_res;
-                }
-                return (uns)res;
-                break;
-            case REPL_RANDOM:
-                return list[rand()%list.size()];
-                break;
-            case REPL_MRU:
-                int index;
-                int res = -1;
-                int prefetch_res = -1;
-                Counter max_access_cycle = 0; 
-                Counter max_prefetch_cycle = 0; 
-                Counter current_min_cycle;
-                for(index:list){
-                    if(repl_data.at(index).valid == false)
-                        return index;
-                    if(repl_data.at(index).prefetch && repl_data.at(index).insert_cycle > min_prefetch_cycle){
-                        prefetch_res = index;
-                        min_prefetch_cycle = repl_data.at(index).insert_cycle;
-                    }
-                    if(repl_data.at(index).access_cycle > min_access_cycle){
-                        res = index;
-                        min_access_cycle = repl_data.at(index).access_cycle;
-                    }
-                }
-                if(prefetch_res != -1){
-                    return (uns)prefetch_res;
-                }
-                return (uns)res;
-                break;
-            default:
-                ASSERT(0, false);
-        }
-        //should never reach here
-        return 0;
-    }
+    repl(Repl_Policy policy, uns num_lines);
 
-    void insert(uns pos, uns proc_id, Flog is_prefetch){
-        repl_data[pos].valid = True;
-        repl_data[pos].prefetch = is_prefetch;
-        repl_data[pos].proc_id = proc_id;
-        repl_data[pos].insert_cycle = cycle_count;
-        repl_data[pos].access_cycle = cycle_count;
-    }
+    uns get_next_repl(std::vector<uns> list);
 
-    void access(uns pos){
-        ASSERT(0, repl_data[pos].valid);
-        repl_data[pos].access_cycle = cycle_count;
-        repl_data[pos].prefetch = false;
-    }
+    void insert(uns pos, uns proc_id, Flag is_prefetch);
 
-    void invalid(uns pos){
-        repl_data[pos].valid = false;
-        repl_data[pos].access_cycle = MAX_CTR;
-        repl_data[pos].insert_cycle = MAX_CTR;
-    }
+    void access(uns pos);
+
+    void invalid(uns pos);
 
 };
