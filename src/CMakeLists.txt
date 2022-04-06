@@ -41,9 +41,10 @@ add_compile_options(
 add_subdirectory(ramulator)
 add_subdirectory(pin/pin_lib)
 add_subdirectory(pin/pin_exec/testing)
-add_subdirectory(libs/pipeline_stage_lib)
+add_subdirectory(libs)
+add_subdirectory(testing)
 
-set(scarab_dirs bp debug bp/template_lib dvfs frontend globals isa libs libs/pipeline_stage_lib memory power prefetcher .)
+set(scarab_dirs bp debug bp/template_lib dvfs frontend globals isa libs memory power prefetcher .)
 if(DEFINED ENV{SCARAB_ENABLE_MEMTRACE})
   set(scarab_dirs ${scarab_dirs} frontend/memtrace)
 endif()
