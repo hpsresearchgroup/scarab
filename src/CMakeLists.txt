@@ -23,6 +23,11 @@ set(CMAKE_CXX_FLAGS_GPROF     "${CMAKE_CXX_FLAGS_SCARABOPT} -pg -g3 ${flags_enab
 
 #build dependencies with default warn flags, otherwise dynamorio will not build
 add_subdirectory(deps)
+include(GoogleTest)
+
+#Create Build rules for everyone in project
+add_library(scarab_commons INTERFACE)
+target_include_directories(scarab_commons INTERFACE .)
 
 set(warn_flags -Wall -Wunused -Wno-long-long
   -Wpointer-arith
@@ -39,10 +44,11 @@ add_compile_options(
 )
 
 add_subdirectory(ramulator)
-add_subdirectory(pin/pin_lib)
-add_subdirectory(pin/pin_exec/testing)
 add_subdirectory(libs)
 add_subdirectory(testing)
+
+add_subdirectory(pin/pin_lib)
+add_subdirectory(pin/pin_exec/testing)
 
 set(scarab_dirs bp debug bp/template_lib dvfs frontend globals isa libs memory power prefetcher .)
 if(DEFINED ENV{SCARAB_ENABLE_MEMTRACE})

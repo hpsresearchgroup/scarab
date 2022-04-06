@@ -1,18 +1,14 @@
 option(PIPELINE_STAGE_LIB_TESTS "Turn ON/OFF pipeline_stage_lib unit tests" ON)
 
 add_library(pipeline_stage_lib
-    STATIC
-        stage_data.h
-        pipeline_stage.h
+    INTERFACE
+        #stage_data.h
+        #pipeline_stage.h
 )
-set_target_properties(pipeline_stage_lib PROPERTIES LINKER_LANGUAGE CXX)
 
 if(PIPELINE_STAGE_LIB_TESTS)
-    add_executable(pipeline_stage_lib_test
+    add_library(pipeline_stage_lib_test
+        OBJECT
         testing/stage_data_test.cc)
-    target_include_directories(pipeline_stage_lib_test PRIVATE ../..)
-    target_link_libraries(pipeline_stage_lib_test PRIVATE gtest_main)
-
-    include(GoogleTest)
-    gtest_discover_tests(pipeline_stage_lib_test)
+    target_link_libraries(pipeline_stage_lib_test PUBLIC scarab_commons gtest)
 endif()
