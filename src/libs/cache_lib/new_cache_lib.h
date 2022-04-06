@@ -28,6 +28,7 @@
 
 #include "globals/global_defs.h"
 #include "libs/list_lib.h"
+#include "libs/cache_lib/repl.h"
 #include "globals/utils.h"
 #include <vector>
 #include <string>
@@ -42,14 +43,6 @@ class Cache_entry {
 
     //replacement info should include last_access_time, insertion_time, pf
 };
-
-typedef enum Repl_Policy_enum {
-  REPL_TRUE_LRU,    /* actual least-recently-used replacement */
-  REPL_RANDOM,      /* random replacement */
-  REPL_NOT_MRU,     /* not-most-recently-used replacement */
-  REPL_MRU,
-  NUM_REPL
-} Repl_Policy;
 
 template <typename T> 
 class Cache {
@@ -66,15 +59,17 @@ class Cache {
     Addr offset_mask; /* mask used to get the line offset */
 
     uns8 set_bits;
-    Repl_Policy_enum repl
+    Repl_Policy_enum repl;
 
     std::vector<Cache_entry> entries;   
     std::vector<T> data;
+    std::vector<uns> repl_set;
 
     Counter num_demand_access;
     Counter last_update; /* last update cycle */
 
-    Cache(string name, uns cache_size, uns assoc, uns line_size, Repl_Policy_enum repl){
+    Cache(std::string name, uns cache_size, uns assoc, uns line_size, Repl_Policy_enum repl) :
+    {
       this->name = name;
       this->assoc = assoc;
       this->line_size = line_size;
@@ -92,12 +87,11 @@ class Cache {
 
       entries.resize(num_lines);
       data.resize(num_lines);
+      repl_set.resize(assoc);
 
       num_demand_access = 0;
       last_update = 0;
     }
-    
-    ~Cache(); //do i need this?
     
     inline uns cache_index(Addr addr) {
       return addr >> cache->shift_bits & cache->set_mask;
@@ -113,7 +107,7 @@ class Cache {
 
     T* access(uns proc_id, Addr addr){
       uns index = search(proc_id, addr);
-      if(index != 0xFFFFFFFF)  
+      if(index != 0xFFFFFFFF) {
         if(entries[index]->pref) {
           line->pref = FALSE;
         }
@@ -145,20 +139,34 @@ class Cache {
         if(line.valid && line.tag == tag) {
           /* update replacement state if necessary */
           ASSERT(proc_id, line->data);
-          DEBUG(proc_id, "Found line in cache '%s' at (set %u, way %u, base 0x%s)\n",
-                this->name, set, ii, hexstr64s(line->base));
           if(update_repl) {
           }
           ASSERT(porc_id, ~(set*assoc + ii));
           return set*assoc + ii;
         }
       }
-      DEBUG(0, "Didn't find line in set %u in cache '%s' base 0x%s\n", set,
+      DEBUG(proc_id, "Didn't find line in set %u in cache '%s' base 0x%s\n", set,
             this->name, hexstr64s(addr));
       return 0xFFFFFFFF;
     }
     
     T insert(uns proc_id, Addr addr){
+      Addr tag = cache_tag (addr);
+      Addr line_addr = cache_line_addr(addr);
+      uns  set = cache_index(addr);
+
+      uns base = set * assoc;
+      for(uns ii = 0; ii < assoc; i++){
+        repl_set[ii] = base + ii;
+      }
+      
+      uns new_line_index = find_next_repl_index(repl_set);
+
+      entries[new_line_index].valid = true;
+      entries[new_line_index].tag = tag;
+      entries[new_line_index].proc_id = proc_id;
+      entries[new_line_index].base = line_addr;
+      
       return NULL;
     }
     
@@ -172,5 +180,7 @@ class Cache {
       return NULL;
     }
     
-    T get_next_repl_line();
+    T get_next_repl_line(){
+        
+    }
 };
