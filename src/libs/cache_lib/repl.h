@@ -20,10 +20,11 @@
  */
 
 /***************************************************************************************
- * File         : libs/new_cache_lib.h
+ * File         : libs/repl.h
  * Author       : HPS Research Group
  * Date         : 3/10/2022
- * Description  : This is a library of cache functions.
+ * Description  : this is part of the cache library that deals with 
+ *                replacement policy
  ***************************************************************************************/
 
 #include "globals/global_defs.h"
@@ -56,13 +57,13 @@ class per_line_data {
     }
 };
 
-class repl {   
+class repl_class {   
     public:
 
     Repl_Policy repl_policy;
     std::vector<per_line_data> repl_data;
 
-    repl(Repl_Policy policy, uns num_lines);
+    repl_class(Repl_Policy policy, uns num_lines);
 
     uns get_next_repl(std::vector<uns> list);
 

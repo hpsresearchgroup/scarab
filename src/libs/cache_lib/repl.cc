@@ -20,10 +20,11 @@
  */
 
 /***************************************************************************************
- * File         : libs/new_cache_lib.h
+ * File         : libs/repl.cc
  * Author       : HPS Research Group
  * Date         : 3/10/2022
- * Description  : This is a library of cache functions.
+ * Description  : this is part of the cache library that deals with 
+ *                replacement policy
  ***************************************************************************************/
 
 #include "globals/global_defs.h"
@@ -33,11 +34,11 @@
 #include <vector>
 #include <string>
 
-repl::repl(Repl_Policy policy, uns num_lines) :
+repl_class::repl_class(Repl_Policy policy, uns num_lines) :
     repl_policy(policy), repl_data(num_lines) {
 }
 
-uns repl::get_next_repl(std::vector<uns> list){
+uns repl_class::get_next_repl(std::vector<uns> list){
     switch(repl_policy){
         case REPL_TRUE_LRU:
             int res = -1;
@@ -96,7 +97,7 @@ uns repl::get_next_repl(std::vector<uns> list){
     return 0;
 }
 
-void repl::insert(uns pos, uns proc_id, Flag is_prefetch){
+void repl_class::insert(uns pos, uns proc_id, Flag is_prefetch){
     repl_data[pos].valid = true;
     repl_data[pos].prefetch = is_prefetch;
     repl_data[pos].proc_id = proc_id;
@@ -104,13 +105,13 @@ void repl::insert(uns pos, uns proc_id, Flag is_prefetch){
     repl_data[pos].access_cycle = cycle_count;
 }
 
-void repl::access(uns pos){
+void repl_class::access(uns pos){
     ASSERT(0, repl_data[pos].valid);
     repl_data[pos].access_cycle = cycle_count;
     repl_data[pos].prefetch = false;
 }
 
-void repl::invalid(uns pos){
+void repl_class::invalid(uns pos){
     repl_data[pos].valid = false;
     repl_data[pos].access_cycle = MAX_CTR;
     repl_data[pos].insert_cycle = MAX_CTR;
