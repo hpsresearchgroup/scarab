@@ -29,7 +29,9 @@
 #ifndef __PIPELINE_STAGE_H__
 #define __PIPELINE_STAGE_H__
 
-#include "globals/global_types.h"
+extern "C" {
+    #include "globals/global_types.h"
+}
 
 #include "stage_data.h"
 
@@ -39,7 +41,6 @@ class PipelineStage {
     uns proc_id;
     std::vector<StageData> stages;
 
-    void init();
     void reset();
     void recover();
     void debug();

@@ -20,35 +20,40 @@
 */
 
 /***************************************************************************************
-* File         : stage_data.h
+* File         : stage_data.cc
 * Author       : HPS Research Group
-* Date         : 4/5/2022
+* Date         : 4/6/2022
 * Description  :
 ***************************************************************************************/
 
-#ifndef __PIPELINE_STAGE_H__
-#define __PIPELINE_STAGE_H__
-
-#include <string>
-#include <vector>
-
 extern "C" {
-    #include "op.h"
+    #include "globals/global_defs.h"
+    #include "globals/global_types.h"
+    #include "globals/global_vars.h"
+    #include "globals/assert.h"
 }
 
-struct StageData {
-    StageData() = delete;
-    StageData(uns proc_id_, std::string name_, int32_t stage_width_);
+#include "stage_data.h"
 
-    void insert(Op *op);
-    void reset();
-    void recover();
-    void debug();
+#include <algorithm>
 
-    uns proc_id;                /// The process ID
-    std::string name;           /// Name of the pipeline stage. E.g, "Decode 0"
-    uint32_t op_count;          /// Actual number of ops currently in the stage
-    std::vector<Op *> ops;      /// Pipeline Stage slots. Always allocated for maximum stage width.
-};
+StageData::StageData(uns proc_id_, std::string name_, int32_t stage_width_) :
+    proc_id(proc_id_), name(name_), op_count(0), ops(stage_width_, NULL)
+{ }
 
-#endif
+void StageData::insert(Op *op) {
+    //ASSERT(proc_id, op);
+    //ASSERT(proc_id, ops[op_count] == nullptr);
+    //ASSERT(proc_id, op_count < ops.size());
+    ops[op_count] = op;
+    op_count += 1;
+}
+
+void StageData::reset() {
+    op_count = 0;
+    std::fill(ops.begin(), ops.end(), nullptr);
+}
+
+void StageData::recover() {}
+
+void StageData::debug() {}
