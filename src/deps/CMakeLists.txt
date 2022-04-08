@@ -15,7 +15,6 @@ find_package(Python3)
 if(Python3_FOUND)
     execute_process(
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/xed/mfile.py
-        #COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/xed/mfasdfasdfasdfile.py
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/xed"
         COMMAND_ECHO NONE
         OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/xed-build.stdout"
