@@ -49,14 +49,13 @@ class Cache {
   public:
     String name;
 
-    //uns8 data_size; //size used for malloc
     uns8 assoc;
     uns num_lines;
     uns num_sets;
     uns8 shift_amount; 
-    Addr set_mask;    /* mask applied after shifting to get the index */
-    Addr tag_mask;    /* mask used to get the tag after shifting */
-    Addr offset_mask; /* mask used to get the line offset */
+    Addr set_mask;    /// mask applied after shifting to get the index
+    Addr tag_mask;    /// mask used to get the tag after shifting
+    Addr offset_mask; /// mask used to get the line offset
 
     uns8 set_bits;
     Repl_Policy_enum repl;
@@ -68,8 +67,10 @@ class Cache {
     Counter num_demand_access;
     Counter last_update; /* last update cycle */
 
-    Cache(std::string name, uns cache_size, uns assoc, uns line_size, Repl_Policy_enum repl) :
-    {
+    repl_class repl; 
+
+    Cache(std::string name, uns cache_size, uns assoc, uns line_size, Repl_Policy_enum repl_policy) :
+      name(name), assoc(assoc), num_lines(cache_size/line_size), repl(repl_policy, num_lines){
       this->name = name;
       this->assoc = assoc;
       this->line_size = line_size;
@@ -82,8 +83,6 @@ class Cache {
       this->set_mask = N_BIT_MASK(LOG2(num_sets));
       this->tag_mask = ~this->set_mask;
       this->offset_mask = N_BIT_MASK(cache->shift_bits);
-
-
 
       entries.resize(num_lines);
       data.resize(num_lines);
@@ -120,7 +119,7 @@ class Cache {
 
     T* probe(uns proc_id, Addr addr){
       uns index = search(proc_id, addr);
-      if(index != 0xFFFFFFFF)  
+      if(index != 0xFFFFFFFF) {
         return data[index]; 
       }
       return NULL; 
@@ -181,6 +180,6 @@ class Cache {
     }
     
     T get_next_repl_line(){
-        
+      
     }
 };
