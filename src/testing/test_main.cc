@@ -4,9 +4,12 @@ extern "C" {
     #include "globals/op_pool.h"
 
     #include "sim.h"
+    #include "model.h"
 }
 
 static void scarab_test_init_globals() {
+    SIM_MODEL = DUMB_MODEL;
+
     init_op_pool();
     init_global(NULL, NULL);
     //init_model(SIMULATION_MODE);

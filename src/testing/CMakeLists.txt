@@ -1,8 +1,8 @@
-option(PIPELINE_STAGE_LIB_TESTS "Turn ON/OFF pipeline_stage_lib unit tests" OFF)
+option(PIPELINE_STAGE_LIB_TESTS "Turn ON/OFF pipeline_stage_lib unit tests" ON)
 
 enable_testing()
 
-add_executable(scarab_test test_main.cc ../sim.c ../cmp_model.c)
+add_executable(scarab_test test_main.cc)
 
 if(PIPELINE_STAGE_LIB_TESTS)
     target_link_libraries(scarab_test PRIVATE
@@ -11,9 +11,7 @@ if(PIPELINE_STAGE_LIB_TESTS)
 endif()
 
 target_link_libraries(scarab_test PRIVATE
-    globals
-    scarab_debug
-    scarab_build_rules
+    scarab_no_main
     gtest_main
 )
 

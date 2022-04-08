@@ -22,7 +22,10 @@
 #include "gtest/gtest.h"
 
 #include "../stage_data.h"
-#include "globals/op_pool.h"
+
+extern "C" {
+    #include "globals/op_pool.h"
+}
 
 #include <memory>
 

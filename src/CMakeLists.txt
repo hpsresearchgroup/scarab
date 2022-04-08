@@ -50,7 +50,7 @@ add_subdirectory(globals)
 add_subdirectory(debug)
 add_subdirectory(libs)
 add_subdirectory(isa)
-#add_subdirectory(testing)
+add_subdirectory(testing)
 
 add_subdirectory(pin/pin_lib)
 add_subdirectory(pin/pin_exec/testing)
