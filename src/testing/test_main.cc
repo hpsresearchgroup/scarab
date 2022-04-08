@@ -19,6 +19,9 @@ static void scarab_test_init_globals() {
     mystatus = stdout;
     cycle_count  = 0;
     unique_count = 0;
+
+    printf("Scarab init globals finished!\n");
+    fflush(stdout);
 }
 
 int main(int argc, char** argv) {

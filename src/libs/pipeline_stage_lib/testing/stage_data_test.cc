@@ -21,6 +21,7 @@
 
 #include "gtest/gtest.h"
 
+#include "testing/scarab_test_helper.h"
 #include "../stage_data.h"
 
 extern "C" {
@@ -42,14 +43,14 @@ class StageDataTest : public ::testing::Test {
         ops = std::make_unique<std::array<Op*, num_ops> >();
 
         for (uint32_t i = 0; i < ops->size(); ++i) {
-            ops->at(i) = alloc_op(proc_id);
+            ops->at(i) = scarab_test_alloc_op(proc_id);
             ops->at(i)->op_num = i;
         }
     }
 
     virtual void TearDown() {
         for (uint32_t i = 0; i < ops->size(); ++i) {
-            free_op(ops->at(i));
+            scarab_test_free_op(ops->at(i));
         }
     }
 
