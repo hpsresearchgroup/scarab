@@ -116,9 +116,9 @@ TEST_F(StageDataTest_4_5, Insert4StageData4) {
 TEST_F(StageDataTest_4_5, Insert5StageData4) {
     insert_ops_helper(4);
 
-    ASSERT_DEATH({
+    EXPECT_DEATH({
             sd->insert(ops->at(4));
-        }, "Error on line .* of Insert5StageData4");
+        }, "ASSERT.*");
 }
 
 TEST_F(StageDataTest_4_5, ResetStageData4) {
