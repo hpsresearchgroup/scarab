@@ -37,17 +37,19 @@ extern "C" {
 }
 
 struct StageData {
+    static bool flush_op(Op *op, Counter recovery_op_num);
+
     StageData() = delete;
     StageData(uns proc_id_, std::string name_, int32_t stage_width_);
 
     void insert(Op *op);
     void reset();
-    void recover();
-    void debug();
+    void recover(Counter recovery_op_num);
+    void debug() const;
 
     uns proc_id;                /// The process ID
     std::string name;           /// Name of the pipeline stage. E.g, "Decode 0"
-    uint32_t op_count;          /// Actual number of ops currently in the stage
+    uint32_t num_ops;           /// Actual number of ops currently in the stage
     std::vector<Op *> ops;      /// Pipeline Stage slots. Always allocated for maximum stage width.
 };
 

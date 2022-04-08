@@ -16,5 +16,7 @@ if(PIPELINE_STAGE_LIB_TESTS)
         PUBLIC
         pipeline_stage_lib
         scarab_commons
+        globals
+        debug
         gtest)
 endif()

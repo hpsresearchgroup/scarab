@@ -31,6 +31,10 @@ extern "C" {
     #include "globals/global_types.h"
     #include "globals/global_vars.h"
     #include "globals/assert.h"
+    #include "globals/op_pool.h"
+
+    #include "debug/debug_macros.h"
+    #include "debug/debug_print.h"
 }
 
 #include "stage_data.h"
@@ -38,22 +42,41 @@ extern "C" {
 #include <algorithm>
 
 StageData::StageData(uns proc_id_, std::string name_, int32_t stage_width_) :
-    proc_id(proc_id_), name(name_), op_count(0), ops(stage_width_, NULL)
+    proc_id(proc_id_), name(name_), num_ops(0), ops(stage_width_, NULL)
 { }
 
 void StageData::insert(Op *op) {
-    //ASSERT(proc_id, op);
-    //ASSERT(proc_id, ops[op_count] == nullptr);
-    //ASSERT(proc_id, op_count < ops.size());
-    ops[op_count] = op;
-    op_count += 1;
+    ASSERT(proc_id, op);
+    ASSERT(proc_id, ops[num_ops] == nullptr);
+    ASSERT(proc_id, num_ops < ops.size());
+    ops[num_ops] = op;
+    num_ops += 1;
 }
 
 void StageData::reset() {
-    op_count = 0;
+    num_ops = 0;
     std::fill(ops.begin(), ops.end(), nullptr);
 }
 
-void StageData::recover() {}
+bool StageData::flush_op(Op *op, Counter recovery_op_num) {
+    return op->op_num > recovery_op_num;
+}
 
-void StageData::debug() {}
+void StageData::recover(Counter recovery_op_num) {
+    num_ops = 0;
+    for (auto& op : ops) {
+        if (op) {
+            if (flush_op(op, recovery_op_num)) {
+                free_op(op);
+            } else {
+                insert(op);
+            }
+        }
+    }
+    std::fill(ops.begin() + num_ops, ops.end(), nullptr);
+}
+
+void StageData::debug() const {
+    DPRINTF("# %-10s  num_ops:%d\n", name.c_str(), num_ops);
+    print_op_array(GLOBAL_DEBUG_STREAM, (Op **) &ops[0], ops.size(), num_ops);
+}
