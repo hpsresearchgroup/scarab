@@ -1,5 +1,5 @@
 add_library(scarab_debug 
-    OBJECT 
+    STATIC 
         debug_macros.h
         debug.param.h
         debug_print.c
@@ -9,4 +9,4 @@ add_library(scarab_debug
         pipeview.c
         pipeview.h
 )
-target_link_libraries(scarab_debug PRIVATE scarab_build_rules)
+target_link_libraries(scarab_debug PUBLIC isa scarab_build_rules)

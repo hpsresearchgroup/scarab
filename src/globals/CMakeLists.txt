@@ -1,5 +1,5 @@
 add_library(globals
-    OBJECT
+    STATIC
         assert.h
         enum.c
         enum.h
@@ -12,4 +12,4 @@ add_library(globals
         utils.c
         utils.h
     )
-target_link_libraries(globals PRIVATE scarab_build_rules)
+target_link_libraries(globals PUBLIC scarab_build_rules)

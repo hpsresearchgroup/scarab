@@ -49,12 +49,13 @@ add_subdirectory(ramulator)
 add_subdirectory(globals)
 add_subdirectory(debug)
 add_subdirectory(libs)
+add_subdirectory(isa)
 #add_subdirectory(testing)
 
 add_subdirectory(pin/pin_lib)
 add_subdirectory(pin/pin_exec/testing)
 
-set(scarab_dirs bp bp/template_lib dvfs frontend isa libs memory power prefetcher .)
+set(scarab_dirs bp bp/template_lib dvfs frontend libs memory power prefetcher .)
 if(DEFINED ENV{SCARAB_ENABLE_MEMTRACE})
   set(scarab_dirs ${scarab_dirs} frontend/memtrace)
 endif()
@@ -69,18 +70,32 @@ foreach(dir IN LISTS scarab_dirs)
     set(srcs ${srcs} ${dir_srcs})
 endforeach()
 
-add_executable(scarab 
+file(GLOB main_file_full_path ./main.c)
+#get_filename_component(main_file_full_path ${CMAKE_CURRENT_SOURCE_DIR}/./main.c ABSOLUTE)
+list(REMOVE_ITEM srcs ${main_file_full_path})
+
+add_library(scarab_no_main 
+  STATIC
     ${srcs}
 )
+target_link_libraries(scarab_no_main
+  PUBLIC
+    globals
+    isa
+    scarab_libs
+    scarab_debug
+    scarab_build_rules
+    ramulator
+    pin_lib_for_scarab
+)
+
+add_executable(scarab ${main_file_full_path})
 
 target_link_libraries(scarab
-    PRIVATE
-        ramulator
-        pin_lib_for_scarab
-        globals
-        scarab_debug
-        scarab_build_rules
+  PUBLIC
+    scarab_no_main
 )
+
 if(DEFINED ENV{SCARAB_ENABLE_MEMTRACE})
   target_link_libraries(scarab PRIVATE dynamorio memtrace)
 endif()
