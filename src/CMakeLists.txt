@@ -26,6 +26,7 @@ set(CMAKE_CXX_FLAGS_GPROF     "${CMAKE_CXX_FLAGS_SCARABOPT} -pg -g3 ${flags_enab
 #build dependencies with default warn flags, otherwise dynamorio will not build
 add_subdirectory(deps)
 include(GoogleTest)
+include(testing/CMakeTestingOptions.cmake)
 
 #Create Build rules for everyone in project
 add_library(scarab_build_rules INTERFACE)

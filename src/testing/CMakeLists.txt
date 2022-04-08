@@ -1,5 +1,3 @@
-option(PIPELINE_STAGE_LIB_TESTS "Turn ON/OFF pipeline_stage_lib unit tests" ON)
-
 enable_testing()
 
 add_executable(scarab_test test_main.cc)
