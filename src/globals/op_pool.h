@@ -29,6 +29,10 @@
 #ifndef __OP_POOL_H__
 #define __OP_POOL_H__
 
+#include "globals/global_defs.h"
+#include "globals/global_vars.h"
+#include "globals/global_types.h"
+#include "op.h"
 
 /**************************************************************************************/
 /* Global Variables */

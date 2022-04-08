@@ -2,14 +2,24 @@
 
 extern "C" {
     #include "globals/op_pool.h"
+
+    #include "sim.h"
 }
 
-void scarab_init_globals() {
+static void scarab_test_init_globals() {
     init_op_pool();
+    init_global(NULL, NULL);
+    //init_model(SIMULATION_MODE);
+
+    mystdout = stdout;
+    mystderr = stderr;
+    mystatus = stdout;
+    cycle_count  = 0;
+    unique_count = 0;
 }
 
 int main(int argc, char** argv) {
-  scarab_init_globals();
+  scarab_test_init_globals();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

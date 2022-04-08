@@ -41,7 +41,7 @@
 #include "globals/assert.h"
 #include "memory/cache_part.h"
 #include "memory/memory.param.h"
-#include "op_pool.h"
+#include "globals/op_pool.h"
 #include "prefetcher/pref.param.h"
 #include "prefetcher/pref_common.h"
 #include "sim.h"
