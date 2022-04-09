@@ -139,6 +139,7 @@ TEST_F(StageDataTest_4_5, Recovery_Flush1) {
     uint32_t starting_num_ops = 4;
     uint32_t recovery_op_num = 2;
 
+    EmptyTest(stage_width);
     insert_ops_helper(starting_num_ops);
     sd->recover(recovery_op_num);
     InsertTest(stage_width, recovery_op_num + 1);
@@ -149,6 +150,7 @@ TEST_F(StageDataTest_4_5, Recovery_FlushNone) {
     uint32_t starting_num_ops = 4;
     uint32_t recovery_op_num = 10;
 
+    EmptyTest(stage_width);
     insert_ops_helper(starting_num_ops);
     sd->recover(recovery_op_num);
     InsertTest(stage_width, 4);
