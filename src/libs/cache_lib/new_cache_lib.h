@@ -42,13 +42,6 @@ class Cache_entry {
   Flag dirty;
 };
 
-class Cache_address {
-  public:
-  Flag valid;
-  uns set;
-  uns way; 
-}
-
 template <typename T> 
 class Cache_access_result {
   public:
@@ -57,7 +50,11 @@ class Cache_access_result {
   Addr line_addr;
   T data;
   Cache_address cache_addr;
-}
+
+  Cache_access_result() :
+    hit(false) {
+  }
+};
 
 template <typename T> 
 class Cache {
@@ -65,6 +62,7 @@ class Cache {
     String name;
 
     uns8 assoc;
+    uns line_size;
     uns num_lines;
     uns num_sets;
     uns8 shift_amount; 
@@ -85,30 +83,21 @@ class Cache {
     repl_class repl; 
 
     Cache(std::string name, uns cache_size, uns assoc, uns line_size, Repl_Policy_enum repl_policy) :
-      name(name), assoc(assoc), num_lines(cache_size/line_size), repl(repl_policy, num_lines){
-      this->name = name;
-      this->assoc = assoc;
-      this->line_size = line_size;
-      
-      this->num_lines = cache_size / line_size;
-      this->num_sets  = cache_size / line_size / assoc;
-
+      name(name), assoc(assoc), line_size(line_size), num_lines(cache_size/line_size), 
+      num_sets(cache_size/line_size/assoc), 
+      entries(num_sets), data(num_sets), repl_set(assoc)
+      num_demand_access(0), last_update(0);
+      repl(repl_policy, num_sets, assoc){
       this->set_bits = LOG2(num_sets);
       this->shift_amount = LOG2(line_size);
       this->set_mask = N_BIT_MASK(LOG2(num_sets));
       this->tag_mask = ~this->set_mask;
-      this->offset_mask = N_BIT_MASK(cache->shift_bits);
+      this->offset_mask = N_BIT_MASK(shift_amount);
 
-      entries.resize(num_sets);
-      data.resize(num_sets);
       for(int ii = 0; ii < num_sets; i++) {
         entries[ii].resize(assoc);
         data[ii].resize(assoc);
       }
-      repl_set.resize(assoc);
-
-      num_demand_access = 0;
-      last_update = 0;
     }
     
     inline uns cache_index(Addr addr) {
@@ -125,15 +114,21 @@ class Cache {
 
     T* access(uns proc_id, Addr addr){
       Cache_address cache_addr = search(proc_id, addr);
+      Cache_access_result ret;
       if(cache_addr.valid) {
         if(entries[cache_addr.set][cache_addr.way]->pref) {
           line->pref = FALSE;
         }
         cache->num_demand_access++;
+        ret.hit = true;
+        ret.access_addr = addr;
+        ret.line_addr = cache_line_addr(addr);
+        ret.data = data[cache_addr.set][cache_addr.way];
+        ret.cache_addr = cache_addr;
         //TODO: add the replacement policy update
-        return data[index]; 
+        repl.access(cache_addr);
       }
-      return NULL; 
+      return ret; 
     }
 
     T* probe(uns proc_id, Addr addr){
@@ -144,8 +139,6 @@ class Cache {
       return NULL; 
     }
 
-    //searches the cache for the line, returns the index into data and entries vector if found,
-    //returns 0xFFFFFFFF if not found
     Cache_address search(uns proc_id, Addr addr){
       Addr tag = cache_tag (addr);
       uns  set = cache_index(addr);
