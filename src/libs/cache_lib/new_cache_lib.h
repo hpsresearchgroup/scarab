@@ -35,14 +35,29 @@
 
 class Cache_entry {
   public:
-    uns8 proc_id;
-    Flag valid;
-    Addr tag;
-    Addr base;
-    Flag dirty;
-
-    //replacement info should include last_access_time, insertion_time, pf
+  uns8 proc_id;
+  Flag valid;
+  Addr tag;
+  Addr base;
+  Flag dirty;
 };
+
+class Cache_address {
+  public:
+  Flag valid;
+  uns set;
+  uns way; 
+}
+
+template <typename T> 
+class Cache_access_result {
+  public:
+  Flag hit;
+  Addr access_addr;
+  Addr line_addr;
+  T data;
+  Cache_address cache_addr;
+}
 
 template <typename T> 
 class Cache {
@@ -60,9 +75,9 @@ class Cache {
     uns8 set_bits;
     Repl_Policy_enum repl;
 
-    std::vector<Cache_entry> entries;   
-    std::vector<T> data;
-    std::vector<uns> repl_set;
+    std::vector<std::vector<Cache_entry>> entries;   
+    std::vector<std::vector<T>> data;
+    std::vector<Cache_address> repl_set;
 
     Counter num_demand_access;
     Counter last_update; /* last update cycle */
@@ -84,8 +99,12 @@ class Cache {
       this->tag_mask = ~this->set_mask;
       this->offset_mask = N_BIT_MASK(cache->shift_bits);
 
-      entries.resize(num_lines);
-      data.resize(num_lines);
+      entries.resize(num_sets);
+      data.resize(num_sets);
+      for(int ii = 0; ii < num_sets; i++) {
+        entries[ii].resize(assoc);
+        data[ii].resize(assoc);
+      }
       repl_set.resize(assoc);
 
       num_demand_access = 0;
@@ -105,9 +124,9 @@ class Cache {
     }
 
     T* access(uns proc_id, Addr addr){
-      uns index = search(proc_id, addr);
-      if(index != 0xFFFFFFFF) {
-        if(entries[index]->pref) {
+      Cache_address cache_addr = search(proc_id, addr);
+      if(cache_addr.valid) {
+        if(entries[cache_addr.set][cache_addr.way]->pref) {
           line->pref = FALSE;
         }
         cache->num_demand_access++;
@@ -127,26 +146,26 @@ class Cache {
 
     //searches the cache for the line, returns the index into data and entries vector if found,
     //returns 0xFFFFFFFF if not found
-    uns search(uns proc_id, Addr addr){
+    Cache_address search(uns proc_id, Addr addr){
       Addr tag = cache_tag (addr);
       uns  set = cache_index(addr);
       uns  ii;
+      Cache_address ret;
+      ret.valid = 0;
 
-      for(ii = 0; ii < cache->assoc; ii++) {
-        Cache_Entry line = entries[set*assoc + ii];
+      for(ii = 0; ii < assoc; ii++) {
+        Cache_Entry line = entries[set][ii];
 
         if(line.valid && line.tag == tag) {
-          /* update replacement state if necessary */
-          ASSERT(proc_id, line->data);
-          if(update_repl) {
-          }
-          ASSERT(porc_id, ~(set*assoc + ii));
-          return set*assoc + ii;
+          ret.valid = true;
+          ret.set = set;
+          ret.way = ii;
+          return ret;
         }
       }
       DEBUG(proc_id, "Didn't find line in set %u in cache '%s' base 0x%s\n", set,
             this->name, hexstr64s(addr));
-      return 0xFFFFFFFF;
+      return ret;
     }
     
     T insert(uns proc_id, Addr addr){
