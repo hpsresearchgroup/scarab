@@ -37,7 +37,7 @@
 #include "core.param.h"
 #include "debug/debug.param.h"
 #include "general.param.h"
-#include "libs/cache_lib/cache_lib.h"
+#include "libs/cache_lib.h"
 #include "memory/memory.param.h"
 
 // DeleteMe

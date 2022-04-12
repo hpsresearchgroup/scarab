@@ -1,0 +1,1 @@
+option(PIPELINE_STAGE_LIB_TESTS "Turn ON/OFF pipeline_stage_lib unit tests" ON)

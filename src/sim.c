@@ -37,7 +37,7 @@
 #include "globals/global_types.h"
 #include "globals/global_vars.h"
 #include "globals/utils.h"
-#include "op_pool.h"
+#include "globals/op_pool.h"
 #include "statistics.h"
 
 #include "freq.h"

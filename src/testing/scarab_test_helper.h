@@ -20,63 +20,32 @@
 */
 
 /***************************************************************************************
-* File         : stage_data.cc
+* File         : scarab_test_helper.h
 * Author       : HPS Research Group
-* Date         : 4/6/2022
+* Date         : 4/8/2022
 * Description  :
 ***************************************************************************************/
 
+#ifndef __SCARAB_TEST_HELPER_H__
+#define __SCARAB_TEST_HELPER_H__
+
 extern "C" {
-    #include "globals/global_defs.h"
-    #include "globals/global_types.h"
-    #include "globals/global_vars.h"
-    #include "globals/assert.h"
+    #include "op.h"
     #include "globals/op_pool.h"
-
-    #include "debug/debug_macros.h"
-    #include "debug/debug_print.h"
 }
 
-#include "stage_data.h"
-
-#include <algorithm>
-
-StageData::StageData(uns proc_id_, std::string name_, int32_t stage_width_) :
-    proc_id(proc_id_), name(name_), num_ops(0), ops(stage_width_, NULL)
-{ }
-
-void StageData::insert(Op *op) {
-    ASSERT(proc_id, op);
-    ASSERT(proc_id, ops[num_ops] == nullptr);
-    ASSERT(proc_id, num_ops < ops.size());
-    ops[num_ops] = op;
-    num_ops += 1;
+inline Op *scarab_test_alloc_op(uns proc_id) {
+    Op *op = alloc_op(proc_id);
+    op->sched_info = NULL;
+    op->table_info = NULL;
+    op->inst_info = NULL;
+    return op;
 }
 
-void StageData::reset() {
-    num_ops = 0;
-    std::fill(ops.begin(), ops.end(), nullptr);
-}
-
-bool StageData::flush_op(Op *op, Counter recovery_op_num) {
-    return op->op_num > recovery_op_num;
-}
-
-void StageData::recover(Counter recovery_op_num) {
-    num_ops = 0;
-    for (auto& op : ops) {
-        if (op) {
-            if (flush_op(op, recovery_op_num)) {
-                free_op(op);
-            } else {
-                insert(op);
-            }
-        }
+inline void scarab_test_free_op(Op *op) {
+    if (op->op_pool_valid) {
+        free_op(op);
     }
-    std::fill(ops.begin() + num_ops, ops.end(), nullptr);
 }
 
-void StageData::debug() const {
-    DPRINTF("# %-10s  num_ops:%d\n", name.c_str(), num_ops);
-    print_op_array(GLOBAL_DEBUG_STREAM, (Op **) &ops[0], ops.size(), num_ops);
-}
+#endif

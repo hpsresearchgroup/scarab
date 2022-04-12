@@ -21,32 +21,37 @@
 
 #include "gtest/gtest.h"
 
+#include "testing/scarab_test_helper.h"
 #include "../stage_data.h"
+
+extern "C" {
+    #include "globals/op_pool.h"
+}
+
+#include <memory>
 
 template <uint32_t num_stages, uint32_t num_ops>
 class StageDataTest : public ::testing::Test {
 
     protected:
-    StageData *sd;
-    std::array<Op*, num_ops> *ops;
+    uns proc_id = 0;
+    std::unique_ptr<StageData>sd;
+    std::unique_ptr<std::array<Op*, num_ops> > ops;
 
     virtual void SetUp() {
-        sd = new StageData(0, "Test Stage", num_stages);
-        ops = new std::array<Op*, num_ops>;
+        sd  = std::make_unique<StageData>(0, "Test Stage", num_stages);
+        ops = std::make_unique<std::array<Op*, num_ops> >();
 
         for (uint32_t i = 0; i < ops->size(); ++i) {
-            ops->at(i) = new Op;
+            ops->at(i) = scarab_test_alloc_op(proc_id);
             ops->at(i)->op_num = i;
         }
     }
 
     virtual void TearDown() {
-        delete sd;
-
         for (uint32_t i = 0; i < ops->size(); ++i) {
-            delete ops->at(i);
+            scarab_test_free_op(ops->at(i));
         }
-        delete ops;
     }
 
     void insert_ops_helper(uint32_t num_ops_insert) {
@@ -58,7 +63,7 @@ class StageDataTest : public ::testing::Test {
     void EmptyTest(uint32_t stage_width) {
         ASSERT_EQ("Test Stage", sd->name);
         ASSERT_EQ(stage_width, sd->ops.size());
-        ASSERT_EQ(0, sd->op_count);
+        ASSERT_EQ(0, sd->num_ops);
 
         for (auto& op : sd->ops) {
             ASSERT_EQ(NULL, op);
@@ -68,7 +73,7 @@ class StageDataTest : public ::testing::Test {
     void InsertTest(uint32_t stage_width, uint32_t num_ops_insert) {
         ASSERT_EQ("Test Stage", sd->name);
         ASSERT_EQ(stage_width, sd->ops.size());
-        ASSERT_EQ(num_ops_insert, sd->op_count);
+        ASSERT_EQ(num_ops_insert, sd->num_ops);
 
         for (uint32_t i = 0; i < num_ops_insert; ++i) {
             ASSERT_NE(nullptr, sd->ops.at(i));
@@ -111,13 +116,50 @@ TEST_F(StageDataTest_4_5, Insert4StageData4) {
 TEST_F(StageDataTest_4_5, Insert5StageData4) {
     insert_ops_helper(4);
 
-    ASSERT_DEATH({
+    EXPECT_DEATH({
             sd->insert(ops->at(4));
-        }, "Error on line .* of Insert5StageData4");
+        }, "ASSERT.*");
 }
 
 TEST_F(StageDataTest_4_5, ResetStageData4) {
     insert_ops_helper(4);
     sd->reset();
+    EmptyTest(4);
+}
+
+TEST_F(StageDataTest_4_5, FlushOp2StageData4) {
+    ASSERT_EQ(false, sd->flush_op(ops->at(0), 2));
+    ASSERT_EQ(false, sd->flush_op(ops->at(1), 2));
+    ASSERT_EQ(false, sd->flush_op(ops->at(2), 2));
+    ASSERT_EQ(true , sd->flush_op(ops->at(3), 2));
+}
+
+TEST_F(StageDataTest_4_5, Recovery_Flush1) {
+    uint32_t stage_width = 4;
+    uint32_t starting_num_ops = 4;
+    uint32_t recovery_op_num = 2;
+
+    EmptyTest(stage_width);
+    insert_ops_helper(starting_num_ops);
+    sd->recover(recovery_op_num);
+    InsertTest(stage_width, recovery_op_num + 1);
+}
+
+TEST_F(StageDataTest_4_5, Recovery_FlushNone) {
+    uint32_t stage_width = 4;
+    uint32_t starting_num_ops = 4;
+    uint32_t recovery_op_num = 10;
+
+    EmptyTest(stage_width);
+    insert_ops_helper(starting_num_ops);
+    sd->recover(recovery_op_num);
+    InsertTest(stage_width, 4);
+}
+
+TEST_F(StageDataTest_4_5, Recovery_FlushAll) {
+    for (uint32_t i = 1; i < 5; ++i) {
+        sd->insert(ops->at(i));
+    }
+    sd->recover(0);
     EmptyTest(4);
 }

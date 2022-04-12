@@ -34,11 +34,14 @@
 #include <vector>
 #include <string>
 
-repl_class::repl_class(Repl_Policy policy, uns num_lines) :
-    repl_policy(policy), repl_data(num_lines) {
+repl_class::repl_class(Repl_Policy policy, uns num_sets, uns assoc) :
+    repl_policy(policy), repl_data(num_sets) {
+    for(int ii = 0; ii < num_sets; ii++){
+        repl_data[ii].resize(assoc);
+    }
 }
 
-uns repl_class::get_next_repl(std::vector<uns> list){
+Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
     switch(repl_policy){
         case REPL_TRUE_LRU:
             int res = -1;
@@ -47,17 +50,21 @@ uns repl_class::get_next_repl(std::vector<uns> list){
             Counter min_prefetch_cycle = MAX_INT; 
             Counter current_min_cycle;
             for(auto index:list){
-                if(repl_data.at(index).valid == false)
-                    return index;
-                if(repl_data.at(index).prefetch && repl_data.at(index).insert_cycle < min_prefetch_cycle){
-                    prefetch_res = index;
-                    min_prefetch_cycle = repl_data.at(index).insert_cycle;
+                if(!index.valid){
+                    continue;
                 }
-                if(repl_data.at(index).access_cycle < min_access_cycle){
+                if(repl_data[index.set][index.way].valid == false)
+                    return index;
+                if(repl_data[index.set][index.way].prefetch && repl_data[index.set][index.way].insert_cycle < min_prefetch_cycle){
+                    prefetch_res = index;
+                    min_prefetch_cycle = repl_data.insert_cycle;
+                }
+                if(repl_data[index.set][index.way].access_cycle < min_access_cycle){
                     res = index;
-                    min_access_cycle = repl_data.at(index).access_cycle;
+                    min_access_cycle = repl_data.access_cycle;
                 }
             }
+            Assert()
             if(prefetch_res != -1){
                 return (uns)prefetch_res;
             }

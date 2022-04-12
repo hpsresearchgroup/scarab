@@ -42,6 +42,17 @@ typedef enum Repl_Policy_enum {
   NUM_REPL
 } Repl_Policy;
 
+class Cache_address {
+  public:
+  Flag valid;
+  uns set;
+  uns way; 
+
+  Cache_address() : 
+    valid(false){
+  }
+};
+
 class per_line_data {
     public:
     Flag valid;
@@ -61,15 +72,16 @@ class repl_class {
     public:
 
     Repl_Policy repl_policy;
-    std::vector<per_line_data> repl_data;
 
-    repl_class(Repl_Policy policy, uns num_lines);
+    std::vector<std::vector<per_line_data>> repl_data;
 
-    uns get_next_repl(std::vector<uns> list);
+    repl_class(Repl_Policy policy, uns num_sets, uns assoc);
+
+    Cache_address get_next_repl(std::vector<uns> list);
 
     void insert(uns pos, uns proc_id, Flag is_prefetch);
 
-    void access(uns pos);
+    void access(Cache_address cache_addr);
 
     void invalidate(uns pos);
 
