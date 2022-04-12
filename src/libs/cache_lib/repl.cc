@@ -111,7 +111,7 @@ void repl_class::access(uns pos){
     repl_data[pos].prefetch = false;
 }
 
-void repl_class::invalid(uns pos){
+void repl_class::invalidate(uns pos){
     repl_data[pos].valid = false;
     repl_data[pos].access_cycle = MAX_CTR;
     repl_data[pos].insert_cycle = MAX_CTR;

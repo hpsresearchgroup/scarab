@@ -103,7 +103,7 @@ class Cache {
     inline Addr cache_line_addr(Addr addr) {
       return addr & ~this->offset_mask;
     }
-
+    //TODO: what to return, data or the pointer to data?
     T* access(uns proc_id, Addr addr){
       uns index = search(proc_id, addr);
       if(index != 0xFFFFFFFF) {
@@ -112,6 +112,9 @@ class Cache {
         }
         cache->num_demand_access++;
         //TODO: add the replacement policy update
+        if(update_repl) {
+          repl.access(index);
+        }
         return data[index]; 
       }
       return NULL; 
@@ -125,23 +128,22 @@ class Cache {
       return NULL; 
     }
 
-    //searches the cache for the line, returns the index into data and entries vector if found,
-    //returns 0xFFFFFFFF if not found
+    ///searches the cache for the line, 
+    ///does not update the replacement policy,
+    ///returns the index into data and entries vector if found,
+    ///returns 0xFFFFFFFF if not found
     uns search(uns proc_id, Addr addr){
       Addr tag = cache_tag (addr);
       uns  set = cache_index(addr);
       uns  ii;
 
       for(ii = 0; ii < cache->assoc; ii++) {
-        Cache_Entry line = entries[set*assoc + ii];
+        Cache_Entry line = entries[set * assoc + ii];
 
         if(line.valid && line.tag == tag) {
           /* update replacement state if necessary */
-          ASSERT(proc_id, line->data);
-          if(update_repl) {
-          }
           ASSERT(porc_id, ~(set*assoc + ii));
-          return set*assoc + ii;
+          return set * assoc + ii;
         }
       }
       DEBUG(proc_id, "Didn't find line in set %u in cache '%s' base 0x%s\n", set,
@@ -149,7 +151,7 @@ class Cache {
       return 0xFFFFFFFF;
     }
     
-    T insert(uns proc_id, Addr addr){
+    T insert(uns proc_id, Addr addr, Flag is_prefetch, T new_data){
       Addr tag = cache_tag (addr);
       Addr line_addr = cache_line_addr(addr);
       uns  set = cache_index(addr);
@@ -159,12 +161,16 @@ class Cache {
         repl_set[ii] = base + ii;
       }
       
-      uns new_line_index = find_next_repl_index(repl_set);
+      uns new_line_index = repl.get_next_repl(repl_set);
 
       entries[new_line_index].valid = true;
       entries[new_line_index].tag = tag;
       entries[new_line_index].proc_id = proc_id;
       entries[new_line_index].base = line_addr;
+
+      repl.insert(new_line_index, proc_id, is_prefetch);
+
+      data[new_line_index] = new_data;
       
       return NULL;
     }
@@ -175,11 +181,23 @@ class Cache {
         entries[index].tag = 0;  
         entries[index].valid= FALSE;  
         entries[index].base= FALSE;  
+        repl.invalidate(index);
       }
       return NULL;
     }
     
-    T get_next_repl_line(){
+    T get_next_repl_line(uns proc_id, Addr addr){
+      Addr tag = cache_tag (addr);
+      Addr line_addr = cache_line_addr(addr);
+      uns  set = cache_index(addr);
+
+      uns base = set * assoc;
+      for(uns ii = 0; ii < assoc; i++){
+        repl_set[ii] = base + ii;
+      }
       
+      uns new_line_index = repl.get_next_repl(repl_set);
+
+      return data[new_line_index];
     }
 };

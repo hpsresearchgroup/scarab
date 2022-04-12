@@ -71,6 +71,6 @@ class repl_class {
 
     void access(uns pos);
 
-    void invalid(uns pos);
+    void invalidate(uns pos);
 
 };
