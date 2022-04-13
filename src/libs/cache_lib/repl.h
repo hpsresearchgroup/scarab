@@ -79,7 +79,7 @@ class repl_class {
 
     Cache_address get_next_repl(std::vector<uns> list);
 
-    void insert(uns pos, uns proc_id, Flag is_prefetch);
+    void insert(Cache_address pos, uns proc_id, Flag is_prefetch);
 
     void access(Cache_address cache_addr);
 

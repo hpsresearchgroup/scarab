@@ -111,8 +111,8 @@ class Cache {
     inline Addr cache_line_addr(Addr addr) {
       return addr & ~this->offset_mask;
     }
-    //TODO: what to return, data or the pointer to data?
-    T* access(uns proc_id, Addr addr){
+
+    Cache_access_result access(uns proc_id, Addr addr){
       Cache_address cache_addr = search(proc_id, addr);
       Cache_access_result ret;
       if(cache_addr.valid) {
@@ -125,20 +125,24 @@ class Cache {
         ret.line_addr = cache_line_addr(addr);
         ret.data = data[cache_addr.set][cache_addr.way];
         ret.cache_addr = cache_addr;
-        //TODO: add the replacement policy update
         if(update_repl) {
-          repl.access(index);
+          repl.access();
         }
       }
       return ret; 
     }
 
-    T* probe(uns proc_id, Addr addr){
-      uns index = search(proc_id, addr);
-      if(index != 0xFFFFFFFF) {
-        return data[index]; 
+    Cache_access_result probe(uns proc_id, Addr addr){
+      Cache_address cache_addr = search(proc_id, addr);
+      Cache_access_result ret;
+      if(cache_addr.valid) {
+        ret.hit = true;
+        ret.access_addr = addr;
+        ret.line_addr = cache_line_addr(addr);
+        ret.data = data[cache_addr.set][cache_addr.way];
+        ret.cache_addr = cache_addr;
       }
-      return NULL; 
+      return ret; 
     }
 
     Cache_address search(uns proc_id, Addr addr){
@@ -163,39 +167,44 @@ class Cache {
       return ret;
     }
     
-    T insert(uns proc_id, Addr addr, Flag is_prefetch, T new_data){
+    void insert(uns proc_id, Addr addr, Flag is_prefetch, T new_data){
       Addr tag = cache_tag (addr);
       Addr line_addr = cache_line_addr(addr);
       uns  set = cache_index(addr);
 
-      uns base = set * assoc;
       for(uns ii = 0; ii < assoc; i++){
-        repl_set[ii] = base + ii;
+        repl_set[ii].valid = true;
+        repl_set[ii].set = set;
+        repl_set[ii].way = set;
       }
       
-      uns new_line_index = repl.get_next_repl(repl_set);
+      Cache_address new_line_addr = repl.get_next_repl(repl_set);
 
-      entries[new_line_index].valid = true;
-      entries[new_line_index].tag = tag;
-      entries[new_line_index].proc_id = proc_id;
-      entries[new_line_index].base = line_addr;
+      entries[new_line_addr.set][new_line_addr.way].valid = true;
+      entries[new_line_addr.set][new_line_addr.way].tag = tag;
+      entries[new_line_addr.set][new_line_addr.way].proc_id = proc_id;
+      entries[new_line_addr.set][new_line_addr.way].base = line_addr;
 
-      repl.insert(new_line_index, proc_id, is_prefetch);
+      repl.insert(new_line_addr, proc_id, is_prefetch);
 
-      data[new_line_index] = new_data;
-      
-      return NULL;
+      data[new_line_addr.set][new_line_addr.way] = new_data;
     }
     
-    T invalidate(uns proc_id, Addr addr){
-      uns index = search(proc_id, addr);
-      if(index != 0xFFFFFFFF){
+    Cache_access_result invalidate(uns proc_id, Addr addr){
+      Cache_address pos = search(proc_id, addr);
+      Cache_access_result ret;
+      if(pos.valid){
         entries[index].tag = 0;  
         entries[index].valid= FALSE;  
         entries[index].base= FALSE;  
-        repl.invalidate(index);
+        repl.invalidate(pos);
+        ret.hit = true;
+        ret.access_addr = addr;
+        ret.line_addr = cache_line_addr(addr);
+        ret.data = data[cache_addr.set][cache_addr.way];
+        ret.cache_addr = cache_addr;
       }
-      return NULL;
+      return ret; 
     }
     
     T get_next_repl_line(uns proc_id, Addr addr){
@@ -203,13 +212,13 @@ class Cache {
       Addr line_addr = cache_line_addr(addr);
       uns  set = cache_index(addr);
 
-      uns base = set * assoc;
       for(uns ii = 0; ii < assoc; i++){
-        repl_set[ii] = base + ii;
+        repl_set[ii].valid = true;
+        repl_set[ii].set = set;
+        repl_set[ii].way = ii;
       }
       
-      uns new_line_index = repl.get_next_repl(repl_set);
-
-      return data[new_line_index];
+      Cache_address new_line_index = repl.get_next_repl(repl_set);
+      return data[new_line_index.set][new_line_index.way];
     }
 };

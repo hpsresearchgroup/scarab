@@ -42,10 +42,11 @@ repl_class::repl_class(Repl_Policy policy, uns num_sets, uns assoc) :
 }
 
 Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
+    Cache_address ret_address;
     switch(repl_policy){
         case REPL_TRUE_LRU:
-            int res = -1;
-            int prefetch_res = -1;
+            Cache_address res = -1;
+            Cache_prefetch_res = -1;
             Counter min_access_cycle = MAX_INT; 
             Counter min_prefetch_cycle = MAX_INT; 
             Counter current_min_cycle;
@@ -64,10 +65,10 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
                     min_access_cycle = repl_data.access_cycle;
                 }
             }
-            Assert()
             if(prefetch_res != -1){
                 return (uns)prefetch_res;
             }
+            ASSERT(0, res != -1);
             return (uns)res;
             break;
         case REPL_RANDOM:
@@ -81,6 +82,9 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
             Counter max_prefetch_cycle = 0; 
             Counter current_min_cycle;
             for(index:list){
+                if(!index.valid){
+                    continue;
+                }
                 if(repl_data.at(index).valid == false)
                     return index;
                 if(repl_data.at(index).prefetch && repl_data.at(index).insert_cycle > min_prefetch_cycle){
@@ -95,7 +99,8 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
             if(prefetch_res != -1){
                 return (uns)prefetch_res;
             }
-            return (uns)res;
+            ASSERT(res != -1)
+            return res;
             break;
         default:
             ASSERT(0, false);
@@ -104,22 +109,23 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
     return 0;
 }
 
-void repl_class::insert(uns pos, uns proc_id, Flag is_prefetch){
-    repl_data[pos].valid = true;
-    repl_data[pos].prefetch = is_prefetch;
-    repl_data[pos].proc_id = proc_id;
-    repl_data[pos].insert_cycle = cycle_count;
-    repl_data[pos].access_cycle = cycle_count;
+void repl_class::insert(Cache_address pos, uns proc_id, Flag is_prefetch){
+    repl_data[pos.set][pos.way].valid = true;
+    repl_data[pos.set][pos.way].prefetch = is_prefetch;
+    repl_data[pos.set][pos.way].proc_id = proc_id;
+    repl_data[pos.set][pos.way].insert_cycle = cycle_count;
+    repl_data[pos.set][pos.way].access_cycle = cycle_count;
 }
 
-void repl_class::access(uns pos){
-    ASSERT(0, repl_data[pos].valid);
-    repl_data[pos].access_cycle = cycle_count;
-    repl_data[pos].prefetch = false;
+void repl_class::access(Cache_address pos){
+    ASSERT(0, repl_data[pos.set][pos.way].valid);
+    repl_data[pos.set][pos.way].access_cycle = cycle_count;
+    repl_data[pos.set][pos.way].prefetch = false;
 }
 
 void repl_class::invalidate(uns pos){
-    repl_data[pos].valid = false;
-    repl_data[pos].access_cycle = MAX_CTR;
-    repl_data[pos].insert_cycle = MAX_CTR;
+    ASSERT(0, repl_data[pos.set][pos.way].valid);
+    repl_data[pos.way][pos.set].valid = false;
+    repl_data[pos.way][pos.set].access_cycle = MAX_CTR;
+    repl_data[pos.way][pos.set].insert_cycle = MAX_CTR;
 }
