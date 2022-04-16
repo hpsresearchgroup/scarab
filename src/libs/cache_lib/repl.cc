@@ -36,21 +36,26 @@
 
 repl_class::repl_class(Repl_Policy policy, uns num_sets, uns assoc) :
     repl_policy(policy), repl_data(num_sets) {
-    for(int ii = 0; ii < num_sets; ii++){
+    for(uns ii = 0; ii < num_sets; ii++){
         repl_data[ii].resize(assoc);
     }
 }
 
 Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
-    Cache_address ret_address;
+    int res;
+    int prefetch_res;
+    int current;
+    Counter min_access_cycle; 
+    Counter min_prefetch_cycle; 
+    Counter max_access_cycle; 
+    Counter max_prefetch_cycle; 
     switch(repl_policy){
         case REPL_TRUE_LRU:
-            int res = -1;
-            int prefetch_res = -1;
-            int current = 0;
-            Counter min_access_cycle = MAX_INT; 
-            Counter min_prefetch_cycle = MAX_INT; 
-            Counter current_min_cycle;
+            res = -1;
+            prefetch_res = -1;
+            current = 0;
+            min_access_cycle = MAX_INT; 
+            min_prefetch_cycle = MAX_INT; 
             for(auto index:list){
                 if(!index.valid){
                     continue;
@@ -59,11 +64,11 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
                     return list.at(current);
                 if(repl_data[index.set][index.way].prefetch && repl_data[index.set][index.way].insert_cycle < min_prefetch_cycle){
                     prefetch_res = current;
-                    min_prefetch_cycle = repl_data.insert_cycle;
+                    min_prefetch_cycle = repl_data[index.set][index.way].insert_cycle;
                 }
                 if(repl_data[index.set][index.way].access_cycle < min_access_cycle){
                     res = current;
-                    min_access_cycle = repl_data.access_cycle;
+                    min_access_cycle = repl_data[index.set][index.way].access_cycle;
                 }
                 current ++; 
             }
@@ -77,12 +82,11 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
             return list[rand()%list.size()];
             break;
         case REPL_MRU:
-            int current = 0;
-            int res = -1;
-            int prefetch_res = -1;
-            Counter max_access_cycle = 0; 
-            Counter max_prefetch_cycle = 0; 
-            Counter current_min_cycle;
+            current = 0;
+            res = -1;
+            prefetch_res = -1;
+            max_access_cycle = 0; 
+            max_prefetch_cycle = 0; 
             for(auto index:list){
                 if(!index.valid){
                     continue;
@@ -91,11 +95,11 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
                     return list.at(current);
                 if(repl_data[index.set][index.way].prefetch && repl_data[index.set][index.way].insert_cycle > max_prefetch_cycle){
                     prefetch_res = current;
-                    max_prefetch_cycle = repl_data.insert_cycle;
+                    max_prefetch_cycle = repl_data[index.set][index.way].insert_cycle;
                 }
                 if(repl_data[index.set][index.way].access_cycle > max_access_cycle){
                     res = current;
-                    max_access_cycle = repl_data.access_cycle;
+                    max_access_cycle = repl_data[index.set][index.way].access_cycle;
                 }
                 current ++; 
             }
@@ -109,7 +113,7 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
             ASSERT(0, false);
     }
     //should never reach here
-    return 0;
+    return list[0];
 }
 
 void repl_class::insert(Cache_address pos, uns proc_id, Flag is_prefetch){
@@ -126,7 +130,7 @@ void repl_class::access(Cache_address pos){
     repl_data[pos.set][pos.way].prefetch = false;
 }
 
-void repl_class::invalidate(uns pos){
+void repl_class::invalidate(Cache_address pos){
     ASSERT(0, repl_data[pos.set][pos.way].valid);
     repl_data[pos.way][pos.set].valid = false;
     repl_data[pos.way][pos.set].access_cycle = MAX_CTR;

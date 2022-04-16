@@ -77,12 +77,12 @@ class repl_class {
 
     repl_class(Repl_Policy policy, uns num_sets, uns assoc);
 
-    Cache_address get_next_repl(std::vector<uns> list);
+    Cache_address get_next_repl(std::vector<Cache_address> list);
 
     void insert(Cache_address pos, uns proc_id, Flag is_prefetch);
 
     void access(Cache_address cache_addr);
 
-    void invalidate(uns pos);
+    void invalidate(Cache_address pos);
 
 };
