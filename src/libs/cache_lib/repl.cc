@@ -45,8 +45,9 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
     Cache_address ret_address;
     switch(repl_policy){
         case REPL_TRUE_LRU:
-            Cache_address res = -1;
-            Cache_prefetch_res = -1;
+            int res = -1;
+            int prefetch_res = -1;
+            int current = 0;
             Counter min_access_cycle = MAX_INT; 
             Counter min_prefetch_cycle = MAX_INT; 
             Counter current_min_cycle;
@@ -55,52 +56,54 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
                     continue;
                 }
                 if(repl_data[index.set][index.way].valid == false)
-                    return index;
+                    return list.at(current);
                 if(repl_data[index.set][index.way].prefetch && repl_data[index.set][index.way].insert_cycle < min_prefetch_cycle){
-                    prefetch_res = index;
+                    prefetch_res = current;
                     min_prefetch_cycle = repl_data.insert_cycle;
                 }
                 if(repl_data[index.set][index.way].access_cycle < min_access_cycle){
-                    res = index;
+                    res = current;
                     min_access_cycle = repl_data.access_cycle;
                 }
+                current ++; 
             }
             if(prefetch_res != -1){
-                return (uns)prefetch_res;
+                return list.at(prefetch_res);
             }
             ASSERT(0, res != -1);
-            return (uns)res;
+            return list.at(res);
             break;
         case REPL_RANDOM:
             return list[rand()%list.size()];
             break;
         case REPL_MRU:
-            int index;
+            int current = 0;
             int res = -1;
             int prefetch_res = -1;
             Counter max_access_cycle = 0; 
             Counter max_prefetch_cycle = 0; 
             Counter current_min_cycle;
-            for(index:list){
+            for(auto index:list){
                 if(!index.valid){
                     continue;
                 }
-                if(repl_data.at(index).valid == false)
-                    return index;
-                if(repl_data.at(index).prefetch && repl_data.at(index).insert_cycle > min_prefetch_cycle){
-                    prefetch_res = index;
-                    min_prefetch_cycle = repl_data.at(index).insert_cycle;
+                if(repl_data[index.set][index.way].valid == false)
+                    return list.at(current);
+                if(repl_data[index.set][index.way].prefetch && repl_data[index.set][index.way].insert_cycle > max_prefetch_cycle){
+                    prefetch_res = current;
+                    max_prefetch_cycle = repl_data.insert_cycle;
                 }
-                if(repl_data.at(index).access_cycle > min_access_cycle){
-                    res = index;
-                    min_access_cycle = repl_data.at(index).access_cycle;
+                if(repl_data[index.set][index.way].access_cycle > max_access_cycle){
+                    res = current;
+                    max_access_cycle = repl_data.access_cycle;
                 }
+                current ++; 
             }
             if(prefetch_res != -1){
-                return (uns)prefetch_res;
+                return list.at(prefetch_res);
             }
-            ASSERT(res != -1)
-            return res;
+            ASSERT(0, res != -1);
+            return list.at(res);
             break;
         default:
             ASSERT(0, false);
