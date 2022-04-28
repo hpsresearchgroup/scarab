@@ -367,7 +367,7 @@ def get_program_or_checkpoint_options(job):
   run_exec = ""
 
   if type(job) is Program:
-    run_exec = f' --program="{job.run_cmde}"'
+    run_exec = f' --program="{job.run_cmd}"'
   elif type(job) is Checkpoint:
     run_exec = f' --checkpoint="{job.path}"'
   elif type(job) is Trace:
