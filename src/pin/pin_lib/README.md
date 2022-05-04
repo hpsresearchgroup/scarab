@@ -76,7 +76,7 @@ entry needs to be properly populated, and placed at the index
 indicated by the corresponding `xed_iclass_enum_t` member in the array
 `iclass_to_scarab_map`. This is done inside
 `init_pin_opcode_convert()` in
-[src/pin/pin_lib/decoder.cc](../../../src/pin/pin_lib/decoder.cc). The following sections go over
+[src/pin/pin_lib/x86_decoder.cc](../../../src/pin/pin_lib/x86_decoder.cc). The following sections go over
 how to do this.
 
 ### Determine the Scarab operate uop type
