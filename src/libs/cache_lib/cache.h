@@ -29,9 +29,12 @@
 #include "globals/global_defs.h"
 #include "libs/list_lib.h"
 #include "libs/cache_lib/repl.h"
+#include "debug/debug.param.h"
 #include "globals/utils.h"
 #include <vector>
 #include <string>
+
+#define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_CACHE_LIB, ##args)
 
 class Cache_entry {
   public:
@@ -98,6 +101,7 @@ class Cache {
         entries[ii].resize(assoc);
         data[ii].resize(assoc);
       }
+      DEBUG(0, "Initilized %s with size %u, assoc %u, line_size %u", name, cache_size, assoc, line_size);
     }
     
     inline uns cache_index(Addr addr) {
@@ -125,9 +129,7 @@ class Cache {
         ret.line_addr = cache_line_addr(addr);
         ret.data = data[cache_addr.set][cache_addr.way];
         ret.cache_addr = cache_addr;
-        if(update_repl) {
-          repl.access();
-        }
+        repl.access();
       }
       return ret; 
     }
@@ -162,7 +164,7 @@ class Cache {
           return ret;
         }
       }
-      DEBUG(proc_id, "Didn't find line in set %u in cache '%s' base 0x%s\n", set,
+      DEBUG(proc_id, "Searched %s with addr,\n", set,
             this->name, hexstr64s(addr));
       return ret;
     }
