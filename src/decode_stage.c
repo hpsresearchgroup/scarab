@@ -209,27 +209,49 @@ static inline void stage_process_op(Op* op) {
     if(cf <= CF_CALL) {
       // it is a direct branch, so the target is now known
       bp_target_known_op(g_bp_data, op);
+    }  
 
-      // since it is not indirect, redirect the input stream if it was a btb
-      // miss
-      if(op->oracle_info.btb_miss && !bf) {
-        // since this is direct, it can no longer a misfetch
-        op->oracle_info.misfetch = FALSE;
-        op->oracle_info.pred_npc = op->oracle_info.pred ?
-                                     op->oracle_info.target :
-                                     ADDR_PLUS_OFFSET(
-                                       op->inst_info->addr,
-                                       op->inst_info->trace_info.inst_size);
-        ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
-        // schedule a redirect using the predicted npc
-        bp_sched_redirect(bp_recovery_info, op, cycle_count);
+    if(FETCH_NT_AFTER_BTB_MISS){
+      if(cf <= CF_CALL){
+        if(REDIRECT_BTB_MISS_AT_DECODE && op->oracle_info.btb_miss && !bf){
+          if(op->oracle_info.pred){
+            //btb miss on a predicted taken
+            //can redirect fetch at decode based on pred direction
+            if(op->oracle_info.dir){
+              bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
+                            /*late_bp_recovery=*/FALSE, /*force_offpath=*/FALSE);
+            }
+            else{
+              bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
+                            /*late_bp_recovery=*/FALSE, /*force_offpath=*/TRUE);
+            }
+          }
+        }
       }
-    } else {
-      // the instruction is indirect, so we can only unstall the front end
-      if(op->oracle_info.btb_miss && !op->oracle_info.no_target && !bf) {
-        // schedule a redirect using the predicted npc
-        bp_sched_redirect(bp_recovery_info, op, cycle_count);
+    } else{
+      if(cf <= CF_CALL) {
+
+        // since it is not indirect, redirect the input stream if it was a btb
+        // miss
+        if(op->oracle_info.btb_miss && !bf) {
+          // since this is direct, it can no longer a misfetch
+          op->oracle_info.misfetch = FALSE;
+          op->oracle_info.pred_npc = op->oracle_info.pred ?
+                                       op->oracle_info.target :
+                                       ADDR_PLUS_OFFSET(
+                                         op->inst_info->addr,
+                                         op->inst_info->trace_info.inst_size);
+          ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
+          // schedule a redirect using the predicted npc
+          bp_sched_redirect(bp_recovery_info, op, cycle_count);
+        }
+      } else {
+        // the instruction is indirect, so we can only unstall the front end
+        if(op->oracle_info.btb_miss && !op->oracle_info.no_target && !bf) {
+          // schedule a redirect using the predicted npc
+          bp_sched_redirect(bp_recovery_info, op, cycle_count);
+        }
       }
-    }
+    } 
   }
 }

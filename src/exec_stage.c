@@ -365,7 +365,7 @@ void update_exec_stage(Stage_Data* src_sd) {
                           /*late_bp_recovery=*/FALSE, /*force_offpath=*/FALSE);
         if(!op->off_path)
           op->recovery_scheduled = TRUE;
-      } else if(op->table_info->cf_type >= CF_IBR &&
+      }else if(op->table_info->cf_type >= CF_IBR &&
                 op->oracle_info.no_target) {
         ASSERT(bp_recovery_info->proc_id,
                bp_recovery_info->proc_id == op->proc_id);

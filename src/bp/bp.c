@@ -484,8 +484,15 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
   const Addr pc_plus_offset = ADDR_PLUS_OFFSET(
     op->inst_info->addr, op->inst_info->trace_info.inst_size);
 
-  const Addr prediction = op->oracle_info.pred ? pred_target : pc_plus_offset;
-  op->oracle_info.pred_npc = prediction;
+  Addr prediction;
+  if(FETCH_NT_AFTER_BTB_MISS){
+    prediction = (op->oracle_info.pred && !op->oracle_info.btb_miss) ? pred_target : pc_plus_offset;
+    op->oracle_info.pred_npc = prediction;
+  }
+  else {
+    prediction = op->oracle_info.pred ? pred_target : pc_plus_offset;
+    op->oracle_info.pred_npc = prediction;
+  }
   ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
   // If the direction prediction is wrong, but next address happens to be right
   // anyway, do not treat this as a misprediction.
@@ -493,6 +500,8 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
                             (prediction != op->oracle_info.npc);
   op->oracle_info.misfetch = !op->oracle_info.mispred &&
                              prediction != op->oracle_info.npc;
+  op->oracle_info.bp_mispred = (op->oracle_info.pred != op->oracle_info.dir) &&
+                            (prediction != op->oracle_info.npc);
 
   if(USE_LATE_BP) {
     const Addr late_prediction = op->oracle_info.late_pred ? pred_target :
@@ -503,6 +512,25 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
                                    (late_prediction != op->oracle_info.npc);
     op->oracle_info.late_misfetch = !op->oracle_info.late_mispred &&
                                     late_prediction != op->oracle_info.npc;
+  }
+
+  if(FETCH_NT_AFTER_BTB_MISS){
+    if(op->oracle_info.btb_miss){
+      if(op->oracle_info.pred && !op->oracle_info.dir){
+        //predicted taken, actually not taken
+        //btb miss will force this to be a not taken prediction
+        //therefore making it a correct prediction
+        op->oracle_info.mispred = FALSE;
+        op->oracle_info.late_mispred = FALSE;
+      }
+      else if (op->oracle_info.pred && op->oracle_info.dir){
+        //predicted taken, actually taken
+        //btb miss will force this to be a not taken prediction
+        //therefore making it a incorrect prediction
+        op->oracle_info.mispred = TRUE;
+        op->oracle_info.late_mispred = TRUE;
+      }
+    }
   }
 
   op->bp_cycle = cycle_count;
@@ -606,8 +634,16 @@ void bp_target_known_op(Bp_Data* bp_data, Op* op) {
   ASSERT(bp_data->proc_id, op->table_info->cf_type);
 
   // if it was a btb miss, it is time to write it into the btb
-  if(op->oracle_info.btb_miss)
-    bp_data->bp_btb->update_func(bp_data, op);
+  if(op->oracle_info.btb_miss){
+    if(BTB_ONLY_INSERT_TAKEN_BR){
+      if(op->oracle_info.dir){
+        bp_data->bp_btb->update_func(bp_data, op);
+      }
+    }
+    else {
+      bp_data->bp_btb->update_func(bp_data, op);
+    }
+  }
 
   // special case updates
   switch(op->table_info->cf_type) {
