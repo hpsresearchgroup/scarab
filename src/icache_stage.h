@@ -69,6 +69,8 @@ typedef struct Icache_Stage_struct {
   Addr        fetch_addr;      /* address fetched */
   Addr        next_fetch_addr; /* address to fetch */
   Flag        off_path;        /* is the icache fetching on the correct path? */
+  Flag        off_path_btb_miss; /* is the icache off path from a btb miss */
+  Counter     oldest_btb_miss_op_num; /* uid of the oldest btb miss*/
   Flag back_on_path; /* did a recovery happen to put the machine back on path?
                       */
 

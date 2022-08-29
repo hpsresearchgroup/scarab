@@ -160,9 +160,11 @@ void reset_icache_stage() {
   ic->next_fetch_addr = td->inst_addr;
   ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr);
   ic->off_path                       = FALSE;
+  ic->off_path_btb_miss              = FALSE;
   ic->back_on_path                   = FALSE;
   op_count[ic->proc_id]              = 1;
   unique_count_per_core[ic->proc_id] = 1;
+  ic->oldest_btb_miss_op_num         = MAX_CTR;
 }
 
 /**************************************************************************************/
@@ -179,6 +181,8 @@ void reset_all_ops_icache_stage() {
   ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr);
   ic->off_path     = FALSE;
   ic->back_on_path = FALSE;
+  ic->off_path_btb_miss              = FALSE;
+  ic->oldest_btb_miss_op_num         = MAX_CTR;
 }
 
 /**************************************************************************************/
@@ -218,6 +222,13 @@ void recover_icache_stage() {
     }
     if(SWITCH_IC_FETCH_ON_RECOVERY && model->id == CMP_MODEL) {
       ic->next_state = IC_FETCH;
+    }
+  }
+  if(op->oracle_info.btb_miss) {
+    //ASSERT(ic->proc_id, ic->off_path_btb_miss);
+    if(ic->oldest_btb_miss_op_num == op->unique_num){
+      ic->off_path_btb_miss = FALSE; 
+      ic->oldest_btb_miss_op_num = MAX_CTR;
     }
   }
   op_count[ic->proc_id] = bp_recovery_info->recovery_op_num + 1;
@@ -644,9 +655,15 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
       const uns8 late_misfetch = op->oracle_info.late_misfetch;
 
       /* if it's a mispredict, kick the oracle off path */
+      if(ic->off_path_btb_miss)
+        INC_STAT_EVENT(ic->proc_id, INST_LOST_BTB_MISS, 1);
       if(mispred || misfetch ||
          (USE_LATE_BP && (late_mispred || late_misfetch))) {
         ic->off_path = TRUE;
+        if(op->oracle_info.btb_miss && op->oracle_info.dir){
+          ic->off_path_btb_miss = TRUE;
+          ic->oldest_btb_miss_op_num = op->unique_num;
+        }
 
         if(FETCH_OFF_PATH_OPS) {
           if(mispred || misfetch) {
@@ -689,24 +706,7 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
 
 
       /* if it's a btb miss, quit fetching and wait for redirect */
-      if(FETCH_NT_AFTER_BTB_MISS){
-        //if(op->oracle_info.btb_miss && (op->oracle_info.dir || op->oracle_info.pred)) {
-        //  *break_fetch = BREAK_BTB_MISS;
-        //  DEBUG(ic->proc_id, "Changed icache to wait for redirect %llu\n",
-        //        cycle_count);
-        //  return IC_WAIT_FOR_REDIRECT;
-        //}
-        //else{
-        //  if(op->oracle_info.btb_miss){
-        //    DEBUG(ic->proc_id, "icache found btb miss on NT op %llu\n",
-        //          cycle_count);
-        //    fprintf(stdout, "icache found btb miss on NT op %llu\n", cycle_count);
-        //    op->oracle_info.btb_miss = FALSE;
-        //    //*break_fetch = BREAK_BTB_MISS;
-        //    //return IC_WAIT_FOR_REDIRECT;
-        //  }
-        //}
-      } else {
+      if(!FETCH_NT_AFTER_BTB_MISS){
         if(op->oracle_info.btb_miss) {
           *break_fetch = BREAK_BTB_MISS;
           DEBUG(ic->proc_id, "Changed icache to wait for redirect %llu\n",

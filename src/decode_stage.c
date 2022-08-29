@@ -211,24 +211,23 @@ static inline void stage_process_op(Op* op) {
       bp_target_known_op(g_bp_data, op);
     }  
 
-    if(FETCH_NT_AFTER_BTB_MISS){
-      if(cf <= CF_CALL){
-        if(REDIRECT_BTB_MISS_AT_DECODE && op->oracle_info.btb_miss && !bf){
-          if(op->oracle_info.pred){
+    if(FETCH_NT_AFTER_BTB_MISS) {
+      if(cf <= CF_CALL) {
+        if(REDIRECT_BTB_MISS_AT_DECODE && op->oracle_info.btb_miss && !bf) {
+          if(op->oracle_info.pred) {
             //btb miss on a predicted taken
             //can redirect fetch at decode based on pred direction
-            if(op->oracle_info.dir){
+            if(op->oracle_info.dir) {
               bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
                             /*late_bp_recovery=*/FALSE, /*force_offpath=*/FALSE);
-            }
-            else{
+            } else {
               bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
                             /*late_bp_recovery=*/FALSE, /*force_offpath=*/TRUE);
             }
           }
         }
       }
-    } else{
+    } else {
       if(cf <= CF_CALL) {
 
         // since it is not indirect, redirect the input stream if it was a btb
