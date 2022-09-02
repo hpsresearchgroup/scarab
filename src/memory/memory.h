@@ -87,7 +87,7 @@ typedef enum Mem_Queue_Type_enum {
 } Mem_Queue_Type;
 
 typedef struct Mem_Queue_Entry_struct {
-  int     reqbuf;   /* request buffer num */
+  int reqbuf; /* request buffer num, a pointer(idx) to the global req_buffer */
   Counter priority; /* priority of the miss */
   Counter rdy_cycle;
 } Mem_Queue_Entry;
@@ -132,11 +132,13 @@ typedef struct Uncore_struct {
 
 typedef struct Memory_struct {
   /* miss buffer */
-  Mem_Req* req_buffer;
-  List     req_buffer_free_list;
-  List*    l1_in_buffer_core;
-  uns      total_mem_req_buffers;
-  uns*     num_req_buffers_per_core;
+  Mem_Req* req_buffer;  // global buffer holds all the real reqs, the entries
+                        // from
+  // various queues below points to the reqs in this buffer (with idx)
+  List  req_buffer_free_list;
+  List* l1_in_buffer_core;
+  uns   total_mem_req_buffers;
+  uns*  num_req_buffers_per_core;
 
   int req_count;
 
@@ -147,6 +149,9 @@ typedef struct Memory_struct {
   Cache pref_l1_cache;
 
   /* various queues (arrays) */
+  /* reg comes from upward goes to the queue (includes WBs)
+     reg comes from downward goes to fill_queue
+   */
   Mem_Queue  mlc_queue;
   Mem_Queue  mlc_fill_queue;
   Mem_Queue  l1_queue;

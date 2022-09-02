@@ -69,7 +69,16 @@ char rand_repl_state[31];
 
 
 /**************************************************************************************/
-
+/**
+ * @brief Return set index of the addr
+ * As a side-effect, the tag and line_addr will be populated
+ * @param cache
+ * @param addr The access addr (input)
+ * @param tag  The tag of the access (output)
+ * @param line_addr The base address of the cache blk corresponding to the
+ * access (output)
+ * @return uns The set index of the access
+ */
 static inline uns cache_index(Cache* cache, Addr addr, Addr* tag,
                               Addr* line_addr) {
   *line_addr = addr & ~cache->offset_mask;
@@ -197,10 +206,15 @@ void init_cache(Cache* cache, const char* name, uns cache_size, uns assoc,
   }
 }
 
-/**************************************************************************************/
-/* cache_access: Does a cache lookup based on the address.  Returns a pointer
- * to the cache line data if it is found.  */
-
+/**
+ * @brief access the address.
+ *
+ * @param cache
+ * @param addr the request addr
+ * @param line_addr
+ * @param update_repl
+ * @return void* data field of the blk or NULL if cache miss
+ */
 void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
   Addr tag;
   uns  set = cache_index(cache, addr, &tag, line_addr);
@@ -210,6 +224,7 @@ void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
     return access_ideal_storage(cache, set, tag, addr);
   }
 
+  // search the ways
   for(ii = 0; ii < cache->assoc; ii++) {
     Cache_Entry* line = &cache->entries[set][ii];
 
@@ -249,29 +264,51 @@ void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
   return NULL;
 }
 
-/**************************************************************************************/
-/* cache_insert: returns a pointer to the data section of the new cache line.
-   Sets line_addr to the address of the first block of the new line.  Sets
-   repl_line_addr to the address of the first block that was replaced
 
-   DON'T call this unless you are sure that the line is not in the
-   cache (call after cache_access returned NULL)
-*/
-
+/**
+ * @brief Insert new addr to the cache
+ *
+ * This function is a wrapper of cache_insert_replpos, see below
+ *
+ * Note cache_insert is intrusive, for a non-instusive function
+ * (which only pick out the victim but not doing the insertion),
+ * see get_next_repl_line, both of these functions calls find_repl_entry
+ * internally
+ *
+ * DON'T call this unless you are sure that the line is not in the
+ * cache (call after cache_access returned NULL)
+ *
+ * @param cache
+ * @param proc_id
+ * @param addr
+ * @param line_addr
+ * @param repl_line_addr
+ * @return void* The data field of the inserted blk
+ */
 void* cache_insert(Cache* cache, uns8 proc_id, Addr addr, Addr* line_addr,
                    Addr* repl_line_addr) {
   return cache_insert_replpos(cache, proc_id, addr, line_addr, repl_line_addr,
                               INSERT_REPL_DEFAULT, FALSE);
 }
-/**************************************************************************************/
-/* cache_insert_replpos: returns a pointer to the data section of the new cache
-   line.  Sets line_addr to the address of the first block of the new line.
-   Sets repl_line_addr to the address of the first block that was replaced
 
-   DON'T call this unless you are sure that the line is not in the
-   cache (call after cache_access returned NULL)
-*/
-
+/**
+ * @brief Insert new blk into cache
+ *  returns a pointer to the data section of the new cache line.
+ *  Sets line_addr to the address of the first block of the new line.  Sets
+ *  repl_line_addr to the address of the first block that was replaced
+ *
+ *  Note this func won't do the WB if the victim is dirty, the info of the
+ *  victim blk is returned and WB is handled by the caller of this func
+ *
+ *  DON'T call this unless you are sure that the line is *not* in the
+ *  cache (call after cache_access returned NULL)
+ * @param cache
+ * @param proc_id
+ * @param addr The addr of the blk to be inserted
+ * @param line_addr The base addr of the blk to be insert (input)
+ * @param repl_line_addr The base addr of the blk got evicted (output)
+ * @return void* The data field of the inserted blk
+ */
 void* cache_insert_replpos(Cache* cache, uns8 proc_id, Addr addr,
                            Addr* line_addr, Addr* repl_line_addr,
                            Cache_Insert_Repl insert_repl_policy,
@@ -285,16 +322,19 @@ void* cache_insert_replpos(Cache* cache, uns8 proc_id, Addr addr,
     new_line        = insert_sure_line(cache, set, tag);
     *repl_line_addr = 0;
   } else {
+    // new_line points to the victim, repl_index is the way id for the victim
     new_line = find_repl_entry(cache, proc_id, set, &repl_index);
     /* before insert the data into cache, if the cache has shadow entry */
     /* insert that entry to the shadow cache */
     if((cache->repl_policy == REPL_SHADOW_IDEAL) && new_line->valid)
       shadow_cache_insert(cache, set, new_line->tag, new_line->base);
-    if(new_line->valid)  // bug fixed. 4/26/04 if the entry is not valid,
-                         // repl_line_addr should be set to 0
+    if(new_line->valid) {
+      // bug fixed. 4/26/04 if the entry is not valid,
+      // repl_line_addr should be set to 0
       *repl_line_addr = new_line->base;
-    else
+    } else {
       *repl_line_addr = 0;
+    }
     DEBUG(0,
           "Replacing 2.2f(set %u, way %u, tag 0x%s, base 0x%s) in cache '%s' "
           "with base 0x%s\n",
@@ -311,6 +351,7 @@ void* cache_insert_replpos(Cache* cache, uns8 proc_id, Addr addr,
 
   new_line->pref = isPrefetch;
 
+  // determine the insert loc (insertion policy)
   switch(insert_repl_policy) {
     case INSERT_REPL_DEFAULT:
       update_repl_policy(cache, new_line, set, repl_index, TRUE);
@@ -402,10 +443,15 @@ void* cache_insert_replpos(Cache* cache, uns8 proc_id, Addr addr,
 }
 
 
-/**************************************************************************************/
-/* invalidate_line: Does a cache lookup based on the address.  Returns a pointer
-   to the cache line data if it is found.  */
-
+/**
+ * @brief Invalidate the blk by address if presented, no wb even the blk
+ * is dirty
+ *
+ * @param cache
+ * @param addr
+ * @param line_addr
+ * @param True on find in cache, False on no present
+ */
 void cache_invalidate(Cache* cache, Addr addr, Addr* line_addr) {
   Addr tag;
   uns  set = cache_index(cache, addr, &tag, line_addr);
@@ -426,7 +472,11 @@ void cache_invalidate(Cache* cache, Addr addr, Addr* line_addr) {
 
 
 /**
- * @brief Return a pointer to the lru item in the cache set
+ * @brief Return a pointer to the victim to be replaced
+ *
+ * The caller of this func is supposed to handle the possible
+ * writeback correctly, otherwise the correctness of simulation
+ * is compromised
  *
  * @param cache
  * @param proc_id

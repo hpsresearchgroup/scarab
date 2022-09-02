@@ -288,9 +288,11 @@ void init_mem_req_type_priorities() {
   }
 }
 
-/**************************************************************************************/
-/* init_memory: */
 
+/**
+ * @brief Init memory
+ *
+ */
 void init_memory() {
   int  ii;
   char name[20];
@@ -390,25 +392,46 @@ void init_memory() {
 }
 
 /**
- * @brief this function should only be called once in warmup mode
+ * @brief Instantiate all the parts in uncore
+ *
+ * Note: this function should only be called once in warmup mode
  *
  */
 void init_uncores(void) {
   mem->uncores = (Uncore*)malloc(sizeof(Uncore) * NUM_CORES);
 
-  /* Initialize MLC cache (shared only for now) */
-  Ported_Cache* mlc = (Ported_Cache*)malloc(sizeof(Ported_Cache));
-  init_cache(&mlc->cache, "MLC_CACHE", MLC_SIZE, MLC_ASSOC, MLC_LINE_SIZE,
-             sizeof(MLC_Data), MLC_CACHE_REPL_POLICY);
-  mlc->num_banks = MLC_BANKS;
-  mlc->ports     = (Ports*)malloc(sizeof(Ports) * mlc->num_banks);
-  for(uns ii = 0; ii < mlc->num_banks; ii++) {
-    char name[MAX_STR_LENGTH + 1];
-    snprintf(name, MAX_STR_LENGTH, "MLC BANK %d PORTS", ii);
-    init_ports(&mlc->ports[ii], name, MLC_READ_PORTS, MLC_WRITE_PORTS, FALSE);
-  }
-  for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    MLC(proc_id) = mlc;
+  /* Initialize MLC cache */
+  if(PRIVATE_MLC) {
+    for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
+      Ported_Cache* mlc = (Ported_Cache*)malloc(sizeof(Ported_Cache));
+      char          buf[MAX_STR_LENGTH + 1];
+      sprintf(buf, "MLC[%d]", proc_id);
+      init_cache(&mlc->cache, buf, MLC_SIZE, MLC_ASSOC, MLC_LINE_SIZE,
+                 sizeof(MLC_Data), MLC_CACHE_REPL_POLICY);
+      mlc->num_banks = MLC_BANKS;
+      mlc->ports     = (Ports*)malloc(sizeof(Ports) * mlc->num_banks);
+      for(uns ii = 0; ii < mlc->num_banks; ii++) {
+        char name[MAX_STR_LENGTH + 1];
+        snprintf(name, MAX_STR_LENGTH, "MLC[%d] BANK %d PORTS", proc_id, ii);
+        init_ports(&mlc->ports[ii], name, MLC_READ_PORTS, MLC_WRITE_PORTS,
+                   FALSE);
+      }
+      MLC(proc_id) = mlc;
+    }
+  } else {
+    Ported_Cache* mlc = (Ported_Cache*)malloc(sizeof(Ported_Cache));
+    init_cache(&mlc->cache, "MLC_CACHE", MLC_SIZE, MLC_ASSOC, MLC_LINE_SIZE,
+               sizeof(MLC_Data), MLC_CACHE_REPL_POLICY);
+    mlc->num_banks = MLC_BANKS;
+    mlc->ports     = (Ports*)malloc(sizeof(Ports) * mlc->num_banks);
+    for(uns ii = 0; ii < mlc->num_banks; ii++) {
+      char name[MAX_STR_LENGTH + 1];
+      snprintf(name, MAX_STR_LENGTH, "MLC BANK %d PORTS", ii);
+      init_ports(&mlc->ports[ii], name, MLC_READ_PORTS, MLC_WRITE_PORTS, FALSE);
+    }
+    for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
+      MLC(proc_id) = mlc;
+    }
   }
 
   /* Initialize LLC */
@@ -434,6 +457,7 @@ void init_uncores(void) {
         snprintf(name, MAX_STR_LENGTH, "L1[%d] BANK %d PORTS", proc_id, ii);
         init_ports(&l1->ports[ii], name, L1_READ_PORTS, L1_WRITE_PORTS, FALSE);
       }
+      // Use this macro to unify the handling of private/share L1
       L1(proc_id) = l1;
     }
   } else {
@@ -813,7 +837,7 @@ int cycle_busoutq_insert_count = 0;
 int l1_in_buf_count            = 0;
 
 /**
- * @brief Not sure what this func is doing
+ * @brief Sort all mem queues
  *
  */
 void update_memory_queues() {
@@ -866,8 +890,9 @@ void update_on_chip_memory_stats() {
 
 /**
  * @brief simulate the memory system for one cycle
- * functions are called in reverse order, that's fill queues (req going back to
- * cpu), first, then ramulator (DRAM), then request queues (reg going down to
+ *
+ * Note: updates happen in reverse order, that's fill queues (reqs going back to
+ * cpu), first, then ramulator (DRAM), then request queues (reqs going out to
  * mem)
  *
  */
@@ -895,11 +920,12 @@ void update_memory() {
   if(freq_is_ready(FREQ_DOMAIN_L1)) {
     cycle_count = freq_cycle_count(FREQ_DOMAIN_L1);
 
-    mem_process_bus_out_reqs();
+    mem_process_bus_out_reqs();  // obsolete code, nothing will be executed
     mem_process_l1_reqs();
     mem_process_mlc_reqs();
   }
 
+  // WQ: why is this not called before mlc_fill???
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
     if(freq_is_ready(FREQ_DOMAIN_CORES[proc_id])) {
       cycle_count = freq_cycle_count(FREQ_DOMAIN_CORES[proc_id]);
@@ -925,13 +951,18 @@ int mem_compare_priority(const void* a, const void* b) {
     return 0;
 }
 
-/**************************************************************************************/
-/* mem_start_mlc_access: */
 
+/**
+ * @brief Try obtain MLC ports, transit state into MLC_WAIT on success
+ *
+ * @param req
+ */
 void mem_start_mlc_access(Mem_Req* req) {
   Flag avail = FALSE;
 
   /* FIXME: Only WB reqs try to get a write port? How about stores? */
+  // WQ: store definately need read port first, but potentially need to obtain
+  //    write port subsequently, not sure how to model this
   Flag need_wp = ((req->type == MRT_WB) || (req->type == MRT_WB_NODIRTY));
   Flag need_rp = !need_wp;
   if((need_wp && get_write_port(&MLC(req->proc_id)->ports[req->mlc_bank])) ||
@@ -954,9 +985,11 @@ void mem_start_mlc_access(Mem_Req* req) {
     STAT_EVENT(req->proc_id, MLC_LD_BANK_BLOCK + avail);
 }
 
-/**************************************************************************************/
-/* mem_start_l1_access: */
-
+/**
+ * @brief Change the MRS state into wait, if obtain the required port
+ *
+ * @param req
+ */
 void mem_start_l1_access(Mem_Req* req) {
   Flag avail = FALSE;
 
@@ -982,6 +1015,7 @@ void mem_start_l1_access(Mem_Req* req) {
       req->rdy_cycle                  = freq_convert_future_cycle(
         core_domain, core_cycle_count + L1_CYCLES, FREQ_DOMAIN_L1);
     } else {
+      // cycle_count is the current global cycle
       req->rdy_cycle = cycle_count + L1_CYCLES;
     }
 
@@ -995,11 +1029,22 @@ void mem_start_l1_access(Mem_Req* req) {
     STAT_EVENT(req->proc_id, L1_LD_BANK_BLOCK + avail);
 }
 
-/**************************************************************************************/
-/* mem_process_l1_hit_access: */
-/* Returns TRUE if l1 access is complete and needs to be removed from l1_queue
+/**
+ * @brief post_process after LLC hit.
+ *
+ * Resp the req either to core's fill_queue or MLC fill_queue
+ * If need to WB (write through cache), it will be handled outside this func
+ *
+ * Update the state of the data blk (dirty bit) on hit
+ *
+ * @param req
+ * @param l1_queue_entry
+ * @param line_addr
+ * @param data
+ * @param lru_position
+ * @return Flag Returns TRUE if l1 access is complete and needs to be removed
+ * from l1_queue
  */
-
 Flag mem_process_l1_hit_access(Mem_Req* req, Mem_Queue_Entry* l1_queue_entry,
                                Addr* line_addr, L1_Data* data,
                                int lru_position) {
@@ -1057,7 +1102,8 @@ Flag mem_process_l1_hit_access(Mem_Req* req, Mem_Queue_Entry* l1_queue_entry,
       STAT_EVENT(req->proc_id, L1_WB_HIT);
       STAT_EVENT(req->proc_id, CORE_L1_WB_HIT);
     }
-    data->dirty |= (req->type == MRT_WB);
+    // mark the blk dirty on WB
+    data->dirty |= (req->type == MRT_WB || req->type == MRT_DSTORE);
   }
 
   DEBUG(req->proc_id,
@@ -1092,15 +1138,26 @@ Flag mem_process_l1_hit_access(Mem_Req* req, Mem_Queue_Entry* l1_queue_entry,
     DEBUG(req->proc_id, "Req index:%d no longer a chip demand\n", req->id);
   }
 
-  // this is just a stat collection
+  // collect stat for wrong path accesses
   wp_process_l1_hit(data, req);
 
+  /////////////////////////////////////////////
+  // main logic for handling a hit:
+  // Case 0: req is WB and L1 is write through, propogate downwards
+  // WQ: case 0 is deprecated, WB will be sent to ramulator from the caller
   if(L1_WRITE_THROUGH && (req->type == MRT_WB)) {
     req->state     = MRS_BUS_NEW;
     req->rdy_cycle = cycle_count + L1Q_TO_FSB_TRANSFER_LATENCY;
+    // Case 1: propagate upwards to MLC
   } else if(fill_mlc) {
     req->state     = MRS_FILL_MLC;
     req->rdy_cycle = cycle_count + 1;
+    // borrow the dirty_l0 field of req to mark the fill contains dirty data
+    // true for both inclusive & exclusive L1
+    if(data->dirty) {
+      req->dirty_l0 = TRUE;
+    }
+
     // insert into mlc queue
     req->queue = &(mem->mlc_fill_queue);
     if(!ORDER_BEYOND_BUS)
@@ -1111,30 +1168,47 @@ Flag mem_process_l1_hit_access(Mem_Req* req, Mem_Queue_Entry* l1_queue_entry,
       mem_insert_req_into_queue(req, req->queue,
                                 ALL_FIFO_QUEUES ? mlc_fill_seq_num : 0);
     mlc_fill_seq_num++;
+    // maintain exclusivity, evict from L1
+    if(EXCLUSIVE_L1) {
+      // no need to WB since dirtyness will be propogated upwards too
+      ASSERT(0, MLC_PRESENT);
+      Addr dummy;
+      cache_invalidate(&L1(req->proc_id)->cache, req->addr, &dummy);
+    }
+
+    // Case 2: if done_func is not bound (usually is a prefetch), terminate the
+    // req
   } else if(!req->done_func) {
     req->state = MRS_L1_HIT_DONE;
     // Free the request buffer
     mem_free_reqbuf(req);
+    // Case 3: propgate upwards, directly to the core
   } else {
+    // this case should only be called when no MLC in sys
+    // WQ: seems the dirtyness is not propogate upward here
     req->state     = MRS_L1_HIT_DONE;
     req->rdy_cycle = freq_cycle_count(
       FREQ_DOMAIN_CORES[req->proc_id]);  // no +1 to match old performance
     // insert into core fill queue
     req->queue = &(mem->core_fill_queues[req->proc_id]);
-    if(!ORDER_BEYOND_BUS)
+
+    if(data->dirty)
+      req->dirty_l0 = TRUE;
+    if(!ORDER_BEYOND_BUS) {
       mem_insert_req_into_queue(req, req->queue,
                                 ALL_FIFO_QUEUES ?
                                   core_fill_seq_num[req->proc_id] :
                                   l1_queue_entry->priority);
-    else
+    } else {
       mem_insert_req_into_queue(
         req, req->queue, ALL_FIFO_QUEUES ? core_fill_seq_num[req->proc_id] : 0);
-    core_fill_seq_num[req->proc_id]++;
+      core_fill_seq_num[req->proc_id]++;
+    }
   }
 
   /* Set the priority so that this entry will be removed from the l1_queue */
   l1_queue_entry->priority = Mem_Req_Priority_Offset[MRT_MIN_PRIORITY];
-
+  // wq todo: the count is not set correctly?
 
   if(L2L1PREF_ON)
     l2l1pref_mem(req);
@@ -1142,92 +1216,124 @@ Flag mem_process_l1_hit_access(Mem_Req* req, Mem_Queue_Entry* l1_queue_entry,
   return TRUE;
 }
 
-/**************************************************************************************/
-/* mem_process_mlc_hit_access: */
-/* Returns TRUE if mlc access is complete and needs to be removed from mlc_queue
+/**
+ * @brief
+ *
+ * @param req
+ * @param mlc_queue_entry
+ * @param line_addr
+ * @param data
+ * @param lru_position
+ * @return Flag Returns TRUE if mlc access is complete and needs to be removed
+ * from mlc_queue
  */
-
 Flag mem_process_mlc_hit_access(Mem_Req* req, Mem_Queue_Entry* mlc_queue_entry,
                                 Addr* line_addr, MLC_Data* data,
                                 int lru_position) {
-  if(!req->done_func ||
-     req->done_func(req)) { /* If done_func is not complete we will keep
-                               accessing MLC until done_func returns TRUE */
-
-    if(data) { /* not perfect mlc */
-      if((req->type == MRT_DFETCH) || (req->type == MRT_DSTORE) ||
-         (req->type == MRT_IFETCH)) {
-        if(data->prefetch) {  // prefetch hit
-          DEBUG(req->proc_id, "%7lld mlc prefetch hit %d\n", cycle_count,
-                (int)(req->addr));
-          STAT_EVENT(req->proc_id, MLC_PREF_HIT);
-          if(!data->seen_prefetch) {
-            data->seen_prefetch = TRUE;
-
-            STAT_EVENT(req->proc_id, MLC_PREF_UNIQUE_HIT);
-            STAT_EVENT(req->proc_id, PREF_MLC_TOTAL_USED);
-            STAT_EVENT(req->proc_id, CORE_PREF_MLC_USED);
-            STAT_EVENT(req->proc_id, CORE_MLC_PREF_FILL_USED);
-          }
-        }
-      }
-
-      if(req->type == MRT_DPRF || req->type == MRT_IPRF ||
-         req->demand_match_prefetch) {
-        STAT_EVENT(req->proc_id, MLC_PREF_REQ_HIT);
-        STAT_EVENT(req->proc_id, CORE_MLC_PREF_REQ_HIT);
-      } else if((req->type == MRT_DFETCH) || (req->type == MRT_DSTORE) ||
-                (req->type == MRT_IFETCH)) {
-        STAT_EVENT(req->proc_id, MLC_DEMAND_HIT);
-        STAT_EVENT(req->proc_id, CORE_MLC_DEMAND_HIT);
-      } else {  // CMP Watch out RA
-        STAT_EVENT(req->proc_id, MLC_WB_HIT);
-        STAT_EVENT(req->proc_id, CORE_MLC_WB_HIT);
-      }
-      data->dirty |= (req->type == MRT_WB);
-    }
-
+  if(data) { /* not perfect mlc */
     if((req->type == MRT_DFETCH) || (req->type == MRT_DSTORE) ||
        (req->type == MRT_IFETCH)) {
-      STAT_EVENT(req->proc_id, MLC_HIT);
-      STAT_EVENT(req->proc_id, CORE_MLC_HIT);
-      STAT_EVENT(req->proc_id, MLC_HIT_ONPATH + req->off_path);
-      if(0 && DEBUG_EXC_INSERTS) {
-        printf("addr:%s hit in MLC type:%s\n", hexstr64s(req->addr),
-               Mem_Req_Type_str(req->type));
+      if(data->prefetch) {  // prefetch hit
+        DEBUG(req->proc_id, "%7lld mlc prefetch hit %d\n", cycle_count,
+              (int)(req->addr));
+        STAT_EVENT(req->proc_id, MLC_PREF_HIT);
+        if(!data->seen_prefetch) {
+          data->seen_prefetch = TRUE;
+
+          STAT_EVENT(req->proc_id, MLC_PREF_UNIQUE_HIT);
+          STAT_EVENT(req->proc_id, PREF_MLC_TOTAL_USED);
+          STAT_EVENT(req->proc_id, CORE_PREF_MLC_USED);
+          STAT_EVENT(req->proc_id, CORE_MLC_PREF_FILL_USED);
+        }
       }
     }
-
-    STAT_EVENT_ALL(MLC_HIT_ALL);
-    STAT_EVENT_ALL(MLC_HIT_ALL_ONPATH + req->off_path);
-
-    // cmp IGNORE
-    if(req->off_path)
-      STAT_EVENT(req->proc_id, MLC_HIT_OFFPATH_IFETCH + MIN2(req->type, 6));
-    else
-      STAT_EVENT(req->proc_id, MLC_HIT_ONPATH_IFETCH + MIN2(req->type, 6));
-
-    if(MLC_WRITE_THROUGH && (req->type == MRT_WB)) {
-      req->state     = MRS_L1_NEW;
-      req->rdy_cycle = cycle_count + MLCQ_TO_L1Q_TRANSFER_LATENCY;
-    } else {  // writeback done
-      /* Remove the entry from request buffer */
-      req->state = MRS_MLC_HIT_DONE;
-      mem_free_reqbuf(req);
-    }
-
-    /* Set the priority so that this entry will be removed from the mlc_queue */
-    mlc_queue_entry->priority = Mem_Req_Priority_Offset[MRT_MIN_PRIORITY];
-
-    return TRUE;
-  } else {
-    return FALSE;
+    data->dirty |= (req->type == MRT_WB || req->type == MRT_DSTORE);
   }
+
+  if(req->type == MRT_DPRF || req->type == MRT_IPRF ||
+     req->demand_match_prefetch) {
+    STAT_EVENT(req->proc_id, MLC_PREF_REQ_HIT);
+    STAT_EVENT(req->proc_id, CORE_MLC_PREF_REQ_HIT);
+  } else if((req->type == MRT_DFETCH) || (req->type == MRT_DSTORE) ||
+            (req->type == MRT_IFETCH)) {
+    STAT_EVENT(req->proc_id, MLC_DEMAND_HIT);
+    STAT_EVENT(req->proc_id, CORE_MLC_DEMAND_HIT);
+  } else {  // CMP Watch out RA
+    STAT_EVENT(req->proc_id, MLC_WB_HIT);
+    STAT_EVENT(req->proc_id, CORE_MLC_WB_HIT);
+  }
+
+  if((req->type == MRT_DFETCH) || (req->type == MRT_DSTORE) ||
+     (req->type == MRT_IFETCH)) {
+    STAT_EVENT(req->proc_id, MLC_HIT);
+    STAT_EVENT(req->proc_id, CORE_MLC_HIT);
+    STAT_EVENT(req->proc_id, MLC_HIT_ONPATH + req->off_path);
+    if(0 && DEBUG_EXC_INSERTS) {
+      printf("addr:%s hit in MLC type:%s\n", hexstr64s(req->addr),
+             Mem_Req_Type_str(req->type));
+    }
+  }
+
+  STAT_EVENT_ALL(MLC_HIT_ALL);
+  STAT_EVENT_ALL(MLC_HIT_ALL_ONPATH + req->off_path);
+
+  // cmp IGNORE
+  if(req->off_path)
+    STAT_EVENT(req->proc_id, MLC_HIT_OFFPATH_IFETCH + MIN2(req->type, 6));
+  else
+    STAT_EVENT(req->proc_id, MLC_HIT_ONPATH_IFETCH + MIN2(req->type, 6));
+
+  /////////////////////////////////////////////////////////////////
+  // main logic for handling mlc hit
+  // Case 0, deprecated: wb
+  if(MLC_WRITE_THROUGH && (req->type == MRT_WB)) {
+    req->state     = MRS_L1_NEW;
+    req->rdy_cycle = cycle_count + MLCQ_TO_L1Q_TRANSFER_LATENCY;
+  }
+  // Case 1: is a prefetch, free the req here
+  else if(!req->done_func) {
+    /* Remove the entry from request buffer */
+    req->state = MRS_MLC_HIT_DONE;
+    mem_free_reqbuf(req);
+  }
+  // Case 2: steer the req to cores' fill queue
+  else {
+    req->state     = MRS_MLC_HIT_DONE;
+    req->rdy_cycle = freq_cycle_count(FREQ_DOMAIN_CORES[req->proc_id]);
+    req->queue     = &(mem->core_fill_queues[req->proc_id]);
+    if(data->dirty)
+      req->dirty_l0 = TRUE;
+    if(!ORDER_BEYOND_BUS) {
+      mem_insert_req_into_queue(req, req->queue,
+                                ALL_FIFO_QUEUES ?
+                                  core_fill_seq_num[req->proc_id] :
+                                  mlc_queue_entry->priority);
+    } else {
+      mem_insert_req_into_queue(
+        req, req->queue, ALL_FIFO_QUEUES ? core_fill_seq_num[req->proc_id] : 0);
+      core_fill_seq_num[req->proc_id]++;
+    }
+  }
+
+  /* Set the priority so that this entry will be removed from the mlc_queue */
+  mlc_queue_entry->priority = Mem_Req_Priority_Offset[MRT_MIN_PRIORITY];
+
+  return TRUE;
 }
 
-/**************************************************************************************/
-/* mem_process_l1_miss_access: */
-
+/**
+ * @brief Miss path for LLC access
+ *
+ * if WB, inserted into L1 array. Otherwise, send to ramulator (handled by the
+ * caller)
+ *
+ *
+ * @param req
+ * @param l1_queue_entry
+ * @param line_addr
+ * @param data
+ * @return Flag return 1 if miss processing finished correctly
+ */
 static Flag mem_process_l1_miss_access(Mem_Req*         req,
                                        Mem_Queue_Entry* l1_queue_entry,
                                        Addr* line_addr, L1_Data* data) {
@@ -1238,6 +1344,7 @@ static Flag mem_process_l1_miss_access(Mem_Req*         req,
         hexstr64s(req->addr), req->l1_bank, req->size,
         mem_req_state_names[req->state]);
 
+  // collect stats
   if(!req->l1_miss) {  // have we collected these statistics already?
     if(req->type == MRT_DFETCH || req->type == MRT_DSTORE ||
        req->type == MRT_IFETCH) {
@@ -1284,13 +1391,17 @@ static Flag mem_process_l1_miss_access(Mem_Req*         req,
       STAT_EVENT(req->proc_id, L1_MISS_ONPATH_IFETCH + MIN2(req->type, 6));
   }
 
+  /*
+   * Case 1: if the request is a write back request then the processor just
+   * insert the request to the L1 cache
+   */
   if((req->type == MRT_WB) || (req->type == MRT_WB_NODIRTY)) {
-    // if the request is a write back request then the processor just insert the
-    // request to the L1 cache
-    if(req->type == MRT_WB_NODIRTY)
+    if(!EXCLUSIVE_L1 && req->type == MRT_WB_NODIRTY)
       WARNING(0, "CMP: A WB_NODIRTY request found! Check it out!");
 
+    // install the blk and descruct the req
     if(req->done_func) {
+      // this should be rare, wb usually don't bind done_func
       ASSERT(req->proc_id, ALLOW_TYPE_MATCHES);
       ASSERT(req->proc_id, req->wb_requested_back);
       if(req->done_func(req)) {
@@ -1310,6 +1421,8 @@ static Flag mem_process_l1_miss_access(Mem_Req*         req,
     } else {
       STAT_EVENT(req->proc_id, WB_L1_MISS_FILL_L1);  // CMP remove this later
       if(!l1_fill_line(req)) {
+        // if cannot insert the blk, need to inform the caller not to delete
+        // the req from the queue (and retry later)
         req->rdy_cycle = cycle_count + 1;
         return FALSE;
       }
@@ -1327,6 +1440,9 @@ static Flag mem_process_l1_miss_access(Mem_Req*         req,
     }
   }
 
+  /**
+   * Case 2: TODO check the situation here
+   */
   if(STALL_MEM_REQS_ONLY && !mem_req_type_is_stalling(req->type)) {
     // not calling done_func to avoid filling caches
     req->state     = MRS_INV;
@@ -1336,42 +1452,31 @@ static Flag mem_process_l1_miss_access(Mem_Req*         req,
     return TRUE;
   }
 
-  /* Mark the request as L1_miss */
+  /**
+   * Case 3: just need to propogate the miss downwards (handled in the caller of
+   * this func)
+   */
   req->l1_miss       = TRUE;
   req->l1_miss_cycle = cycle_count;
 
   if((CONSTANT_MEMORY_LATENCY && !queue_full(&mem->l1fill_queue)) ||
-     //(!CONSTANT_MEMORY_LATENCY && !queue_full(&mem->bus_out_queue))) {
      (!CONSTANT_MEMORY_LATENCY)) {
-    // Ramulator: moving the lines below to where ramulator_send() is called
-
-    //// cmp FIXME
-    // if (TRACK_L1_MISS_DEPS || MARK_L1_MISSES)
-    //    mark_ops_as_l1_miss(req);
-
-    // req->state = MRS_BUS_NEW; // FIXME?
-    // req->rdy_cycle = cycle_count + L1Q_TO_FSB_TRANSFER_LATENCY; /* this req
-    // will be ready to be sent to memory in the next cycle */
-
-    //// cmp FIXME
-    // if (STREAM_PREFETCH_ON)
-    //    stream_ul1_miss (req);
-
-    ///* Set the priority so that this entry will be removed from the l1_queue
-    ///*/
-    // l1_queue_entry->priority = Mem_Req_Priority_Offset[MRT_MIN_PRIORITY];
-
-    // STAT_EVENT(req->proc_id, SEND_MISS_REQ_QUEUE);
     return TRUE;
   } else {
-    // STAT_EVENT(req->proc_id, REJECTED_QUEUE_BUS_OUT);
     return FALSE;
   }
 }
 
-/**************************************************************************************/
-/* mem_process_mlc_miss_access: */
 
+/**
+ * @brief Miss path for MLC accesses
+ *
+ * @param req
+ * @param mlc_queue_entry
+ * @param line_addr
+ * @param data
+ * @return Flag
+ */
 static Flag mem_process_mlc_miss_access(Mem_Req*         req,
                                         Mem_Queue_Entry* mlc_queue_entry,
                                         Addr* line_addr, MLC_Data* data) {
@@ -1416,12 +1521,14 @@ static Flag mem_process_mlc_miss_access(Mem_Req*         req,
   req->mlc_miss       = TRUE;
   req->mlc_miss_cycle = cycle_count;
 
+  // Case 0: if WB, directly insert to MLC
   if((req->type == MRT_WB) || (req->type == MRT_WB_NODIRTY)) {
     // if the request is a write back request then the processor just insert the
     // request to the MLC cache
     if(req->type == MRT_WB_NODIRTY)
       WARNING(0, "CMP: A WB_NODIRTY request found! Check it out!");
 
+    // WQ: WB with a done func should be rare (dc miss won't bind func_done)
     if(req->done_func) {
       ASSERT(req->proc_id, ALLOW_TYPE_MATCHES);
       ASSERT(req->proc_id, req->wb_requested_back);
@@ -1438,6 +1545,7 @@ static Flag mem_process_mlc_miss_access(Mem_Req*         req,
       }
     } else {
       STAT_EVENT(req->proc_id, WB_MLC_MISS_FILL_MLC);  // CMP remove this later
+      // WQ TODO: check if mlc_fill can potentially fail
       mlc_fill_line(req);
       if(MLC_WRITE_THROUGH && req->type == MRT_WB) {
         req->state     = MRS_L1_NEW;
@@ -1451,7 +1559,7 @@ static Flag mem_process_mlc_miss_access(Mem_Req*         req,
       return TRUE;
     }
   }
-
+  // Case 1: otherwise, send req to downwards (l1)
   if(!queue_full(&mem->l1_queue)) {
     req->state     = MRS_L1_NEW;
     req->rdy_cycle = cycle_count +
@@ -1467,11 +1575,19 @@ static Flag mem_process_mlc_miss_access(Mem_Req*         req,
   }
 }
 
-/**************************************************************************************/
-/* mem_complete_l1_access: */
-/* Returns TRUE if l1 access is complete and needs to be removed from l1_queue
+/**
+ * @brief Process the L1 reg already obtain the port
+ *
+ * If hit in L1, send req back upwards. Otherwise try sending it out to bus
+ * (ramulator)
+ *
+ * @param req
+ * @param l1_queue_entry
+ * @param out_queue_insertion_count
+ * @param reserved_entry_count
+ * @return Flag TRUE if l1 access is complete and needs to be removed from
+ * l1_queue
  */
-
 static Flag mem_complete_l1_access(Mem_Req*         req,
                                    Mem_Queue_Entry* l1_queue_entry,
                                    int*             out_queue_insertion_count,
@@ -1542,8 +1658,11 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
   if(!PREFETCH_UPDATE_LRU_L1 &&
      (req->type == MRT_DPRF || req->type == MRT_IPRF))
     update_l1_lru = FALSE;
+
+  // lookup LLC, data set to NULL on miss
   data = (L1_Data*)cache_access(&L1(req->proc_id)->cache, req->addr, &line_addr,
-                                update_l1_lru);  // access L2
+                                update_l1_lru);
+  // update the shadow cache
   cache_part_l1_access(req);
   if(FORCE_L1_MISS)
     data = NULL;
@@ -1568,13 +1687,13 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
      !data) /* do not put into L2 if this is a prefetch or off-path */
     data = l1_pref_cache_access(req);
 
-  Flag access_done = TRUE;
-  if(data || PERFECT_L1) { /* l1 hit */
-    // if exclusive cache, invalidate the line in L2 if there is a done function
-    // to transfer the data to L1 -- also need to propagate the dirty to L1
+  Flag access_done = TRUE;  // This flag tells whether to remove the req from
+                            // L1_queue
+  if(data || PERFECT_L1) {  /* l1 hit */
     Flag l1_hit_access = mem_process_l1_hit_access(
       req, l1_queue_entry, &line_addr, data, lru_position);
     if(!l1_hit_access)
+      // WQ: this should not happen
       access_done = FALSE;
     else {
       if(!PREF_ORACLE_TRAIN_ON &&
@@ -1588,12 +1707,10 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
         pref_ul1_hit(req->proc_id, req->addr, req->loadPC, req->global_hist);
       }
 
-      if(L1_WRITE_THROUGH && (req->type == MRT_WB) &&
+      // propogate to dram for writethrough cache regardless of hit/miss
+      if(L1_WRITE_THROUGH &&
+         (req->type == MRT_WB || req->type == MRT_WB_NODIRTY) &&
          !CONSTANT_MEMORY_LATENCY) {
-        // req->queue = &(mem->bus_out_queue);
-
-        // mem_insert_req_into_queue (req, req->queue, ALL_FIFO_QUEUES ?
-        // bus_out_seq_num : 0);
         ASSERT(req->proc_id, MRS_L1_WAIT == req->state);
         req->state    = MRS_MEM_NEW;
         l1_hit_access = ramulator_send(req);
@@ -1611,13 +1728,8 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
           // perf_pred_mem_req_start(req);
           mem_free_reqbuf(req);
         }
-
-        // bus_out_seq_num++;
-        //(*out_queue_insertion_count) += 1;
-        // STAT_EVENT(req->proc_id, BUS_ACCESS);
       }
     }
-    // CMP IGNORE
   } else { /* l1 miss */
     /* if req is wb then either fill l1 or try again */
     Flag l1_miss_send_bus = (L1_WRITE_THROUGH && (req->type == MRT_WB)) ||
@@ -1627,6 +1739,9 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
       l1_miss_send_bus = FALSE;
     Flag l1_miss_access = mem_process_l1_miss_access(req, l1_queue_entry,
                                                      &line_addr, data);
+    // send a miss req downwards
+    // WQ: to be consistent, this blk need to be moved in
+    // mem_process_l1_miss_access
     if(l1_miss_access && l1_miss_send_bus) {
       if(CONSTANT_MEMORY_LATENCY) {
         mem->uncores[req->proc_id].num_outstanding_l1_misses++;
@@ -1648,20 +1763,14 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
         STAT_EVENT(req->proc_id, POWER_DRAM_ACTIVATE);
         STAT_EVENT(req->proc_id, POWER_DRAM_READ);
       } else {
-        // Ramulator remove
-        // req->queue = &(mem->bus_out_queue);
-        // mem_insert_req_into_queue (req, req->queue, ALL_FIFO_QUEUES ?
-        // bus_out_seq_num : 0);
-
         ASSERT(req->proc_id, MRS_L1_WAIT == req->state);
         req->state     = MRS_MEM_NEW;
         l1_miss_access = ramulator_send(req);
         if(!l1_miss_access) {
-          // STAT_EVENT(req->proc_id, REJECTED_QUEUE_BUS_OUT);
-
+          // Fail to send req to dram
           req->state  = MRS_L1_WAIT;
           access_done = FALSE;
-        } else {
+        } else {  // send to dram succeed
           ASSERT(req->proc_id, req->mem_queue_cycle >= req->rdy_cycle);
           req->queue = NULL;
 
@@ -1672,10 +1781,6 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
 
           if(TRACK_L1_MISS_DEPS || MARK_L1_MISSES)
             mark_ops_as_l1_miss(req);
-
-          // req->state = MRS_BUS_NEW; // FIXME?
-          // req->rdy_cycle = cycle_count + L1Q_TO_FSB_TRANSFER_LATENCY; /* this
-          // req will be ready to be sent to memory in the next cycle */
 
           // cmp FIXME
           if(STREAM_PREFETCH_ON)
@@ -1749,11 +1854,17 @@ static Flag mem_complete_l1_access(Mem_Req*         req,
   return access_done;
 }
 
-/**************************************************************************************/
-/* mem_complete_mlc_access: */
-/* Returns TRUE if mlc access is complete and needs to be removed from mlc_queue
- */
 
+/**
+ * @brief Access MLC array
+ *
+ * @param req
+ * @param mlc_queue_entry
+ * @param l1_queue_insertion_count
+ * @param reserved_entry_count
+ * @return Flag Returns TRUE if mlc access is complete and needs to be removed
+ * from mlc_queue
+ */
 static Flag mem_complete_mlc_access(Mem_Req*         req,
                                     Mem_Queue_Entry* mlc_queue_entry,
                                     int*             l1_queue_insertion_count,
@@ -1770,11 +1881,9 @@ static Flag mem_complete_mlc_access(Mem_Req*         req,
                                  &line_addr, update_mlc_lru);  // access MLC
 
   if(data || PERFECT_MLC) { /* mlc hit */
-    // if exclusive cache, invalidate the line in L2 if there is a done function
-    // to transfer the data to MLC -- also need to propagate the dirty to MLC
     Flag mlc_hit_access = mem_process_mlc_hit_access(
       req, mlc_queue_entry, &line_addr, data, lru_position);
-    if(!mlc_hit_access) {
+    if(!mlc_hit_access) {  // not gonna happen
       return FALSE;
     } else {
       if(!PREF_ORACLE_TRAIN_ON &&
@@ -1788,7 +1897,9 @@ static Flag mem_complete_mlc_access(Mem_Req*         req,
         pref_umlc_hit(req->proc_id, req->addr, req->loadPC, req->global_hist);
       }
 
-      if(MLC_WRITE_THROUGH && (req->type == MRT_WB)) {
+      // wb for write through cache
+      if(MLC_WRITE_THROUGH &&
+         (req->type == MRT_WB || req->type == MRT_WB_NODIRTY)) {
         req->queue = &(mem->l1_queue);
         mem_insert_req_into_queue(req, req->queue,
                                   ALL_FIFO_QUEUES ? l1_seq_num : 0);
@@ -1833,21 +1944,25 @@ static Flag mem_complete_mlc_access(Mem_Req*         req,
         // Train the Data prefetcher
         pref_umlc_miss(req->proc_id, req->addr, req->loadPC, req->global_hist);
       }
-
       return TRUE;
     } else if(!mlc_miss_access) {
+      // miss process is not ready
       return FALSE;
+    } else {
+      return TRUE;
     }
-    return TRUE;
   }
   ASSERT(req->proc_id, 0);
 }
 
-/**************************************************************************************/
-/* mem_process_new_reqs: */
-/* Access L1 if port is ready - If L1 miss, then put the request into miss queue
- */
 
+/**
+ * @brief Access path for all reqs from upward into L1
+ *
+ * WQ: modeling for DSTORE is largely off now: obtain port & handling of
+ * write miss
+ *
+ */
 static void mem_process_l1_reqs() {
   Mem_Req* req = NULL;
   int      ii;
@@ -1857,7 +1972,6 @@ static void mem_process_l1_reqs() {
   int      l1_queue_reserve_entry_count = 0;
 
   /* Go thru the l1_queue and try to access L1 for each request */
-
   for(ii = 0; ii < mem->l1_queue.entry_count; ii++) {
     reqbuf_id = mem->l1_queue.base[ii].reqbuf;
     req       = &(mem->req_buffer[reqbuf_id]);
@@ -1880,9 +1994,8 @@ static void mem_process_l1_reqs() {
 
     /* Request is ready: see what state it is in */
 
-    /* If this is a new request, reserve L1 port and transition to wait state */
     if(req->state == MRS_L1_NEW) {
-      mem_start_l1_access(req);
+      mem_start_l1_access(req);  // obtain port for req, change req->state
       STAT_EVENT(req->proc_id, L1_ACCESS);
       if(req->type == MRT_DPRF || req->type == MRT_IPRF)
         STAT_EVENT(req->proc_id, L1_PREF_ACCESS);
@@ -1895,6 +2008,7 @@ static void mem_process_l1_reqs() {
               mem->req_count, mem->l1_queue.entry_count,
               mem->bus_out_queue.entry_count, mem->l1fill_queue.entry_count);
 
+      // actual logic for accessing L1 array
       if(mem_complete_l1_access(req, &(mem->l1_queue.base[ii]),
                                 &out_queue_insertion_count,
                                 &l1_queue_reserve_entry_count))
@@ -1934,11 +2048,10 @@ static void mem_process_l1_reqs() {
   }
 }
 
-/**************************************************************************************/
-/* mem_process_mlc_reqs: */
-/* Access MLC if port is ready - If MLC miss, then put the request into miss
- * queue */
 
+/**
+ * @brief Access path for all req coming from core side into MLC
+ */
 static void mem_process_mlc_reqs() {
   Mem_Req* req = NULL;
   int      ii;
@@ -2020,10 +2133,15 @@ static void mem_process_mlc_reqs() {
   }
 }
 
-/**************************************************************************************/
-/* mem_process_bus_out_reqs: */
-/* FIXME: need to busy the bus for the time a line is being sent */
-
+/**
+ * @deprecated
+ * @brief Obsolete, bus_out is repalced by ramulator. The function
+ * will still be called but since bus_out_queue is supposed to always
+ * be 0, the first return will take the execution out of the function
+ *
+ * To send req to DRAM, use ramulator_send()
+ *
+ */
 static void mem_process_bus_out_reqs() {
   Mem_Req* req;
   int      ii;
@@ -2043,6 +2161,7 @@ static void mem_process_bus_out_reqs() {
     // return; // VEYNU: if there is no room in the mem queue do nothing
     return;  // Ramulator: early return if bus_out_queue is empty
   }
+
   ASSERTM(0, FALSE,
           "ERROR: bus_out_queue should always be empty\n");  // Ramulator
   // Ramulator handles off-chip communication latency itself. So we
@@ -2347,9 +2466,19 @@ static void mem_process_bus_out_reqs() {
   }
 }
 
-/**************************************************************************************/
-/* mem_complete_bus_in_access: */
 
+/**
+ * @brief Add req into uncore queues
+ *
+ * Depends on uncore config, this func will either steer reqs
+ * into l1fill_queue or to mlc_fill_queue, and change the req->state
+ * correspondingly.
+ *
+ * Ramulator call this func to return serviced reqs
+ *
+ * @param req
+ * @param priority
+ */
 void mem_complete_bus_in_access(Mem_Req* req, Counter priority) {
   DEBUG(req->proc_id,
         "Mem request completed bus in access  index:%ld  type:%s  addr:0x%s  "
@@ -2357,22 +2486,32 @@ void mem_complete_bus_in_access(Mem_Req* req, Counter priority) {
         (long int)(req - mem->req_buffer), Mem_Req_Type_str(req->type),
         hexstr64s(req->addr), req->size, mem_req_state_names[req->state]);
 
-  req->state = MRS_FILL_L1;
+  // usually the dest are either L1 (prefetchers) or None (demandings)
+  // WQ TODO: MLC prefetch
+  Counter* fill_seq_num;
+  if(req->destination == DEST_L1 || !MLC_PRESENT || !EXCLUSIVE_L1) {
+    req->state = MRS_FILL_L1;
+    // Crossing frequency domain boundary between the chip and memory controller
+    req->rdy_cycle = freq_cycle_count(FREQ_DOMAIN_L1) + 1;
+    req->queue     = &(mem->l1fill_queue);
+    fill_seq_num   = &l1fill_seq_num;
+  } else {
+    req->state     = MRS_FILL_MLC;
+    req->rdy_cycle = freq_cycle_count(FREQ_DOMAIN_L1) + 1;
+    req->queue     = &(mem->mlc_fill_queue);
+    fill_seq_num   = &mlc_fill_seq_num;
+  }
 
-  /* Crossing frequency domain boundary between the chip and memory controller
-   */
-  req->rdy_cycle = freq_cycle_count(FREQ_DOMAIN_L1) + 1;
-
-  req->queue = &(mem->l1fill_queue);
-
-  if(!ORDER_BEYOND_BUS)
+  if(!ORDER_BEYOND_BUS) {
     mem_insert_req_into_queue(req, req->queue,
-                              ALL_FIFO_QUEUES ? l1fill_seq_num : priority);
-  else
+                              ALL_FIFO_QUEUES ? *fill_seq_num : priority);
+  } else {
     mem_insert_req_into_queue(req, req->queue,
-                              ALL_FIFO_QUEUES ? l1fill_seq_num : 0);
+                              ALL_FIFO_QUEUES ? *fill_seq_num : 0);
+  }
+  (*fill_seq_num)++;
 
-  l1fill_seq_num++;
+  // WQ TODO: currently there is no dedicate counter for mlc, reuse l1 counters
   ASSERT(req->proc_id,
          mem->uncores[req->proc_id].num_outstanding_l1_misses > 0);
   mem->uncores[req->proc_id].num_outstanding_l1_misses--;
@@ -2380,6 +2519,7 @@ void mem_complete_bus_in_access(Mem_Req* req, Counter priority) {
   if(!CONSTANT_MEMORY_LATENCY && !PERF_PRED_REQS_FINISH_AT_FILL)
     perf_pred_mem_req_done(req);
 
+  // collect stats
   if(req->type != MRT_WB_NODIRTY && req->type != MRT_WB) {
     INC_STAT_EVENT_ALL(TOTAL_MEM_LATENCY,
                        req->rdy_cycle - req->mem_queue_cycle);
@@ -2405,12 +2545,25 @@ void mem_complete_bus_in_access(Mem_Req* req, Counter priority) {
   }
 }
 
+/**
+ * @brief Remove req from l1_fill_queue by change the l1fill_queue.entry_count
+ *
+ * the removal_count should be pre-populated before this call. The # of
+ * removal_count req with lowest priority will be removed
+ *
+ * removal_count will be reset after the call
+ *
+ * @param proc_id
+ * @param p_l1fill_queue_removal_count
+ */
 static void remove_from_l1_fill_queue(uns  proc_id,
                                       int* p_l1fill_queue_removal_count) {
   /* Remove requests from l1 fill queue */
   if(*p_l1fill_queue_removal_count > 0) {
     /* After this sort requests that should be removed will be at the tail of
      * the l1_queue */
+    // WQ TODO: assert the num of req with MIN_PROORITY is always equal to the
+    // removal_count
     DEBUG(0, "l1fill_queue removal\n");
     qsort(mem->l1fill_queue.base, mem->l1fill_queue.entry_count,
           sizeof(Mem_Queue_Entry), mem_compare_priority);
@@ -2427,17 +2580,21 @@ static void remove_from_l1_fill_queue(uns  proc_id,
 }
 
 /**
- * @brief
+ * @brief Handle reqs in L1 fill queue
  *
  */
 static void mem_process_l1_fill_reqs() {
   Mem_Req* req = NULL;
   int      ii;
   int      reqbuf_id;
-  int      l1fill_queue_removal_count = 0;
+
+  // control the num of req in fill_queue to remove in each call
+  // main logic will update this var, and the final call of
+  // remove_from_l1_fill_queue will take this var and remove the exact
+  // number from the tail of the queue (sorted by priority)
+  int l1fill_queue_removal_count = 0;
 
   /* Go thru the l1fill_queue */
-
   for(ii = 0; ii < mem->l1fill_queue.entry_count; ii++) {
     reqbuf_id = mem->l1fill_queue.base[ii].reqbuf;
     req       = &(mem->req_buffer[reqbuf_id]);
@@ -2450,17 +2607,27 @@ static void mem_process_l1_fill_reqs() {
     if(cycle_count < req->rdy_cycle)
       continue;
 
+    // reqs in L1_FILL_QUEUE will be in one of 3 states at any given time:
+    //  1) Fill_l1
+    //  2) Fill_mlc
+    //  3) Done
+    //  Initially when mem_complete_bus_in_access steer reqs to here, the req
+    //  state should be Fill_l1, after the req got filled into L1, depends on
+    //  whether the L1 is exclusive and req's dest, the state either transit
+    //  into FILL_MLC or FILL_DONE
+    // req will be removed (controlled by l1fill_queue_removal_count)
     if(req->state == MRS_FILL_L1) {
       DEBUG(req->proc_id,
             "Mem request about to fill L1  index:%ld  type:%s  addr:0x%s  "
             "size:%d  state: %s\n",
             (long int)(req - mem->req_buffer), Mem_Req_Type_str(req->type),
             hexstr64s(req->addr), req->size, mem_req_state_names[req->state]);
+      // install the line into cache
       if(l1_fill_line(req)) {
         ASSERT(0, req->type != MRT_WB && req->type != MRT_WB_NODIRTY);
         if(CONSTANT_MEMORY_LATENCY)
           perf_pred_mem_req_done(req);
-        if(MLC_PRESENT && req->destination != DEST_L1) {
+        if(MLC_PRESENT && !EXCLUSIVE_L1 && req->destination != DEST_L1) {
           req->state     = MRS_FILL_MLC;
           req->rdy_cycle = cycle_count + 1;
         } else {
@@ -2488,15 +2655,20 @@ static void mem_process_l1_fill_reqs() {
         mem_insert_req_into_queue(req, req->queue,
                                   ALL_FIFO_QUEUES ? mlc_fill_seq_num : 0);
       mlc_fill_seq_num++;
-      // remove from l1fill queue - how do we handle this now?
-      if(HIER_MSHR_ON)
+      if(HIER_MSHR_ON) {
         req->reserved_entry_count -= 1;
+      }
+      // remove from l1fill queue
       l1fill_queue_removal_count++;
+      // MIN_PRIOTITY will guarantte this req be moved, WQ: is this always true?
+      // feels like a dangerous design
       mem->l1fill_queue.base[ii].priority =
         Mem_Req_Priority_Offset[MRT_MIN_PRIORITY];
     } else {
       ASSERT(req->proc_id, req->state == MRS_FILL_DONE);
-      if(!req->done_func) {
+      // The existance of done_func indicates whether this req should
+      // ultimately be sent back to core
+      if(!req->done_func) {  // req should be resolved at here (l1)
         if(HIER_MSHR_ON)
           req->reserved_entry_count -= 1;
 
@@ -2508,8 +2680,11 @@ static void mem_process_l1_fill_reqs() {
         mem->l1fill_queue.base[ii].priority =
           Mem_Req_Priority_Offset[MRT_MIN_PRIORITY];
 
-        remove_from_l1_fill_queue(req->proc_id, &l1fill_queue_removal_count);
-      } else {
+        // WQ: seems uncessary to call here
+        // remove_from_l1_fill_queue(req->proc_id, &l1fill_queue_removal_count);
+      } else {  // steer req to core's fill queue
+        // this should not happen when MLC is present (regardless of incl/excl)
+        // WQ TODO: put an assert here
         req->rdy_cycle = freq_cycle_count(
           FREQ_DOMAIN_CORES[req->proc_id]);  // no +1 to match old performance
         // insert into core fill queue
@@ -2532,15 +2707,19 @@ static void mem_process_l1_fill_reqs() {
     }
   }
 
-  if(req) {
+  if(req) {  // predicate is only to make sure req->proc_id is valid
     remove_from_l1_fill_queue(req->proc_id, &l1fill_queue_removal_count);
   }
 }
 
 
-/**************************************************************************************/
-/* mem_process_mlc_fill_reqs: */
-
+/**
+ * @brief Fill resp into mlc
+ *
+ * Pending reqs in the MLC_QUEUE_FILL will be inserted and the
+ * req state will turn MRS_FILL_DONE. Next time this func got
+ * called, all reqs of MRS_FILL_DONE will be freed.
+ */
 static void mem_process_mlc_fill_reqs() {
   Mem_Req* req;
   int      ii;
@@ -2562,6 +2741,7 @@ static void mem_process_mlc_fill_reqs() {
     if(cycle_count < req->rdy_cycle)
       continue;
 
+    // either from DRAM or L1, depends on the cache inclusivitity
     if(req->state == MRS_FILL_MLC) {
       DEBUG(req->proc_id,
             "Mem request about to fill MLC  index:%ld  type:%s  addr:0x%s  "
@@ -2569,26 +2749,45 @@ static void mem_process_mlc_fill_reqs() {
             (long int)(req - mem->req_buffer), Mem_Req_Type_str(req->type),
             hexstr64s(req->addr), req->size, mem_req_state_names[req->state]);
       if(mlc_fill_line(req)) {
+        // mark done if req successfully writen into the array
         req->state     = MRS_FILL_DONE;
         req->rdy_cycle = cycle_count + 1;
       }
     } else {
       ASSERT(req->proc_id, req->state == MRS_FILL_DONE);
-      if(!req->done_func || req->done_func(req)) {
+      // WQ: this looks wrong, done_func is not supposed to be called here
+      // if(!req->done_func || req->done_func(req)) {
+      if(!req->done_func) {  // reqs supposed to be resolved here
         if(HIER_MSHR_ON)
           req->reserved_entry_count -= 1;
-
         // Free the request buffer
         mem_free_reqbuf(req);
-
-        // remove from mlc_fill queue - how do we handle this now?
-        mlc_fill_queue_removal_count++;
-        mem->mlc_fill_queue.base[ii].priority =
-          Mem_Req_Priority_Offset[MRT_MIN_PRIORITY];
+      } else {  // needs to be delivered to core's fill_queue
+        req->rdy_cycle = freq_cycle_count(
+          FREQ_DOMAIN_CORES[req->proc_id]);  // no +1 to match old performance
+        // insert into core fill queue
+        req->queue = &(mem->core_fill_queues[req->proc_id]);
+        if(!ORDER_BEYOND_BUS)
+          mem_insert_req_into_queue(req, req->queue,
+                                    ALL_FIFO_QUEUES ?
+                                      core_fill_seq_num[req->proc_id] :
+                                      mem->l1fill_queue.base[ii].priority);
+        else
+          mem_insert_req_into_queue(
+            req, req->queue,
+            ALL_FIFO_QUEUES ? core_fill_seq_num[req->proc_id] : 0);
+        core_fill_seq_num[req->proc_id]++;
       }
+
+      // remove from mlc_fill queue - how do we handle this now?
+      mlc_fill_queue_removal_count++;
+      mem->mlc_fill_queue.base[ii].priority =
+        Mem_Req_Priority_Offset[MRT_MIN_PRIORITY];
     }
   }
 
+  // WQ: this is really inconsistent, this functionality for L1 is packed into
+  // a separate func...
   /* Remove requests from mlc access queue */
   if(mlc_fill_queue_removal_count > 0) {
     /* After this sort requests that should be removed will be at the tail of
@@ -2606,9 +2805,15 @@ static void mem_process_mlc_fill_reqs() {
   }
 }
 
-/**************************************************************************************/
-/* mem_process_core_fill_reqs: */
-
+/**
+ * @brief Upwards interface between memsys and queue
+ *
+ * reqs reach here should have a callback (done_func), req
+ * is fed back into core by calling this done_func. And then
+ * req will be marked as freed
+ *
+ * @param proc_id
+ */
 static void mem_process_core_fill_reqs(uns proc_id) {
   Mem_Req* req;
   int      ii;
@@ -2627,11 +2832,13 @@ static void mem_process_core_fill_reqs(uns proc_id) {
     ASSERT(req->proc_id, (req->type != MRT_WB) || req->wb_requested_back);
     ASSERT(req->proc_id, req->type != MRT_WB_NODIRTY);
     ASSERT(req->proc_id, cycle_count >= req->rdy_cycle);
-    ASSERT(proc_id,
-           req->state == MRS_L1_HIT_DONE || req->state == MRS_FILL_DONE);
+    ASSERT(proc_id, req->state == MRS_L1_HIT_DONE ||
+                      req->state == MRS_MLC_HIT_DONE ||
+                      req->state == MRS_FILL_DONE);
     ASSERT(proc_id,
            req->done_func);  // requests w/o done_func() should be done by now
 
+    // common used done func are i/dcache_fill_line
     if(req->done_func(req)) {
       // Free the request buffer
       mem_free_reqbuf(req);
@@ -2797,14 +3004,25 @@ static inline Mem_Req* mem_search_queue(
   return matching_req;
 }
 
-/**************************************************************************************/
-/* mem_search_reqbuf: */
 
+/**
+ * @brief Search given queues to check whether a req of addr exist
+ *
+ * @param proc_id
+ * @param addr
+ * @param type
+ * @param size
+ * @param demand_hit_prefetch set if the matching req is a prefetch and a
+                                demand hits it
+ * @param demand_hit_writeback
+ * @param queues_to_search
+ * @param queue_entry
+ * @param ramulator_match
+ * @return Mem_Req*
+ */
 static inline Mem_Req* mem_search_reqbuf(
   uns8 proc_id, Addr addr, Mem_Req_Type type, uns size,
-  Flag* demand_hit_prefetch, /* set if the matching req is a prefetch and a
-                                demand hits it */
-  Flag* demand_hit_writeback, uns queues_to_search,
+  Flag* demand_hit_prefetch, Flag* demand_hit_writeback, uns queues_to_search,
   Mem_Queue_Entry** queue_entry, Flag* ramulator_match) {
   Mem_Req* req;
   ASSERTM(proc_id, proc_id == get_proc_id_from_cmp_addr(addr),
@@ -3185,10 +3403,15 @@ Flag mem_can_allocate_req_buffer(uns proc_id, Mem_Req_Type type,
   return TRUE;
 }
 
-/**************************************************************************************/
-/* mem_allocate_req_buffer: */
-/* If queue is specified, only allocates if its entry_count < size */
-
+/**
+ * @brief alloc new req from the request buffer
+ *
+ * If queue is specified, only allocates if its entry_count < size
+ * @param proc_id
+ * @param type
+ * @param for_l1_writeback
+ * @return Mem_Req*
+ */
 static inline Mem_Req* mem_allocate_req_buffer(uns proc_id, Mem_Req_Type type,
                                                Flag for_l1_writeback) {
   if(!mem_can_allocate_req_buffer(proc_id, type, for_l1_writeback))
@@ -3387,14 +3610,27 @@ static Mem_Req* mem_kick_out_oldest_first_prefetch_from_queues(
   return NULL;
 }
 
-/**************************************************************************************/
-/* mem_init_new_req: */
-
-static void mem_init_new_req(
-  Mem_Req* new_req, Mem_Req_Type type, Mem_Queue_Type queue_type, uns8 proc_id,
-  Addr addr, uns size, uns delay, Op* op, Flag done_func(Mem_Req*),
-  Counter unique_num, /* This counter is used when op is NULL */
-  Flag kicked_out_another, Counter new_priority) {
+/**
+ * @brief Populate the newly generated req
+ *
+ * @param new_req
+ * @param type
+ * @param queue_type
+ * @param proc_id
+ * @param addr
+ * @param size
+ * @param delay
+ * @param op
+ * @param done_func
+ * @param unique_num This counter is used when op is NULL
+ * @param kicked_out_another
+ * @param new_priority
+ */
+static void mem_init_new_req(Mem_Req* new_req, Mem_Req_Type type,
+                             Mem_Queue_Type queue_type, uns8 proc_id, Addr addr,
+                             uns size, uns delay, Op* op,
+                             Flag done_func(Mem_Req*), Counter unique_num,
+                             Flag kicked_out_another, Counter new_priority) {
   ASSERT(0, queue_type & (QUEUE_L1 | QUEUE_MLC));
   Flag to_mlc = (queue_type == QUEUE_MLC);
 
@@ -3436,9 +3672,12 @@ static void mem_init_new_req(
   new_req->mem_channel = CHANNEL(new_req->mem_flat_bank, RAMULATOR_BANKS);
   new_req->mem_bank = BANK_IN_CHANNEL(new_req->mem_flat_bank, RAMULATOR_BANKS);
   */
+
+  // WQ TODO: add support for configurable (bank) hashing schemes
   new_req->mlc_bank = BANK(addr, MLC(proc_id)->num_banks,
                            MLC_INTERLEAVE_FACTOR);
   new_req->l1_bank  = BANK(addr, L1(proc_id)->num_banks, L1_INTERLEAVE_FACTOR);
+
   new_req->start_cycle          = freq_cycle_count(FREQ_DOMAIN_L1) + delay;
   new_req->rdy_cycle            = freq_cycle_count(FREQ_DOMAIN_L1) + delay;
   new_req->first_stalling_cycle = mem_req_type_is_stalling(type) ?
@@ -3527,9 +3766,14 @@ static void mem_init_new_req(
 }
 
 
-/**************************************************************************************/
-/* mem_insert_req_into_queue: */
-
+/**
+ * @brief Put req into corresponding queues. Queue entry holds idx of req_buf
+ *
+ * @param new_req
+ * @param queue
+ * @param priority
+ * @return Mem_Queue_Entry*
+ */
 static inline Mem_Queue_Entry* mem_insert_req_into_queue(Mem_Req*   new_req,
                                                          Mem_Queue* queue,
                                                          Counter    priority) {
@@ -3595,10 +3839,18 @@ void mem_insert_req_round_robin() {
 }
 
 
-/**************************************************************************************/
-/* new_mem_req: */
-/* Returns TRUE if the request is successfully entered into the memory system */
-
+/**
+ * @brief Create new req and insert into correct queue
+ *
+ * Note this is one of the four sources where new_req will be generated
+ * in scarab simulation, the other three are: new_mem_dc/mlc/l1_wb_req and
+ * are used specific for write back reqs
+ *
+ * This func is used to create req when core has demanding LD/ST or for
+ * prefetchers (done_func is usually bound to d/icache_fill_line())
+ *
+ * Returns TRUE if the request is successfully entered into the memory system
+ */
 Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
                  uns delay, Op* op, Flag done_func(Mem_Req*),
                  Counter unique_num, /* This counter is used when op is NULL */
@@ -3614,6 +3866,10 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
   Counter priority_offset = freq_cycle_count(FREQ_DOMAIN_L1);
   Counter new_priority;
   Flag    to_mlc = MLC_PRESENT && (!pref_info || pref_info->dest != DEST_L1);
+
+  // Demand reqs will have dest of DEST_NONE, which means req will return to
+  // the core ultimately. Prefetch reqs can has different dest depends on
+  // pref_info
   Destination destination = (pref_info ? pref_info->dest : DEST_NONE);
 
   ASSERTM(proc_id, proc_id == get_proc_id_from_cmp_addr(addr),
@@ -3668,7 +3924,6 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
   }
 
   /* Step 2: Found matching request. Adjust it based on the current request */
-
   if(matching_req) {
     // Simulation inaccuracy: an L2-destined request can match a request in the
     // MLC queue, not the other way around
@@ -3770,6 +4025,7 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
     }
   }
 
+  // Use oracle info (look into cache hit/miss) to train prefetchers
   /* we model this more accurately by training the prefetcher when we actually
    * hit/miss if PREF_ORACLE_TRAIN_ON is off */
   // cmp FIXME What can I do for the prefetcher?
@@ -3852,9 +4108,13 @@ Flag new_mem_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
     return insert_new_req_into_l1_queue(proc_id, new_req);
 }
 
-/**************************************************************************************/
-/* insert_new_req_into_l1_queue: */
-
+/**
+ * @brief
+ *
+ * @param proc_id
+ * @param new_req
+ * @return Flag
+ */
 static Flag insert_new_req_into_l1_queue(uns proc_id, Mem_Req* new_req) {
   if(!ROUND_ROBIN_TO_L1) {
     if(queue_full(&mem->l1_queue)) {
@@ -3873,9 +4133,14 @@ static Flag insert_new_req_into_l1_queue(uns proc_id, Mem_Req* new_req) {
   return TRUE;
 }
 
-/**************************************************************************************/
-/* insert_new_req_into_mlc_queue: */
 
+/**
+ * @brief
+ *
+ * @param proc_id
+ * @param new_req
+ * @return Flag
+ */
 static Flag insert_new_req_into_mlc_queue(uns proc_id, Mem_Req* new_req) {
   if(queue_full(&mem->mlc_queue)) {
     ASSERT(proc_id, 0);
@@ -3887,10 +4152,22 @@ static Flag insert_new_req_into_mlc_queue(uns proc_id, Mem_Req* new_req) {
   return TRUE;
 }
 
-/**************************************************************************************/
-/* new_mem_dc_wb_req: */
-/* Returns TRUE if the request is successfully entered into the memory system */
 
+/**
+ * @brief New dcache write back req
+ *
+ * @param type
+ * @param proc_id
+ * @param addr
+ * @param size
+ * @param delay
+ * @param op
+ * @param done_func
+ * @param unique_num
+ * @param used_onpath
+ * @return Flag TRUE if the request is successfully entered into the memory
+ * system
+ */
 Flag new_mem_dc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
                        uns delay, Op* op, Flag done_func(Mem_Req*),
                        Counter unique_num, Flag used_onpath) {
@@ -3979,6 +4256,7 @@ Flag new_mem_dc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
   new_req->wb_used_onpath = used_onpath;  // DC WB requests carry this flag
 
   /* Step 6: Insert the request into the l1 queue if it is not already there */
+  // WQ: note the WB is steered into req queues not fill queues
   if(MLC_PRESENT)
     insert_new_req_into_mlc_queue(proc_id, new_req);
   else
@@ -3987,10 +4265,20 @@ Flag new_mem_dc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr, uns size,
   return TRUE;
 }
 
-/**************************************************************************************/
-/* new_mem_mlc_wb_req: */
-/* Returns TRUE if the request is successfully entered into the memory system */
-
+/**
+ * @brief Create req for wb and insert into L1 req queue
+ *
+ * @param type
+ * @param proc_id
+ * @param addr
+ * @param size
+ * @param delay
+ * @param op
+ * @param done_func
+ * @param unique_num
+ * @return Flag  Returns TRUE if the request is successfully entered into the
+ * memory system
+ */
 static Flag new_mem_mlc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
                                uns size, uns delay, Op* op,
                                Flag done_func(Mem_Req*), Counter unique_num) {
@@ -4080,12 +4368,22 @@ static Flag new_mem_mlc_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
 }
 
 
+/**
+ * @brief
+ *
+ * @param type
+ * @param proc_id
+ * @param addr
+ * @param size
+ * @param delay
+ * @param op
+ * @param done_func
+ * @param unique_num This counter is used when op is NULL
+ * @return Flag
+ */
 static Flag new_mem_l1_wb_req(Mem_Req_Type type, uns8 proc_id, Addr addr,
                               uns size, uns delay, Op* op,
-                              Flag    done_func(Mem_Req*),
-                              Counter unique_num) /* This counter is used when
-                                                     op is NULL */
-{
+                              Flag done_func(Mem_Req*), Counter unique_num) {
   Mem_Req*         new_req              = NULL;
   Mem_Req*         matching_req         = NULL;
   Mem_Queue_Entry* queue_entry          = NULL;
@@ -4246,7 +4544,7 @@ void op_nuke_mem_req(Op* op) {
 
 
 /**
- * @brief
+ * @brief Install the line into LLC
  *
  * @param req
  * @return Flag 1 on successful fill
@@ -4292,6 +4590,21 @@ Flag l1_fill_line(Mem_Req* req) {
       mark_ops_as_l1_miss_satisfied(req);
     return SUCCESS;
   }
+
+  // WQ: seems scarab is not modelling the mem sys correctly, there could be
+  // cases  when two req of the same block is propogating at the same time in
+  // the system  results in when fill the cache line, it was already presented
+  // there so,
+  // Temporarily fix starts here:
+  Addr dummy_line_addr;
+  if(cache_access(&L1(req->proc_id)->cache, req->addr, &dummy_line_addr,
+                  FALSE)) {
+    // for some reason the blk is already filled
+    DEBUG(req->proc_id, "Duplicated L1 Fill, skipping\n");
+    return SUCCESS;
+  }
+  // Temporarily fix done
+
 
   /* Do not insert the line yet, just check which line we
      need to replace. If that line is dirty, it's possible
@@ -4547,6 +4860,7 @@ Flag l1_fill_line(Mem_Req* req) {
     }
   }
 
+  // update the newly inserted blk
   /* this will make it bring the line into the l1 and then modify it */
   data->proc_id = req->proc_id;
   data->dirty   = ((req->type == MRT_WB) &&
@@ -4598,9 +4912,12 @@ Flag l1_fill_line(Mem_Req* req) {
 }
 
 
-/**************************************************************************************/
-/* mlc_fill_line: */
-
+/**
+ * @brief Fill line into MLC, handle possible WBs
+ *
+ * @param req
+ * @return Flag Return 1 on successfully put req into the cache, 0 otherwise
+ */
 Flag mlc_fill_line(Mem_Req* req) {
   MLC_Data* data;
   Addr      line_addr, repl_line_addr = 0;
@@ -4624,64 +4941,11 @@ Flag mlc_fill_line(Mem_Req* req) {
         (req->op_count ? &(top->unique_num) : 0x0));
 
 
+  // WQ: why is this commented out??
   /* if it can't get a write port, fail */
   /* if (!get_write_port(&MLC(req->proc_id)->ports[req->mlc_bank])) return
    * FAILURE; */
 
-  // Put prefetches in the right position for replacement
-  // cmp FIXME prefetchers
-  if(req->type == MRT_DPRF || req->type == MRT_IPRF) {
-    mem->pref_replpos = INSERT_REPL_DEFAULT;
-    if(PREF_INSERT_LRU) {
-      mem->pref_replpos = INSERT_REPL_LRU;
-      STAT_EVENT(req->proc_id, PREF_REPL_LRU);
-    } else if(PREF_INSERT_MIDDLE) {
-      mem->pref_replpos = INSERT_REPL_MID;
-      STAT_EVENT(req->proc_id, PREF_REPL_MID);
-    } else if(PREF_INSERT_LOWQTR) {
-      mem->pref_replpos = INSERT_REPL_LOWQTR;
-      STAT_EVENT(req->proc_id, PREF_REPL_LOWQTR);
-    }
-    data = (MLC_Data*)cache_insert_replpos(
-      &MLC(req->proc_id)->cache, req->proc_id, req->addr, &line_addr,
-      &repl_line_addr, mem->pref_replpos, TRUE);
-  } else {
-    data = (MLC_Data*)cache_insert(&MLC(req->proc_id)->cache, req->proc_id,
-                                   req->addr, &line_addr, &repl_line_addr);
-  }
-
-  if(req->type == MRT_WB_NODIRTY || req->type == MRT_WB) {
-    STAT_EVENT(req->proc_id, MLC_WB_FILL);
-    STAT_EVENT(req->proc_id, CORE_MLC_WB_FILL);
-  } else {
-    STAT_EVENT(req->proc_id, MLC_FILL);
-    STAT_EVENT(req->proc_id, CORE_MLC_FILL);
-    INC_STAT_EVENT_ALL(TOTAL_MEM_LATENCY, cycle_count - req->mlc_miss_cycle);
-    INC_STAT_EVENT(req->proc_id, CORE_MEM_LATENCY,
-                   cycle_count - req->mlc_miss_cycle);
-
-    if(req->type != MRT_DPRF && req->type != MRT_IPRF &&
-       !req->demand_match_prefetch) {
-      STAT_EVENT(req->proc_id, MLC_DEMAND_FILL);
-      STAT_EVENT(req->proc_id, CORE_MLC_DEMAND_FILL);
-      INC_STAT_EVENT_ALL(TOTAL_MEM_LATENCY_DEMAND,
-                         cycle_count - req->mlc_miss_cycle);
-      INC_STAT_EVENT(req->proc_id, CORE_MEM_LATENCY_DEMAND,
-                     cycle_count - req->mlc_miss_cycle);
-    } else {
-      STAT_EVENT(req->proc_id, MLC_PREF_FILL);
-      STAT_EVENT(req->proc_id, CORE_MLC_PREF_FILL);
-      INC_STAT_EVENT_ALL(TOTAL_MEM_LATENCY_PREF,
-                         cycle_count - req->mlc_miss_cycle);
-      INC_STAT_EVENT(req->proc_id, CORE_MEM_LATENCY_PREF,
-                     cycle_count - req->mlc_miss_cycle);
-      if(req->demand_match_prefetch) {
-        STAT_EVENT(req->proc_id, CORE_MLC_PREF_FILL_PARTIAL_USED);
-        STAT_EVENT(req->proc_id, CORE_PREF_MLC_PARTIAL_USED);
-        STAT_EVENT_ALL(PREF_MLC_TOTAL_PARTIAL_USED);
-      }
-    }
-  }
 
   /* Do not insert the line yet, just check which line we
      need to replace. If that line is dirty, it's possible
@@ -4694,17 +4958,21 @@ Flag mlc_fill_line(Mem_Req* req) {
 
   /* If we are replacing anything, check if we need to write it back */
   if(repl_line_valid) {
-    if(!MLC_WRITE_THROUGH && data->dirty) {
-      /* need to do a write-back */
+    /* write-back on dirty victim or exclusive hierarchy */
+    if((!MLC_WRITE_THROUGH && data->dirty) || (EXCLUSIVE_L1)) {
       DEBUG(req->proc_id, "Scheduling writeback of addr:0x%s\n",
             hexstr64s(repl_line_addr));
       if(0 && DEBUG_EXC_INSERTS)
         printf("Scheduling L2 writeback of addr:0x%s ins addr:0x%s\n",
                hexstr64s(repl_line_addr), hexstr64s(req->addr));
-      if(!new_mem_mlc_wb_req(MRT_WB, data->proc_id, repl_line_addr,
+
+      Mem_Req_Type wbtype = data->dirty ? MRT_WB : MRT_WB_NODIRTY;
+      if(!new_mem_mlc_wb_req(wbtype, data->proc_id, repl_line_addr,
                              MLC_LINE_SIZE, 1, NULL, NULL, unique_count))
         return FAILURE;
-      STAT_EVENT(req->proc_id, MLC_FILL_DIRTY);
+
+      // WQ:this stat looks wrong..
+      // STAT_EVENT(req->proc_id, MLC_FILL_DIRTY);
     }
 
     if(data->prefetch) {
@@ -4787,12 +5055,68 @@ Flag mlc_fill_line(Mem_Req* req) {
     }
   }
 
+  if(req->type == MRT_DPRF || req->type == MRT_IPRF) {
+    mem->pref_replpos = INSERT_REPL_DEFAULT;
+    if(PREF_INSERT_LRU) {
+      mem->pref_replpos = INSERT_REPL_LRU;
+      STAT_EVENT(req->proc_id, PREF_REPL_LRU);
+    } else if(PREF_INSERT_MIDDLE) {
+      mem->pref_replpos = INSERT_REPL_MID;
+      STAT_EVENT(req->proc_id, PREF_REPL_MID);
+    } else if(PREF_INSERT_LOWQTR) {
+      mem->pref_replpos = INSERT_REPL_LOWQTR;
+      STAT_EVENT(req->proc_id, PREF_REPL_LOWQTR);
+    }
+    data = (MLC_Data*)cache_insert_replpos(
+      &MLC(req->proc_id)->cache, req->proc_id, req->addr, &line_addr,
+      &repl_line_addr, mem->pref_replpos, TRUE);
+  } else {
+    data = (MLC_Data*)cache_insert(&MLC(req->proc_id)->cache, req->proc_id,
+                                   req->addr, &line_addr, &repl_line_addr);
+  }
+
+  if(req->type == MRT_WB_NODIRTY || req->type == MRT_WB) {
+    STAT_EVENT(req->proc_id, MLC_WB_FILL);
+    STAT_EVENT(req->proc_id, CORE_MLC_WB_FILL);
+  } else {
+    STAT_EVENT(req->proc_id, MLC_FILL);
+    STAT_EVENT(req->proc_id, CORE_MLC_FILL);
+    INC_STAT_EVENT_ALL(TOTAL_MEM_LATENCY, cycle_count - req->mlc_miss_cycle);
+    INC_STAT_EVENT(req->proc_id, CORE_MEM_LATENCY,
+                   cycle_count - req->mlc_miss_cycle);
+
+    if(req->type != MRT_DPRF && req->type != MRT_IPRF &&
+       !req->demand_match_prefetch) {
+      STAT_EVENT(req->proc_id, MLC_DEMAND_FILL);
+      STAT_EVENT(req->proc_id, CORE_MLC_DEMAND_FILL);
+      INC_STAT_EVENT_ALL(TOTAL_MEM_LATENCY_DEMAND,
+                         cycle_count - req->mlc_miss_cycle);
+      INC_STAT_EVENT(req->proc_id, CORE_MEM_LATENCY_DEMAND,
+                     cycle_count - req->mlc_miss_cycle);
+    } else {
+      STAT_EVENT(req->proc_id, MLC_PREF_FILL);
+      STAT_EVENT(req->proc_id, CORE_MLC_PREF_FILL);
+      INC_STAT_EVENT_ALL(TOTAL_MEM_LATENCY_PREF,
+                         cycle_count - req->mlc_miss_cycle);
+      INC_STAT_EVENT(req->proc_id, CORE_MEM_LATENCY_PREF,
+                     cycle_count - req->mlc_miss_cycle);
+      if(req->demand_match_prefetch) {
+        STAT_EVENT(req->proc_id, CORE_MLC_PREF_FILL_PARTIAL_USED);
+        STAT_EVENT(req->proc_id, CORE_PREF_MLC_PARTIAL_USED);
+        STAT_EVENT_ALL(PREF_MLC_TOTAL_PARTIAL_USED);
+      }
+    }
+  }
+
+
   /* this will make it bring the line into the mlc and then modify it */
   data->proc_id = req->proc_id;
   data->dirty   = ((req->type == MRT_WB) &&
                  (req->state != MRS_FILL_MLC));  // write back can fill mlc
                                                  // directly - reqs filling core
                                                  // should not dirty the line
+  data->dirty |= req->dirty_l0;  // for exclusive L1, pull dirty blk
+                                 // from L1 to MLC
   data->prefetch = req->type == MRT_DPRF || req->type == MRT_IPRF ||
                    req->demand_match_prefetch;
   data->seen_prefetch = req->demand_match_prefetch; /* If demand matches
@@ -5201,9 +5525,13 @@ Flag is_final_state(Mem_Req_State state) {
          (state == MRS_MEM_DONE) || (state == MRS_FILL_DONE);
 }
 
-/**************************************************************************************/
-/* wp_process_l1_hit: */
 
+/**
+ * @brief Wrong path stat collect for l1 hit
+ *
+ * @param line
+ * @param req
+ */
 void wp_process_l1_hit(L1_Data* line, Mem_Req* req) {
   if(!line) {
     ASSERT(req->proc_id, PERFECT_L1);
@@ -5281,9 +5609,12 @@ void wp_process_l1_hit(L1_Data* line, Mem_Req* req) {
 }
 
 
-/**************************************************************************************/
-/* wp_process_l1_fill: */
-
+/**
+ * @brief wrong path stat collect for l1_fill
+ *
+ * @param line
+ * @param req
+ */
 void wp_process_l1_fill(L1_Data* line, Mem_Req* req) {
   if(!WP_COLLECT_STATS)
     return;
@@ -5385,7 +5716,7 @@ static void update_mem_req_occupancy_counter(Mem_Req_Type type, int delta) {
       counter = &mem_req_wb_entries;
       break;
     default:
-      FATAL_ERROR(0, "Unknown mem req state\n");
+      FATAL_ERROR(0, "Unknown mem req type\n");
       break;
   }
   *counter += delta;
