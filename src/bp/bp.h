@@ -65,6 +65,8 @@ typedef struct Bp_Recovery_Info_struct {
                                 // prediction.
   Flag late_bp_recovery_wrong;  // TRUE if recovery is due to a late branch
                                 // prediction that is wrong.
+  Flag decode_recovery;         // TRUE if recovery is due to a redirect 
+                                // from a btb miss at decode
 
 } Bp_Recovery_Info;
 
@@ -273,7 +275,7 @@ void set_bp_recovery_info(Bp_Recovery_Info* new_bp_recovery_info);
 void init_bp_recovery_info(uns8, Bp_Recovery_Info*);
 void bp_sched_recovery(Bp_Recovery_Info* bp_recovery_info, Op* op,
                        Counter cycle, Flag late_bp_recovery,
-                       Flag force_offpath);
+                       Flag decode_bp_recovery, Flag force_offpath);
 void bp_sched_redirect(Bp_Recovery_Info*, Op*, Counter);
 
 void init_bp_data(uns8, Bp_Data*);

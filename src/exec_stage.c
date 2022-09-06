@@ -361,8 +361,9 @@ void update_exec_stage(Stage_Data* src_sd) {
       }
 
       if(op->oracle_info.mispred || op->oracle_info.misfetch) {
+        printf("calling bp sched recovery from exec on op %llu\n", op->op_num);
         bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
-                          /*late_bp_recovery=*/FALSE, /*force_offpath=*/FALSE);
+                          /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/FALSE, /*force_offpath=*/FALSE);
         if(!op->off_path)
           op->recovery_scheduled = TRUE;
       }else if(op->table_info->cf_type >= CF_IBR &&

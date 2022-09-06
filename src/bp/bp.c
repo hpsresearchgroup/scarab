@@ -121,19 +121,18 @@ void init_bp_recovery_info(uns8              proc_id,
 
 void bp_sched_recovery(Bp_Recovery_Info* bp_recovery_info, Op* op,
                        Counter cycle, Flag late_bp_recovery,
-                       Flag force_offpath) {
+                       Flag decode_bp_recovery, Flag force_offpath) {
   ASSERT(op->proc_id, bp_recovery_info->proc_id == op->proc_id);
+  ASSERT(op->proc_id, !(late_bp_recovery && decode_bp_recovery));
 
   if(bp_recovery_info->recovery_cycle == MAX_CTR ||
      op->op_num <= bp_recovery_info->recovery_op_num) {
     const Addr next_fetch_addr = op->oracle_info.npc;
     const uns  latency         = late_bp_recovery ? LATE_BP_LATENCY :
                                            1 + EXTRA_RECOVERY_CYCLES;
-    DEBUG(
-      bp_recovery_info->proc_id,
-      "Recovery signaled for op_num:%s @ 0x%s  next_fetch:0x%s offpath:%d\n",
-      unsstr64(op->op_num), hexstr64s(op->inst_info->addr),
-      hexstr64s(next_fetch_addr), op->off_path);
+    if(op->oracle_info.recovery_sch){
+      DEBUG(op->proc_id, "ASSERT: op num %llu, late rec %d, decode bp %d, force offpath %d\n", op->op_num, late_bp_recovery, decode_bp_recovery,force_offpath);
+    }
     ASSERT(op->proc_id, !op->oracle_info.recovery_sch);
     op->oracle_info.recovery_sch          = TRUE;
     bp_recovery_info->recovery_cycle      = cycle + latency;
@@ -153,9 +152,10 @@ void bp_sched_recovery(Bp_Recovery_Info* bp_recovery_info, Op* op,
     bp_recovery_info->recovery_inst_uid      = op->inst_uid;
     bp_recovery_info->wpe_flag               = FALSE;
     bp_recovery_info->late_bp_recovery       = late_bp_recovery;
+    bp_recovery_info->decode_recovery        = decode_bp_recovery;
 
     if(force_offpath) {
-      ASSERT(op->proc_id, late_bp_recovery);
+      ASSERT(op->proc_id, late_bp_recovery || decode_bp_recovery);
       bp_recovery_info->recovery_fetch_addr    = op->oracle_info.late_pred_npc;
       bp_recovery_info->recovery_info.new_dir  = op->oracle_info.late_pred;
       bp_recovery_info->recovery_force_offpath = TRUE;
@@ -163,6 +163,13 @@ void bp_sched_recovery(Bp_Recovery_Info* bp_recovery_info, Op* op,
     } else {
       bp_recovery_info->late_bp_recovery_wrong = FALSE;
     }
+    DEBUG(
+      bp_recovery_info->proc_id,
+      "Recovery signaled for op_num:%s @ 0x%s  next_fetch:0x%s offpath:%d\n",
+      unsstr64(op->op_num), hexstr64s(op->inst_info->addr),
+      hexstr64s(bp_recovery_info->recovery_fetch_addr), op->off_path);
+  } else {
+    DEBUG(bp_recovery_info->proc_id, "Recovery dropped for opnum %llu, because of existing recovery for opnum %llu on cycle %llu", op->op_num, bp_recovery_info->recovery_op_num, bp_recovery_info->recovery_cycle);
   }
 }
 
@@ -500,8 +507,6 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
                             (prediction != op->oracle_info.npc);
   op->oracle_info.misfetch = !op->oracle_info.mispred &&
                              prediction != op->oracle_info.npc;
-  op->oracle_info.bp_mispred = (op->oracle_info.pred != op->oracle_info.dir) &&
-                            (prediction != op->oracle_info.npc);
 
   if(USE_LATE_BP) {
     const Addr late_prediction = op->oracle_info.late_pred ? pred_target :
@@ -593,6 +598,11 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
         hexstr64s(prediction), hexstr64s(op->oracle_info.npc),
         op->oracle_info.btb_miss, op->oracle_info.mispred,
         op->oracle_info.misfetch, op->oracle_info.no_target);
+  
+  if(USE_LATE_BP)
+    DEBUG(bp_data->proc_id,
+          "late_mispred:%d  late_misfetch:%d\n",
+          op->oracle_info.late_mispred, op->oracle_info.late_misfetch);
 
   if(ENABLE_BP_CONF && IS_CONF_CF(op)) {
     bp_data->br_conf->pred_func(op);

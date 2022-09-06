@@ -655,15 +655,18 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
       const uns8 late_misfetch = op->oracle_info.late_misfetch;
 
       /* if it's a mispredict, kick the oracle off path */
+      if(op->oracle_info.btb_miss){
+        DEBUG(ic->proc_id, "Cycle %llu: btb miss on op %llu, next fetch addr 0x%s\n", cycle_count, op->op_num, hexstr64s(ic->next_fetch_addr));
+      }
       if(ic->off_path_btb_miss)
         INC_STAT_EVENT(ic->proc_id, INST_LOST_BTB_MISS, 1);
       if(mispred || misfetch ||
          (USE_LATE_BP && (late_mispred || late_misfetch))) {
-        ic->off_path = TRUE;
-        if(op->oracle_info.btb_miss && op->oracle_info.dir){
+        if(op->oracle_info.btb_miss && op->oracle_info.dir && (!ic->off_path)){
           ic->off_path_btb_miss = TRUE;
           ic->oldest_btb_miss_op_num = op->unique_num;
         }
+        ic->off_path = TRUE;
 
         if(FETCH_OFF_PATH_OPS) {
           if(mispred || misfetch) {
@@ -673,24 +676,36 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
                   cycle_count, hexstr64s(ic->next_fetch_addr));
             frontend_redirect(td->proc_id, op->inst_uid, ic->next_fetch_addr);
           }
+          //a btb miss should skip the late bp
+          Flag skip_late_bp = FALSE;
+          if(FETCH_NT_AFTER_BTB_MISS && op->oracle_info.btb_miss){
+            skip_late_bp = TRUE;
+          }
 
-          if(USE_LATE_BP) {
+          if(USE_LATE_BP && !skip_late_bp) {
             if((mispred || misfetch) && !late_mispred && !late_misfetch) {
+          printf("calling bp sched recovery from icache 1 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, cycle_count,
                                 /*late_bp_recovery=*/TRUE,
+                                /*decode_bp_recovery=*/FALSE,
                                 /*force_offpath=*/FALSE);
+              //DEBUG(ic->proc_id,
+              //      "Scheduled a recovery to correct addr for cycle %llu\n",
+              //      cycle_count + LATE_BP_LATENCY);
               DEBUG(ic->proc_id,
-                    "Scheduled a recovery to correct addr for cycle %llu\n",
-                    cycle_count + LATE_BP_LATENCY);
+                    "Cycle: %llu: late correct pred on opnum: %llu, Scheduled a recovery to correct addr %s for cycle %llu \n",
+                    cycle_count, op->op_num, hexstr64s(op->oracle_info.late_pred_npc), cycle_count + LATE_BP_LATENCY);
             } else if((late_mispred || late_misfetch) &&
                       op->oracle_info.pred_npc !=
                         op->oracle_info.late_pred_npc) {
+          printf("calling bp sched recovery from icache 2 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, cycle_count,
-                                /*late_bp_recovery=*/TRUE,
+                                /*late_bp_recovery=*/TRUE, 
+                                /*decode_bp_recovery=*/FALSE,
                                 /*force_offpath=*/TRUE);
               DEBUG(ic->proc_id,
-                    "Scheduled a recovery to wrong addr for cycle %llu\n",
-                    cycle_count + LATE_BP_LATENCY);
+                    "Cycle: %llu: late mispred on opnum: %llu, Scheduled a recovery to wrong addr %s for cycle %llu \n",
+                    cycle_count, op->op_num,hexstr64s(op->oracle_info.late_pred_npc), cycle_count + LATE_BP_LATENCY);
             }
           }
         } else {

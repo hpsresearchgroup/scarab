@@ -212,17 +212,28 @@ static inline void stage_process_op(Op* op) {
     }  
 
     if(FETCH_NT_AFTER_BTB_MISS) {
-      if(cf <= CF_CALL) {
-        if(REDIRECT_BTB_MISS_AT_DECODE && op->oracle_info.btb_miss && !bf) {
-          if(op->oracle_info.pred) {
+      if(cf <= CF_CALL && op->oracle_info.btb_miss && !bf) {
+        if(cf == CF_BR || cf == CF_CALL){
+          //uncond branches, always redirect
+          printf("calling bp sched recovery from decode 1 on op %llu\n", op->op_num);
+          bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
+                        /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
+                        /*force_offpath=*/FALSE);
+          DEBUG(op->proc_id, "Cycle %llu: btb miss on uncond op %llu, next fetch addr 0x%s", cycle_count, op->unique_num, hexstr64s(op->oracle_info.npc));
+        } else if(REDIRECT_COND_BTB_MISS_AT_DECODE) {
+          if(op->oracle_info.late_pred) {
             //btb miss on a predicted taken
-            //can redirect fetch at decode based on pred direction
+            //can redirect fetch at decode based on late pred direction
             if(op->oracle_info.dir) {
+          printf("calling bp sched recovery from decode 2 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
-                            /*late_bp_recovery=*/FALSE, /*force_offpath=*/FALSE);
+                            /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
+                            /*force_offpath=*/FALSE);
             } else {
+          printf("calling bp sched recovery from decode 3 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
-                            /*late_bp_recovery=*/FALSE, /*force_offpath=*/TRUE);
+                            /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
+                            /*force_offpath=*/TRUE);
             }
           }
         }
