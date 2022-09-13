@@ -193,9 +193,6 @@ void recover_icache_stage() {
   uns         ii;
 
   ASSERT(ic->proc_id, ic->proc_id == bp_recovery_info->proc_id);
-  DEBUG(ic->proc_id,
-        "Icache stage recovery signaled.  recovery_fetch_addr: 0x%s\n",
-        hexstr64s(bp_recovery_info->recovery_fetch_addr));
 
   cur->op_count = 0;
   for(ii = 0; ii < ic->sd.max_op_count; ii++) {
@@ -225,7 +222,6 @@ void recover_icache_stage() {
     }
   }
   if(op->oracle_info.btb_miss) {
-    //ASSERT(ic->proc_id, ic->off_path_btb_miss);
     if(ic->oldest_btb_miss_op_num == op->unique_num){
       ic->off_path_btb_miss = FALSE; 
       ic->oldest_btb_miss_op_num = MAX_CTR;
@@ -234,6 +230,9 @@ void recover_icache_stage() {
   op_count[ic->proc_id] = bp_recovery_info->recovery_op_num + 1;
   ic->next_fetch_addr   = bp_recovery_info->recovery_fetch_addr;
   ASSERT(ic->proc_id, ic->next_fetch_addr);
+  DEBUG(ic->proc_id,
+        "Icache stage recovery signaled.  recovery_fetch_addr:%s 0x, on_path:%d\n",
+        hexstr64s(bp_recovery_info->recovery_fetch_addr), ic->back_on_path);
 }
 
 
@@ -623,10 +622,11 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
         // for fetch barriers (including syscalls), we do not want to do
         // redirect/recovery, BUT we still want to update the branch predictor.
         bp_predict_op(g_bp_data, op, (*cf_num)++, ic->fetch_addr);
-        op->oracle_info.mispred   = 0;
-        op->oracle_info.misfetch  = 0;
-        op->oracle_info.btb_miss  = 0;
-        op->oracle_info.no_target = 0;
+        op->oracle_info.mispred             = FALSE;
+        op->oracle_info.misfetch            = FALSE;
+        op->oracle_info.btb_miss            = FALSE;
+        op->oracle_info.no_target           = FALSE;
+        op->oracle_info.fetch_mispred       = FALSE;
         ic->next_fetch_addr       = ADDR_PLUS_OFFSET(
           ic->next_fetch_addr, op->inst_info->trace_info.inst_size);
         ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
@@ -649,8 +649,14 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
              (op->oracle_info.mispred << 2 | op->oracle_info.misfetch << 1 |
               op->oracle_info.btb_miss) <= 0x7);
 
-      uns8 mispred       = op->oracle_info.mispred; 
-      uns8 late_mispred  = op->oracle_info.late_mispred;
+      if(op->oracle_info.npc == ic->next_fetch_addr && !op->oracle_info.mispred){
+        //in the (rare) case that a branch just jumps to the next instruction, 
+        //it should not mispred  
+        op->oracle_info.fetch_mispred = FALSE;
+      }
+
+      uns8 mispred             = op->oracle_info.fetch_mispred; 
+      uns8 late_mispred        = op->oracle_info.late_mispred;
       const uns8 misfetch      = op->oracle_info.misfetch;
       const uns8 late_misfetch = op->oracle_info.late_misfetch;
 
@@ -684,7 +690,8 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
 
           if(USE_LATE_BP && !skip_late_bp) {
             if((mispred || misfetch) && !late_mispred && !late_misfetch) {
-          printf("calling bp sched recovery from icache 1 on op %llu\n", op->op_num);
+              //chester clean this up
+              printf("calling bp sched recovery from icache 1 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, cycle_count,
                                 /*late_bp_recovery=*/TRUE,
                                 /*decode_bp_recovery=*/FALSE,
@@ -698,7 +705,7 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
             } else if((late_mispred || late_misfetch) &&
                       op->oracle_info.pred_npc !=
                         op->oracle_info.late_pred_npc) {
-          printf("calling bp sched recovery from icache 2 on op %llu\n", op->op_num);
+              printf("calling bp sched recovery from icache 2 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, cycle_count,
                                 /*late_bp_recovery=*/TRUE, 
                                 /*decode_bp_recovery=*/FALSE,

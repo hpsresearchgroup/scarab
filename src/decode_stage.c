@@ -36,6 +36,7 @@
 #include "isa/isa_macros.h"
 
 #include "bp/bp.h"
+#include "bp/bp.param.h"
 #include "decode_stage.h"
 #include "op_pool.h"
 
@@ -212,6 +213,10 @@ static inline void stage_process_op(Op* op) {
     }  
 
     if(FETCH_NT_AFTER_BTB_MISS) {
+      Flag latest_pred = USE_LATE_BP ? op->oracle_info.late_pred : op->oracle_info.pred;
+      if(op->oracle_info.btb_miss)
+        DEBUG(op->proc_id, "decode cf %llu, btb miss:%d, latest_dir:%d, t_dir:%d\n", op->op_num, op->oracle_info.btb_miss, latest_pred, op->oracle_info.dir);
+
       if(cf <= CF_CALL && op->oracle_info.btb_miss && !bf) {
         if(cf == CF_BR || cf == CF_CALL){
           //uncond branches, always redirect
@@ -219,18 +224,18 @@ static inline void stage_process_op(Op* op) {
           bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
                         /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
                         /*force_offpath=*/FALSE);
-          DEBUG(op->proc_id, "Cycle %llu: btb miss on uncond op %llu, next fetch addr 0x%s", cycle_count, op->unique_num, hexstr64s(op->oracle_info.npc));
+          DEBUG(op->proc_id, "uncond op %llu, next fetch addr 0x%s\n", op->op_num, hexstr64s(op->oracle_info.npc));
         } else if(REDIRECT_COND_BTB_MISS_AT_DECODE) {
-          if(op->oracle_info.late_pred) {
+          if(latest_pred) {
             //btb miss on a predicted taken
             //can redirect fetch at decode based on late pred direction
             if(op->oracle_info.dir) {
-          printf("calling bp sched recovery from decode 2 on op %llu\n", op->op_num);
+              printf("calling bp sched recovery from decode 2 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
                             /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
                             /*force_offpath=*/FALSE);
             } else {
-          printf("calling bp sched recovery from decode 3 on op %llu\n", op->op_num);
+              printf("calling bp sched recovery from decode 3 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
                             /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
                             /*force_offpath=*/TRUE);
@@ -262,6 +267,7 @@ static inline void stage_process_op(Op* op) {
           bp_sched_redirect(bp_recovery_info, op, cycle_count);
         }
       }
+      printf("at decode, schedule a redirct for op %llu, to addr %llx\n", op->op_num, op->oracle_info.pred_npc);
     } 
   }
 }

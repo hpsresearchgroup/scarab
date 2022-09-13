@@ -318,24 +318,41 @@ void cmp_recover() {
   bp_recovery_info->recovery_cycle = MAX_CTR;
   bp_recovery_info->redirect_cycle = MAX_CTR;
 
+  Op* op     = bp_recovery_info->recovery_op;
+  Cf_Type cf = op->table_info->cf_type; 
+
   bp_recover_op(g_bp_data, bp_recovery_info->recovery_cf_type,
                 &bp_recovery_info->recovery_info);
-  Cf_Type cf = bp_recovery_info->recovery_op->table_info->cf_type; 
-  if((USE_LATE_BP && bp_recovery_info->late_bp_recovery) 
-  || ((REDIRECT_COND_BTB_MISS_AT_DECODE || cf == CF_BR || cf == CF_CALL ) && bp_recovery_info->decode_recovery)) {
-    Op* op                   = bp_recovery_info->recovery_op;
+
+  if(USE_LATE_BP && bp_recovery_info->late_bp_recovery) {
     op->oracle_info.pred     = op->oracle_info.late_pred;
     op->oracle_info.pred_npc = op->oracle_info.late_pred_npc;
+    op->oracle_info.mispred  = op->oracle_info.late_mispred;
+    op->oracle_info.misfetch = op->oracle_info.late_misfetch;
     ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
-    if((cf == CF_BR || cf == CF_CALL) && bp_recovery_info->decode_recovery){
+    // Reset to FALSE to allow for another potential recovery after the branch
+    // is resolved when executed.
+    op->oracle_info.recovery_sch = FALSE;
+  }
+
+  if(bp_recovery_info->decode_recovery) {
+    if(cf == CF_BR || cf == CF_CALL){
       //uncond branches, cannot misprecit anymore after decode
       op->oracle_info.mispred  = FALSE;
       op->oracle_info.misfetch = FALSE;
-    } else{
-      op->oracle_info.mispred  = op->oracle_info.late_mispred;
-      op->oracle_info.misfetch = op->oracle_info.late_misfetch;
-      // Reset to FALSE to allow for another potential recovery after the branch
-      // is resolved when executed.
+    } else {
+      ASSERT(op->proc_id, REDIRECT_COND_BTB_MISS_AT_DECODE);
+      //conditional, redirect base on the latest prediction
+      
+      if(USE_LATE_BP){
+        op->oracle_info.pred     = op->oracle_info.late_pred;
+        op->oracle_info.pred_npc = op->oracle_info.late_pred_npc;
+        op->oracle_info.mispred  = op->oracle_info.late_mispred;
+        op->oracle_info.misfetch = op->oracle_info.late_misfetch;
+      }
+    }
+    if(op->oracle_info.mispred){
+      //only allow another recovery if this is still a mispred
       op->oracle_info.recovery_sch = FALSE;
     }
   }
