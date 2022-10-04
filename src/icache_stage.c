@@ -706,7 +706,6 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
           if(USE_LATE_BP && !skip_late_bp) {
             if((mispred || misfetch) && !late_mispred && !late_misfetch) {
               //chester clean this up
-              printf("calling bp sched recovery from icache 1 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, cycle_count,
                                 /*late_bp_recovery=*/TRUE,
                                 /*decode_bp_recovery=*/FALSE,
@@ -720,7 +719,6 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
             } else if((late_mispred || late_misfetch) &&
                       op->oracle_info.pred_npc !=
                         op->oracle_info.late_pred_npc) {
-              printf("calling bp sched recovery from icache 2 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, cycle_count,
                                 /*late_bp_recovery=*/TRUE, 
                                 /*decode_bp_recovery=*/FALSE,

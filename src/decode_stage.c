@@ -220,7 +220,6 @@ static inline void stage_process_op(Op* op) {
       if(cf <= CF_CALL && op->oracle_info.btb_miss && !bf) {
         if(cf == CF_BR || cf == CF_CALL){
           //uncond branches, always redirect
-          printf("calling bp sched recovery from decode 1 on op %llu\n", op->op_num);
           bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
                         /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
                         /*force_offpath=*/FALSE);
@@ -230,12 +229,10 @@ static inline void stage_process_op(Op* op) {
             //btb miss on a predicted taken
             //can redirect fetch at decode based on late pred direction
             if(op->oracle_info.dir) {
-              printf("calling bp sched recovery from decode 2 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
                             /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
                             /*force_offpath=*/FALSE);
             } else {
-              printf("calling bp sched recovery from decode 3 on op %llu\n", op->op_num);
               bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
                             /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
                             /*force_offpath=*/TRUE);
@@ -258,14 +255,12 @@ static inline void stage_process_op(Op* op) {
                                          op->inst_info->trace_info.inst_size);
           ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
           // schedule a redirect using the predicted npc
-          printf("schedule bp redirect 1 with op %llu\n", op->op_num);
           bp_sched_redirect(bp_recovery_info, op, cycle_count);
         }
       } else {
         // the instruction is indirect, so we can only unstall the front end
         if(op->oracle_info.btb_miss && !op->oracle_info.no_target && !bf) {
           // schedule a redirect using the predicted npc
-          printf("schedule bp redirect 2 with op %llu\n", op->op_num);
           bp_sched_redirect(bp_recovery_info, op, cycle_count);
         }
       }

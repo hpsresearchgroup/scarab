@@ -90,7 +90,8 @@ class PBSJobDefaults:
     memory_per_core: the ammount of memory that one core will require.
   """
   pbs_args="-V"
-  queue=None
+  #queue=None
+  queue="clx"
   processor_cores_per_node=10
   memory_per_core=None
 

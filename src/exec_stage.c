@@ -361,7 +361,6 @@ void update_exec_stage(Stage_Data* src_sd) {
       }
 
       if(op->oracle_info.current_mispred || op->oracle_info.misfetch) {
-        printf("calling bp sched recovery from exec 1 on op %llu, current_mispred: %d, misfetch: %d\n", op->op_num, op->oracle_info.current_mispred, op->oracle_info.misfetch);
         bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
                           /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/FALSE, /*force_offpath=*/FALSE);
         if(!op->off_path)
@@ -372,7 +371,6 @@ void update_exec_stage(Stage_Data* src_sd) {
         ASSERT(bp_recovery_info->proc_id,
                bp_recovery_info->proc_id == op->proc_id);
         if(FETCH_NT_AFTER_BTB_MISS){
-          printf("calling bp sched recovery from exec 2 on op %llu, no target: %d\n", op->op_num, op->oracle_info.no_target);
           bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
                           /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/FALSE, /*force_offpath=*/FALSE);
         }
