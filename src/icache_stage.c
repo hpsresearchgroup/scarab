@@ -294,6 +294,11 @@ void redirect_icache_stage() {
 
     Flag main_predictor_wrong = op->oracle_info.mispred ||
                                 op->oracle_info.misfetch;
+    
+    if(USE_LATE_BP){
+      main_predictor_wrong = FALSE;
+    }
+
     Flag late_predictor_wrong = (USE_LATE_BP && (op->oracle_info.late_mispred ||
                                                  op->oracle_info.late_misfetch));
     ic->back_on_path          = !(op->off_path || main_predictor_wrong ||
@@ -656,13 +661,23 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
       }
 
       uns8 mispred             = op->oracle_info.fetch_mispred; 
-      uns8 late_mispred        = op->oracle_info.late_mispred;
+      uns8 late_mispred        = op->oracle_info.fetch_late_mispred;
       const uns8 misfetch      = op->oracle_info.misfetch;
       const uns8 late_misfetch = op->oracle_info.late_misfetch;
 
+      uns8 final_mispred = USE_LATE_BP ? op->oracle_info.late_mispred : op->oracle_info.mispred;
+
+      if(op->table_info->cf_type == CF_SYS){
+        DEBUG(op->proc_id, "fetching sys call, btb miss=%d, fetch_mispred=%d, fetch_late_mispred =%d\n", op->oracle_info.btb_miss, mispred, late_mispred);
+      }
+
       /* if it's a mispredict, kick the oracle off path */
       if(op->oracle_info.btb_miss){
-        DEBUG(ic->proc_id, "Cycle %llu: btb miss on op %llu, next fetch addr 0x%s\n", cycle_count, op->op_num, hexstr64s(ic->next_fetch_addr));
+        DEBUG(ic->proc_id, "btb miss on op %llu, next fetch addr 0x%s\n", op->op_num, hexstr64s(ic->next_fetch_addr));
+      }
+      if(REDIRECT_COND_BTB_MISS_AT_DECODE && op->oracle_info.btb_miss && final_mispred && op->table_info->cf_type == CF_CBR){
+        DEBUG(ic->proc_id, "btb miss on op %llu, going offpath even though might still on right path for now\n", op->op_num);
+        ic->off_path = TRUE; 
       }
       if(ic->off_path_btb_miss)
         INC_STAT_EVENT(ic->proc_id, INST_LOST_BTB_MISS, 1);

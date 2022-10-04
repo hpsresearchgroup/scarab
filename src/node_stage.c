@@ -54,6 +54,7 @@
 #include "statistics.h"
 
 #include "bp/tagescl.h"
+#include "br_stat.h"
 
 /* Macros */
 
@@ -770,6 +771,7 @@ void node_retire() {
                                           // those in primary thread
 
     DEBUG(node->proc_id, "Retiring op_num:%s\n", unsstr64(op->op_num));
+    printf("retiring op: %llu\n", op->op_num);
 
     ASSERTM(node->proc_id, op->op_num == node->ret_op, "op_num=%s  ret_op=%s\n",
             unsstr64(op->op_num), unsstr64(node->ret_op));
@@ -813,6 +815,7 @@ void node_retire() {
         bp_resolve_op(g_bp_data, op);
       }
       bp_retire_op(g_bp_data, op);
+      collect_br_stats(op);
     }
 
     if(op->table_info->mem_type == MEM_LD &&

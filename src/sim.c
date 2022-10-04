@@ -63,6 +63,8 @@
 #include "general.param.h"
 
 #include "ramulator.h"
+#include "br_stat.h"
+
 
 /**************************************************************************************/
 /* Macros */
@@ -722,6 +724,8 @@ void full_sim() {
       }
     }
   }
+
+  final_br_stat_print();  
 
   if(model->done_func)
     model->done_func();

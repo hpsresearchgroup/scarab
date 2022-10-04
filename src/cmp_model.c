@@ -327,7 +327,7 @@ void cmp_recover() {
   if(USE_LATE_BP && bp_recovery_info->late_bp_recovery) {
     op->oracle_info.pred     = op->oracle_info.late_pred;
     op->oracle_info.pred_npc = op->oracle_info.late_pred_npc;
-    op->oracle_info.mispred  = op->oracle_info.late_mispred;
+    op->oracle_info.current_mispred  = op->oracle_info.late_mispred;
     op->oracle_info.misfetch = op->oracle_info.late_misfetch;
     ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
     // Reset to FALSE to allow for another potential recovery after the branch
@@ -338,8 +338,9 @@ void cmp_recover() {
   if(bp_recovery_info->decode_recovery) {
     if(cf == CF_BR || cf == CF_CALL){
       //uncond branches, cannot misprecit anymore after decode
-      op->oracle_info.mispred  = FALSE;
+      //op->oracle_info.mispred  = FALSE;
       op->oracle_info.misfetch = FALSE;
+      op->oracle_info.current_mispred  = FALSE;
     } else {
       ASSERT(op->proc_id, REDIRECT_COND_BTB_MISS_AT_DECODE);
       //conditional, redirect base on the latest prediction
@@ -347,11 +348,14 @@ void cmp_recover() {
       if(USE_LATE_BP){
         op->oracle_info.pred     = op->oracle_info.late_pred;
         op->oracle_info.pred_npc = op->oracle_info.late_pred_npc;
-        op->oracle_info.mispred  = op->oracle_info.late_mispred;
         op->oracle_info.misfetch = op->oracle_info.late_misfetch;
+        op->oracle_info.current_mispred  = op->oracle_info.late_mispred;
+      }
+      else{
+        op->oracle_info.current_mispred = op->oracle_info.mispred;
       }
     }
-    if(op->oracle_info.mispred){
+    if(op->oracle_info.current_mispred){
       //only allow another recovery if this is still a mispred
       op->oracle_info.recovery_sch = FALSE;
     }

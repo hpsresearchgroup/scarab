@@ -258,16 +258,17 @@ static inline void stage_process_op(Op* op) {
                                          op->inst_info->trace_info.inst_size);
           ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
           // schedule a redirect using the predicted npc
+          printf("schedule bp redirect 1 with op %llu\n", op->op_num);
           bp_sched_redirect(bp_recovery_info, op, cycle_count);
         }
       } else {
         // the instruction is indirect, so we can only unstall the front end
         if(op->oracle_info.btb_miss && !op->oracle_info.no_target && !bf) {
           // schedule a redirect using the predicted npc
+          printf("schedule bp redirect 2 with op %llu\n", op->op_num);
           bp_sched_redirect(bp_recovery_info, op, cycle_count);
         }
       }
-      printf("at decode, schedule a redirct for op %llu, to addr %llx\n", op->op_num, op->oracle_info.pred_npc);
     } 
   }
 }

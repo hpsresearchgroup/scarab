@@ -175,7 +175,9 @@ void bp_sched_recovery(Bp_Recovery_Info* bp_recovery_info, Op* op,
       unsstr64(op->op_num), hexstr64s(op->inst_info->addr),
       hexstr64s(bp_recovery_info->recovery_fetch_addr), bp_recovery_info->recovery_force_offpath);
   } else {
-    DEBUG(bp_recovery_info->proc_id, "Recovery dropped for opnum %llu, because of existing recovery for opnum %llu on cycle %llu", op->op_num, bp_recovery_info->recovery_op_num, bp_recovery_info->recovery_cycle);
+    DEBUG(bp_recovery_info->proc_id, "Recovery dropped for opnum %llu, "
+      "because of existing recovery for opnum %llu on cycle %llu\n", 
+      op->op_num, bp_recovery_info->recovery_op_num, bp_recovery_info->recovery_cycle);
   }
 }
 
@@ -200,6 +202,9 @@ void bp_sched_redirect(Bp_Recovery_Info* bp_recovery_info, Op* op,
     ASSERT(bp_recovery_info->proc_id, bp_recovery_info->proc_id == op->proc_id);
     ASSERT_PROC_ID_IN_ADDR(op->proc_id,
                            bp_recovery_info->redirect_op->oracle_info.pred_npc);
+  }
+  else{
+    DEBUG(op->proc_id, "Dropping Redirect due to an earlier redirct on op %llu\n", bp_recovery_info->redirect_op_num);
   }
   ASSERT(bp_recovery_info->proc_id, bp_recovery_info->proc_id == op->proc_id);
   ASSERT_PROC_ID_IN_ADDR(op->proc_id,
@@ -325,16 +330,19 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
 
   // {{{ special case--system calls
   if(op->table_info->cf_type == CF_SYS) {
-    op->oracle_info.pred          = TAKEN;
-    op->oracle_info.misfetch      = FALSE;
-    op->oracle_info.mispred       = FALSE;
-    op->oracle_info.late_misfetch = FALSE;
-    op->oracle_info.late_mispred  = FALSE;
-    op->oracle_info.btb_miss      = FALSE;
-    op->oracle_info.no_target     = FALSE;
+    op->oracle_info.pred                = TAKEN;
+    op->oracle_info.misfetch            = FALSE;
+    op->oracle_info.mispred             = FALSE;
+    op->oracle_info.fetch_mispred       = FALSE;
+    op->oracle_info.current_mispred     = FALSE;
+    op->oracle_info.late_misfetch       = FALSE;
+    op->oracle_info.fetch_late_mispred  = FALSE;
+    op->oracle_info.late_mispred        = FALSE;
+    op->oracle_info.btb_miss            = FALSE;
+    op->oracle_info.no_target           = FALSE;
     ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.npc);
-    op->oracle_info.pred_npc      = op->oracle_info.npc;
-    op->oracle_info.late_pred_npc = op->oracle_info.npc;
+    op->oracle_info.pred_npc            = op->oracle_info.npc;
+    op->oracle_info.late_pred_npc       = op->oracle_info.npc;
     bp_data->bp->spec_update_func(op);
     if(USE_LATE_BP) {
       bp_data->late_bp->spec_update_func(op);
@@ -363,6 +371,9 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
     pred_target               = op->oracle_info.target;
   }
   // }}}
+
+  const Addr pc_plus_offset = ADDR_PLUS_OFFSET(
+    op->inst_info->addr, op->inst_info->trace_info.inst_size);
 
   // {{{ handle predictions for individual cf types
   switch(op->table_info->cf_type) {
@@ -423,6 +434,10 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
           pred_target               = ibp_target;
           op->oracle_info.no_target = FALSE;
           op->oracle_info.ibp_miss  = FALSE;
+        } else if (FETCH_NT_AFTER_BTB_MISS && op->oracle_info.npc == pc_plus_offset) {
+          pred_target               = pc_plus_offset;
+          op->oracle_info.no_target = FALSE;
+          op->oracle_info.ibp_miss  = FALSE;
         } else
           op->oracle_info.ibp_miss = TRUE;
 
@@ -441,8 +456,14 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
           pred_target               = ibp_target;
           op->oracle_info.no_target = FALSE;
           op->oracle_info.ibp_miss  = FALSE;
-        } else
+        } else if (FETCH_NT_AFTER_BTB_MISS && op->oracle_info.npc == pc_plus_offset) {
+          pred_target               = pc_plus_offset;
+          op->oracle_info.no_target = FALSE;
+          op->oracle_info.ibp_miss  = FALSE;
+        } 
+        else {
           op->oracle_info.ibp_miss = TRUE;
+        }
       }
       if(ENABLE_CRS)
         CRS_REALISTIC ? bp_crs_realistic_push(bp_data, op) :
@@ -494,9 +515,6 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
     bp_data->late_bp->spec_update_func(op);
   }
 
-  const Addr pc_plus_offset = ADDR_PLUS_OFFSET(
-    op->inst_info->addr, op->inst_info->trace_info.inst_size);
-
   Addr bp_prediction, fetch_prediction;
   bp_prediction = op->oracle_info.pred ? pred_target : pc_plus_offset;
   op->oracle_info.pred_target_known_npc = bp_prediction;
@@ -523,6 +541,27 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
                                    (late_prediction != op->oracle_info.npc);
     op->oracle_info.late_misfetch = !op->oracle_info.late_mispred && !op->oracle_info.btb_miss &&
                                     late_prediction != op->oracle_info.npc;
+    if(FETCH_NT_AFTER_BTB_MISS && op->oracle_info.btb_miss && op->oracle_info.late_pred){
+      //in during a btb miss, predicted taken branch will be overriden with predicted not taken
+      if(!op->oracle_info.dir){
+        //predicted taken, actually not taken
+        //btb miss will force this to be a not taken prediction
+        //therefore making it a correct prediction
+        op->oracle_info.fetch_late_mispred = FALSE;
+      }
+      else if (op->oracle_info.dir && op->oracle_info.npc != pc_plus_offset){
+        //predicted taken, actually taken
+        //btb miss will force this to be a not taken prediction
+        //therefore making it a incorrect prediction
+        op->oracle_info.fetch_late_mispred = TRUE;
+      }
+      else{
+        op->oracle_info.fetch_late_mispred = FALSE;
+      }
+    }
+    else {
+      op->oracle_info.fetch_late_mispred = op->oracle_info.late_mispred;
+    }
   }
 
   if(FETCH_NT_AFTER_BTB_MISS && op->oracle_info.btb_miss && op->oracle_info.pred){
@@ -533,16 +572,20 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
       //therefore making it a correct prediction
       op->oracle_info.fetch_mispred = FALSE;
     }
-    else if (op->oracle_info.dir){
+    else if (op->oracle_info.dir && op->oracle_info.npc != pc_plus_offset){
       //predicted taken, actually taken
       //btb miss will force this to be a not taken prediction
       //therefore making it a incorrect prediction
       op->oracle_info.fetch_mispred = TRUE;
     }
+    else{
+      op->oracle_info.fetch_mispred = FALSE;
+    }
   }
   else {
     op->oracle_info.fetch_mispred = op->oracle_info.mispred;
   }
+  op->oracle_info.current_mispred = op->oracle_info.fetch_mispred;
 
   op->bp_cycle = cycle_count;
 
@@ -609,8 +652,8 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
   
   if(USE_LATE_BP)
     DEBUG(bp_data->proc_id,
-          "LATE_BP: late_mispred:%d  late_misfetch:%d\n",
-          op->oracle_info.late_mispred, op->oracle_info.late_misfetch);
+          "LATE_BP: late_mispred:%d  late_misfetch:%d  late_pred:%d, late_npc:%llx\n",
+          op->oracle_info.late_mispred, op->oracle_info.late_misfetch, op->oracle_info.late_pred, op->oracle_info.late_pred_npc);
     if(op->oracle_info.late_mispred && !op->oracle_info.mispred)
       DEBUG(bp_data->proc_id, "interesting!\n");
 

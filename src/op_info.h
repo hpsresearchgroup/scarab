@@ -102,7 +102,9 @@ struct Op_Info_struct {
   Flag mispred;    // true if the direction of the branch was mispredicted and the
                    // branch should cause a recovery, set by the branch predictor 
                    // OR a taken branch missed in the btb
-  Flag fetch_mispred; //early bp result after btb miss is considered
+  Flag fetch_mispred;      //early bp result after btb miss is considered
+  Flag fetch_late_mispred; //late bp result after btb miss is considered
+  Flag current_mispred; //early bp result after btb miss is considered
   Flag btb_miss;           // true if the target is not known at prediction time
   Flag btb_miss_resolved;  // true if the btb miss is resolved by the pipeline.
   Flag no_target;  // true if there is no target for this branch at prediction
