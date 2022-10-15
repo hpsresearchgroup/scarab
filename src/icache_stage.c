@@ -247,66 +247,23 @@ void redirect_icache_stage() {
 
   DEBUG(ic->proc_id, "Icache stage redirect signaled. next_fetch_addr: 0x%s\n",
         hexstr64s(next_fetch_addr));
-  if(FETCH_NT_AFTER_BTB_MISS){
-    ASSERT(ic->proc_id, FALSE);
-    //TODO:: chester, come clean this up;
-    Stage_Data* cur = &ic->sd;
-    uns         ii;
+  ASSERT(ic->proc_id, !FETCH_NT_AFTER_BTB_MISS);
+  ASSERT(ic->proc_id, ic->state == IC_WAIT_FOR_REDIRECT);
 
-    ASSERT(ic->proc_id, ic->proc_id == bp_recovery_info->proc_id);
-    DEBUG(ic->proc_id,
-          "Icache stage recovery signaled.  recovery_fetch_addr: 0x%s\n",
-          hexstr64s(bp_recovery_info->recovery_fetch_addr));
-
-    cur->op_count = 0;
-    for(ii = 0; ii < ic->sd.max_op_count; ii++) {
-      if(cur->ops[ii]) {
-        if(FLUSH_OP(cur->ops[ii])) {
-          free_op(cur->ops[ii]);
-          cur->ops[ii] = NULL;
-        } else {
-          cur->op_count++;
-        }
-      }
-    }
-
-    ic->back_on_path = !bp_recovery_info->recovery_force_offpath;
-
-    Op* op = bp_recovery_info->recovery_op;
-    if(bp_recovery_info->late_bp_recovery && op->oracle_info.btb_miss &&
-       !op->oracle_info.btb_miss_resolved) {
-      // Late branch predictor recovered before btb miss is resolved (i.e., icache
-      // stage should still wait for redirect)
-    } else {
-      if(ic->next_state != IC_FILL && ic->next_state != IC_WAIT_FOR_MISS) {
-        ic->next_state = IC_FETCH;
-      }
-      if(SWITCH_IC_FETCH_ON_RECOVERY && model->id == CMP_MODEL) {
-        ic->next_state = IC_FETCH;
-      }
-    }
-    op_count[ic->proc_id] = bp_recovery_info->recovery_op_num + 1;
-    ic->next_fetch_addr   = bp_recovery_info->recovery_fetch_addr;
-    ASSERT(ic->proc_id, ic->next_fetch_addr);
+  Flag main_predictor_wrong = op->oracle_info.mispred ||
+                              op->oracle_info.misfetch;
+  
+  if(USE_LATE_BP){
+    main_predictor_wrong = FALSE;
   }
-  else{
-    ASSERT(ic->proc_id, ic->state == IC_WAIT_FOR_REDIRECT);
 
-    Flag main_predictor_wrong = op->oracle_info.mispred ||
-                                op->oracle_info.misfetch;
-    
-    if(USE_LATE_BP){
-      main_predictor_wrong = FALSE;
-    }
-
-    Flag late_predictor_wrong = (USE_LATE_BP && (op->oracle_info.late_mispred ||
-                                                 op->oracle_info.late_misfetch));
-    ic->back_on_path          = !(op->off_path || main_predictor_wrong ||
-                         late_predictor_wrong);
-    ic->next_fetch_addr       = next_fetch_addr;
-    ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr);
-    ic->next_state = IC_FETCH;
-  }
+  Flag late_predictor_wrong = (USE_LATE_BP && (op->oracle_info.late_mispred ||
+                                               op->oracle_info.late_misfetch));
+  ic->back_on_path          = !(op->off_path || main_predictor_wrong ||
+                       late_predictor_wrong);
+  ic->next_fetch_addr       = next_fetch_addr;
+  ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr);
+  ic->next_state = IC_FETCH;
 }
 
 
@@ -705,17 +662,13 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
 
           if(USE_LATE_BP && !skip_late_bp) {
             if((mispred || misfetch) && !late_mispred && !late_misfetch) {
-              //chester clean this up
               bp_sched_recovery(bp_recovery_info, op, cycle_count,
                                 /*late_bp_recovery=*/TRUE,
                                 /*decode_bp_recovery=*/FALSE,
                                 /*force_offpath=*/FALSE);
-              //DEBUG(ic->proc_id,
-              //      "Scheduled a recovery to correct addr for cycle %llu\n",
-              //      cycle_count + LATE_BP_LATENCY);
               DEBUG(ic->proc_id,
-                    "Cycle: %llu: late correct pred on opnum: %llu, Scheduled a recovery to correct addr %s for cycle %llu \n",
-                    cycle_count, op->op_num, hexstr64s(op->oracle_info.late_pred_npc), cycle_count + LATE_BP_LATENCY);
+                    "Scheduled a recovery to correct addr for cycle %llu\n",
+                    cycle_count + LATE_BP_LATENCY);
             } else if((late_mispred || late_misfetch) &&
                       op->oracle_info.pred_npc !=
                         op->oracle_info.late_pred_npc) {
@@ -724,8 +677,8 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
                                 /*decode_bp_recovery=*/FALSE,
                                 /*force_offpath=*/TRUE);
               DEBUG(ic->proc_id,
-                    "Cycle: %llu: late mispred on opnum: %llu, Scheduled a recovery to wrong addr %s for cycle %llu \n",
-                    cycle_count, op->op_num,hexstr64s(op->oracle_info.late_pred_npc), cycle_count + LATE_BP_LATENCY);
+                    "late mispred on opnum: %llu, Scheduled a recovery to wrong addr %s for cycle %llu \n",
+                    op->op_num,hexstr64s(op->oracle_info.late_pred_npc), cycle_count + LATE_BP_LATENCY);
             }
           }
         } else {

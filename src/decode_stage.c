@@ -209,7 +209,16 @@ static inline void stage_process_op(Op* op) {
 
     if(cf <= CF_CALL) {
       // it is a direct branch, so the target is now known
-      bp_target_known_op(g_bp_data, op);
+      op->oracle_info.misfetch = FALSE;
+      if(CBR_TARGET_UPDATE_AT_EXEC) {
+        if(cf != CF_CBR){
+          //true direction is known as well at decode
+          bp_target_known_op(g_bp_data, op);
+        }
+      }
+      else{
+        bp_target_known_op(g_bp_data, op);
+      }
     }  
 
     if(FETCH_NT_AFTER_BTB_MISS) {

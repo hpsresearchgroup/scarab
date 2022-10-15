@@ -43,6 +43,7 @@
 #include "bp/gshare.h"
 #include "bp/hybridgp.h"
 #include "bp/tagescl.h"
+#include "bp/pc_table.h"
 #include "libs/cache_lib.h"
 #include "model.h"
 #include "thread.h"
@@ -529,8 +530,16 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
   // anyway, do not treat this as a misprediction.
   op->oracle_info.mispred = (op->oracle_info.pred != op->oracle_info.dir) &&
                             (bp_prediction != op->oracle_info.npc);
-  op->oracle_info.misfetch = !op->oracle_info.mispred && !op->oracle_info.btb_miss &&
-                             bp_prediction != op->oracle_info.npc;
+  op->oracle_info.misfetch = !op->oracle_info.mispred && 
+                             fetch_prediction != op->oracle_info.npc;
+  //if(FETCH_NT_AFTER_BTB_MISS){
+  //  op->oracle_info.misfetch = !op->oracle_info.mispred && !op->oracle_info.btb_miss &&
+  //                             bp_prediction != op->oracle_info.npc;
+  //}
+  //else{
+  //  op->oracle_info.misfetch = !op->oracle_info.mispred && 
+  //                             bp_prediction != op->oracle_info.npc;
+  //}
 
   if(USE_LATE_BP) {
     const Addr late_prediction = op->oracle_info.late_pred ? pred_target :
@@ -539,8 +548,14 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
     op->oracle_info.late_mispred  = (op->oracle_info.late_pred !=
                                     op->oracle_info.dir) &&
                                    (late_prediction != op->oracle_info.npc);
-    op->oracle_info.late_misfetch = !op->oracle_info.late_mispred && !op->oracle_info.btb_miss &&
-                                    late_prediction != op->oracle_info.npc;
+    if(FETCH_NT_AFTER_BTB_MISS){
+      op->oracle_info.late_misfetch = !op->oracle_info.late_mispred && !op->oracle_info.btb_miss &&
+                                      late_prediction != op->oracle_info.npc;
+    }
+    else {
+      op->oracle_info.late_misfetch = !op->oracle_info.late_mispred && 
+                                      late_prediction != op->oracle_info.npc;
+    }
     if(FETCH_NT_AFTER_BTB_MISS && op->oracle_info.btb_miss && op->oracle_info.late_pred){
       //in during a btb miss, predicted taken branch will be overriden with predicted not taken
       if(!op->oracle_info.dir){

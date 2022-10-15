@@ -354,6 +354,9 @@ void update_exec_stage(Stage_Data* src_sd) {
 
       if(!BP_UPDATE_AT_RETIRE) {
         // this code updates the branch prediction structures
+        if(CBR_TARGET_UPDATE_AT_EXEC && op ->table_info->cf_type == CF_CBR){
+          bp_target_known_op(g_bp_data, op);
+        }
         if(op->table_info->cf_type >= CF_IBR)
           bp_target_known_op(g_bp_data, op);
 

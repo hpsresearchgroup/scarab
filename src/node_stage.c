@@ -807,6 +807,10 @@ void node_retire() {
 
     if(op->table_info->cf_type) {
       if(BP_UPDATE_AT_RETIRE) {
+
+        if(CBR_TARGET_UPDATE_AT_EXEC && op ->table_info->cf_type == CF_CBR){
+          bp_target_known_op(g_bp_data, op);
+        }
         // this code updates the branch prediction structures
         if(op->table_info->cf_type >= CF_IBR)
           bp_target_known_op(g_bp_data, op);
