@@ -83,6 +83,9 @@ DEF_PARAM(  btb_entries               , BTB_ENTRIES               , uns     , un
 DEF_PARAM(  btb_assoc                 , BTB_ASSOC                 , uns     , uns        , 4          ,        )
 DEF_PARAM(  btb_off_path_writes       , BTB_OFF_PATH_WRITES       , Flag    , Flag       , TRUE       ,        ) /* const */
 
+DEF_PARAM(  l0_btb_size               , L0_BTB_SIZE               , uns     , uns        , 4          ,        )
+DEF_PARAM(  l0_btb_assoc              , L0_BTB_ASSOC              , uns     , uns        , 4          ,        )
+
 DEF_PARAM(  enable_crs                , ENABLE_CRS                , Flag    , Flag       , TRUE       ,        )
 DEF_PARAM(  crs_entries               , CRS_ENTRIES               , uns     , uns        , 32         ,        )     
      // CRS_REALISTIC --- 0:off_path does not disturb on_path 1: next & tos scheme (use this if you want a realistic CRS) 
