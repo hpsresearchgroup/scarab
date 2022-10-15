@@ -38,7 +38,7 @@
 #include "bp/bp.h"
 #include "bp/bp.param.h"
 #include "decode_stage.h"
-#include "op_pool.h"
+#include "globals/op_pool.h"
 
 #include "core.param.h"
 #include "debug/debug.param.h"

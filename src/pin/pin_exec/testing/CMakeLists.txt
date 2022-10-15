@@ -22,13 +22,6 @@ if (PIN_EXEC_TESTS)
 
     get_filename_component(pin_exec_path ../obj-intel64/pin_exec.so ABSOLUTE)
 
-    include(FetchContent)
-    FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/refs/tags/release-1.11.0.zip
-    )
-    FetchContent_MakeAvailable(googletest)
-
     enable_testing()
 
     add_executable(pin_exec_test
@@ -51,7 +44,6 @@ if (PIN_EXEC_TESTS)
             JUMP_NEAR_BOUNDARY_BINARY=\"$<TARGET_FILE:jump_near_boundary>\"
     )        
 
-    include(GoogleTest)
     gtest_discover_tests(pin_exec_test)
 
 endif()

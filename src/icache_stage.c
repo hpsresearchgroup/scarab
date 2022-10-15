@@ -37,7 +37,7 @@
 #include "bp/bp.h"
 #include "icache_stage.h"
 #include "map.h"
-#include "op_pool.h"
+#include "globals/op_pool.h"
 #include "packet_build.h"
 #include "thread.h"
 

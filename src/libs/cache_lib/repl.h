@@ -20,34 +20,69 @@
  */
 
 /***************************************************************************************
- * File         : op_pool.h
+ * File         : libs/repl.h
  * Author       : HPS Research Group
- * Date         : 1/28/1998
- * Description  : Header for op_pool.c
+ * Date         : 3/10/2022
+ * Description  : this is part of the cache library that deals with 
+ *                replacement policy
  ***************************************************************************************/
 
-#ifndef __OP_POOL_H__
-#define __OP_POOL_H__
+#include "globals/global_defs.h"
+#include "libs/list_lib.h"
+#include "globals/utils.h"
+#include "globals/assert.h"
+#include <vector>
+#include <string>
+#include <cstdlib>
 
+typedef enum Repl_Policy_enum {
+  REPL_TRUE_LRU,    /* actual least-recently-used replacement */
+  REPL_RANDOM,      /* random replacement */
+  REPL_MRU,
+  NUM_REPL
+} Repl_Policy;
 
-/**************************************************************************************/
-/* Global Variables */
+class Cache_address {
+  public:
+  Flag valid;
+  uns set;
+  uns way; 
 
-extern Op  invalid_op;
-extern uns op_pool_entries;
-extern uns op_pool_active_ops;
+  Cache_address() : 
+    valid(false){
+  }
+};
 
+class per_line_data {
+    public:
+    Flag valid;
+    Flag prefetch;
+    uns proc_id;
+    Counter insert_cycle;
+    Counter access_cycle;
 
-/**************************************************************************************/
-/* Prototypes */
+    per_line_data() {
+        valid = false;
+        access_cycle = MAX_CTR;
+        insert_cycle = MAX_CTR;
+    }
+};
 
-void init_op_pool(void);
-void reset_op_pool(void);
-Op*  alloc_op(uns proc_id);
-void free_op(Op*);
-void op_pool_init_op(Op*);
-void op_pool_setup_op(uns proc_id, Op* op);
+class repl_class {   
+    public:
 
-/**************************************************************************************/
+    Repl_Policy repl_policy;
 
-#endif /* #ifndef __OP_POOL_H__ */
+    std::vector<std::vector<per_line_data>> repl_data;
+
+    repl_class(Repl_Policy policy, uns num_sets, uns assoc);
+
+    Cache_address get_next_repl(std::vector<Cache_address> list);
+
+    void insert(Cache_address pos, uns proc_id, Flag is_prefetch);
+
+    void access(Cache_address cache_addr);
+
+    void invalidate(Cache_address pos);
+
+};

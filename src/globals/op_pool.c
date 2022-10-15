@@ -153,7 +153,7 @@ void free_op(Op* op) {
   if(op->sched_info)
     free(op->sched_info);
 
-  if(op->table_info->mem_type == MEM_ST)
+  if(op->table_info && op->table_info->mem_type == MEM_ST)
     delete_store_hash_entry(op);
 
   if(op->inst_info && op->inst_info->fake_inst) {

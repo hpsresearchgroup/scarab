@@ -10,15 +10,23 @@ else()
   message(FATAL_ERROR "Could not find git binary in the system")
 endif()
 
+message("Starting compile of XED...")
 find_package(Python3)
 if(Python3_FOUND)
     execute_process(
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/xed/mfile.py
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/xed"
-        COMMAND_ECHO STDOUT
+        COMMAND_ECHO NONE
+        OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/xed-build.stdout"
+        ERROR_FILE  "${CMAKE_CURRENT_BINARY_DIR}/xed-build.stderr"
+        RESULT_VARIABLE xed_return_code
     )
 else()
   message(FATAL_ERROR "Could not find python3 in the system")
+endif()
+
+if(${xed_return_code})
+  message(FATAL_ERROR "An error occurred building XED. See log file: ${CMAKE_CURRENT_BINARY_DIR}/xed-build.stderr")
 endif()
 
 set($ENV{TARGET} ia32)
@@ -68,3 +76,11 @@ if(DEFINED ENV{SCARAB_ENABLE_MEMTRACE})
     pthread
     )
 endif()
+
+# Install GTest 
+include(FetchContent)
+FetchContent_Declare(
+googletest
+URL https://github.com/google/googletest/archive/refs/tags/release-1.11.0.zip
+)
+FetchContent_MakeAvailable(googletest)
