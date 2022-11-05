@@ -33,6 +33,9 @@
 #include <vector>
 #include <string>
 
+#ifndef __CACHE_CPP_H__
+#define __CACHE_CPP_H__
+
 class Cache_entry {
   public:
   uns8 proc_id;
@@ -40,6 +43,7 @@ class Cache_entry {
   Addr tag;
   Addr base;
   Flag dirty;
+  Flag pref;
 };
 
 template <typename T> 
@@ -57,9 +61,9 @@ class Cache_access_result {
 };
 
 template <typename T> 
-class Cache {
+class Cache_cpp {
   public:
-    String name;
+    std::string name;
 
     uns8 assoc;
     uns line_size;
@@ -71,7 +75,6 @@ class Cache {
     Addr offset_mask; /// mask used to get the line offset
 
     uns8 set_bits;
-    Repl_Policy_enum repl;
 
     std::vector<std::vector<Cache_entry>> entries;   
     std::vector<std::vector<T>> data;
@@ -82,11 +85,11 @@ class Cache {
 
     repl_class repl; 
 
-    Cache(std::string name, uns cache_size, uns assoc, uns line_size, Repl_Policy_enum repl_policy) :
+    Cache_cpp(std::string name, uns cache_size, uns assoc, uns line_size, Repl_Policy_CPP_enum repl_policy) :
       name(name), assoc(assoc), line_size(line_size), num_lines(cache_size/line_size), 
       num_sets(cache_size/line_size/assoc), 
-      entries(num_sets), data(num_sets), repl_set(assoc)
-      num_demand_access(0), last_update(0);
+      entries(num_sets), data(num_sets), repl_set(assoc),
+      num_demand_access(0), last_update(0),
       repl(repl_policy, num_sets, assoc){
       this->set_bits = LOG2(num_sets);
       this->shift_amount = LOG2(line_size);
@@ -94,47 +97,45 @@ class Cache {
       this->tag_mask = ~this->set_mask;
       this->offset_mask = N_BIT_MASK(shift_amount);
 
-      for(int ii = 0; ii < num_sets; i++) {
+      for(uns ii = 0; ii < num_sets; ii++) {
         entries[ii].resize(assoc);
         data[ii].resize(assoc);
       }
     }
     
     inline uns cache_index(Addr addr) {
-      return addr >> cache->shift_bits & cache->set_mask;
+      return addr >> this->shift_amount & this->set_mask;
     }
 
     inline Addr cache_tag(Addr addr) {
-      return addr >> this->shift_bits & this->tag_mask;
+      return addr >> this->shift_amount & this->tag_mask;
     }
 
     inline Addr cache_line_addr(Addr addr) {
       return addr & ~this->offset_mask;
     }
 
-    Cache_access_result access(uns proc_id, Addr addr){
+    Cache_access_result<T> access(uns proc_id, Addr addr) {
       Cache_address cache_addr = search(proc_id, addr);
-      Cache_access_result ret;
+      Cache_access_result<T> ret;
       if(cache_addr.valid) {
-        if(entries[cache_addr.set][cache_addr.way]->pref) {
-          line->pref = FALSE;
+        if(entries[cache_addr.set][cache_addr.way].pref) {
+          entries[cache_addr.set][cache_addr.way].pref = FALSE;
         }
-        cache->num_demand_access++;
+        this->num_demand_access++;
         ret.hit = true;
         ret.access_addr = addr;
         ret.line_addr = cache_line_addr(addr);
         ret.data = data[cache_addr.set][cache_addr.way];
         ret.cache_addr = cache_addr;
-        if(update_repl) {
-          repl.access();
-        }
+        repl.access(cache_addr);
       }
       return ret; 
     }
 
-    Cache_access_result probe(uns proc_id, Addr addr){
+    Cache_access_result<T> probe(uns proc_id, Addr addr){
       Cache_address cache_addr = search(proc_id, addr);
-      Cache_access_result ret;
+      Cache_access_result<T> ret;
       if(cache_addr.valid) {
         ret.hit = true;
         ret.access_addr = addr;
@@ -153,7 +154,7 @@ class Cache {
       ret.valid = 0;
 
       for(ii = 0; ii < assoc; ii++) {
-        Cache_Entry line = entries[set][ii];
+        auto line = entries[set][ii];
 
         if(line.valid && line.tag == tag) {
           ret.valid = true;
@@ -162,23 +163,30 @@ class Cache {
           return ret;
         }
       }
-      DEBUG(proc_id, "Didn't find line in set %u in cache '%s' base 0x%s\n", set,
-            this->name, hexstr64s(addr));
+      //DEBUG(proc_id, "Didn't find line in set %u in cache '%s' base 0x%s\n", set,
+      //      this->name, hexstr64s(addr));
       return ret;
     }
     
-    void insert(uns proc_id, Addr addr, Flag is_prefetch, T new_data){
+    Cache_access_result<T> insert(uns proc_id, Addr addr, Flag is_prefetch, T new_data){
       Addr tag = cache_tag (addr);
       Addr line_addr = cache_line_addr(addr);
       uns  set = cache_index(addr);
 
-      for(uns ii = 0; ii < assoc; i++){
+      for(uns ii = 0; ii < assoc; ii++){
         repl_set[ii].valid = true;
         repl_set[ii].set = set;
-        repl_set[ii].way = set;
+        repl_set[ii].way = ii;
       }
       
       Cache_address new_line_addr = repl.get_next_repl(repl_set);
+
+      Cache_access_result<T> ret;
+      ret.hit = entries[new_line_addr.set][new_line_addr.way].valid;
+      ret.line_addr = entries[new_line_addr.set][new_line_addr.way].tag;
+      ret.access_addr = addr;
+      ret.data = data[new_line_addr.set][new_line_addr.way];
+      ret.cache_addr = new_line_addr;
 
       entries[new_line_addr.set][new_line_addr.way].valid = true;
       entries[new_line_addr.set][new_line_addr.way].tag = tag;
@@ -188,21 +196,22 @@ class Cache {
       repl.insert(new_line_addr, proc_id, is_prefetch);
 
       data[new_line_addr.set][new_line_addr.way] = new_data;
+      return ret;
     }
     
-    Cache_access_result invalidate(uns proc_id, Addr addr){
+    Cache_access_result<T> invalidate(uns proc_id, Addr addr){
       Cache_address pos = search(proc_id, addr);
-      Cache_access_result ret;
+      Cache_access_result<T> ret;
       if(pos.valid){
-        entries[index].tag = 0;  
-        entries[index].valid= FALSE;  
-        entries[index].base= FALSE;  
+        entries[pos.set][pos.way].tag = 0;  
+        entries[pos.set][pos.way].valid= FALSE;  
+        entries[pos.set][pos.way].base= FALSE;  
         repl.invalidate(pos);
         ret.hit = true;
         ret.access_addr = addr;
         ret.line_addr = cache_line_addr(addr);
-        ret.data = data[cache_addr.set][cache_addr.way];
-        ret.cache_addr = cache_addr;
+        ret.data = data[pos.set][pos.way];
+        ret.cache_addr = pos;
       }
       return ret; 
     }
@@ -212,7 +221,7 @@ class Cache {
       Addr line_addr = cache_line_addr(addr);
       uns  set = cache_index(addr);
 
-      for(uns ii = 0; ii < assoc; i++){
+      for(uns ii = 0; ii < assoc; ii++){
         repl_set[ii].valid = true;
         repl_set[ii].set = set;
         repl_set[ii].way = ii;
@@ -221,4 +230,6 @@ class Cache {
       Cache_address new_line_index = repl.get_next_repl(repl_set);
       return data[new_line_index.set][new_line_index.way];
     }
-};
+}; //class
+
+#endif  // __CACHE_CPP_H__

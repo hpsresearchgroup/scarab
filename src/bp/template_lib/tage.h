@@ -24,9 +24,12 @@
 
 #include <cmath>
 #include <vector>
+#include <deque>
 
 #include "utils.h"
 
+template <class TAGE_CONFIG>
+class Past_branch_entry;
 /* The main history register suitable for very large history. The history is
  * implemented as a circular buffer for efficiency. The API only allows
  * insertions of bits into the most recent position of the history and provides
@@ -68,7 +71,7 @@ class Long_History_Register {
 
   // Retire speculative bits.
   void retire(int num_retire_bits) {
-    assert(num_retire_bits > 0 && num_retire_bits <= num_speculative_bits_);
+    assert(num_retire_bits > 0 && num_retire_bits <= num_speculative_bits_ + (int)STALE_HISTORY_DISTANCE);
     num_speculative_bits_ -= num_retire_bits;
   }
 
@@ -227,6 +230,26 @@ struct Tage_Prediction_Info {
   int     num_global_history_bits;
   int64_t global_history_head_checkpoint_;
   int64_t path_history_checkpoint;
+  std::deque<Past_branch_entry<TAGE_CONFIG>> old_branch_checkpoint; 
+};
+
+template <class TAGE_CONFIG>
+struct Past_branch_entry {
+  public:
+  uint64_t br_pc;
+  uint64_t br_target;
+  Branch_Type br_type;
+  bool branch_dir;
+  Tage_Prediction_Info<TAGE_CONFIG>* prediction_info;
+
+  Past_branch_entry(){
+    br_pc = 0;
+    br_target = 0;
+    br_type.is_conditional = false;
+    br_type.is_indirect = false;
+    branch_dir = false;
+    prediction_info = NULL;
+  }
 };
 
 template <class TAGE_CONFIG>
@@ -314,7 +337,11 @@ class Tage {
   }
 
   void get_prediction(
-    uint64_t br_pc, Tage_Prediction_Info<TAGE_CONFIG>* prediction_info) const {
+    uint64_t cur_br_pc, Tage_Prediction_Info<TAGE_CONFIG>* prediction_info) const {
+    uint64_t br_pc = cur_br_pc;
+    if(STALE_PC_DISTANCE != 0){
+      br_pc = past_branches_queue.front().br_pc;
+    }
     fill_table_indices_tags(br_pc, prediction_info);
     auto& indices = prediction_info->indices;
     auto& tags    = prediction_info->tags;
@@ -380,8 +407,28 @@ class Tage {
   void update_speculative_state(
     uint64_t br_pc, uint64_t br_target, Branch_Type br_type,
     bool final_prediction, Tage_Prediction_Info<TAGE_CONFIG>* prediction_info) {
-    tage_histories_.push_into_history(br_pc, br_target, br_type,
-                                      final_prediction, prediction_info);
+    if(STALE_HISTORY_DISTANCE != 0){
+      Past_branch_entry<TAGE_CONFIG> temp;
+      temp.br_pc = br_pc;
+      temp.br_target = br_target;
+      temp.br_type = br_type;
+      temp.branch_dir = final_prediction;
+      temp.prediction_info = prediction_info;
+      past_branches_queue.push_back(temp);
+      if(past_branches_queue.size() == STALE_HISTORY_DISTANCE){
+        Past_branch_entry<TAGE_CONFIG> oldest = past_branches_queue.front();
+        past_branches_queue.pop_front();
+        tage_histories_.push_into_history(oldest.br_pc, oldest.br_target, oldest.br_type,
+                                          oldest.branch_dir, oldest.prediction_info);
+      }
+      for(auto item:past_branches_queue){
+        prediction_info->old_branch_checkpoint.push_back(item);
+      }
+    }
+    else{
+      tage_histories_.push_into_history(br_pc, br_target, br_type,
+                                        final_prediction, prediction_info);
+    }
   }
 
   void commit_state(uint64_t br_pc, bool resolve_dir,
@@ -598,6 +645,11 @@ class Tage {
       tage_histories_.history_register_.rewind(1);
     }
     tage_histories_.path_history_ = prediction_info.path_history_checkpoint;
+
+    past_branches_queue.clear();
+    for(auto item:prediction_info.old_branch_checkpoint){
+      past_branches_queue.push_back(item);
+    }
   }
 
   void local_recover_speculative_state(
@@ -664,6 +716,8 @@ class Tage {
   int tick_;  // for resetting the useful bits
 
   Random_Number_Generator& random_number_gen_;
+  
+  std::deque<Past_branch_entry<TAGE_CONFIG>> past_branches_queue;
 };
 
 template <class TAGE_CONFIG>

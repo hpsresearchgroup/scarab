@@ -71,6 +71,7 @@ DEF_PARAM(  debug_frontend,        DEBUG_FRONTEND,        Flag,  Flag,  FALSE,  
 DEF_PARAM(  debug_addr_trans,      DEBUG_ADDR_TRANS,      Flag,  Flag,  FALSE,  )
 DEF_PARAM(  debug_bp,              DEBUG_BP,              Flag,  Flag,  FALSE,  )
 DEF_PARAM(  debug_bp_dir,          DEBUG_BP_DIR,          Flag,  Flag,  FALSE,  )
+DEF_PARAM(  debug_pc_table,        DEBUG_PC_TABLE,        Flag,  Flag,  FALSE,  )
 DEF_PARAM(  debug_btb,             DEBUG_BTB,             Flag,  Flag,  FALSE,  )
 DEF_PARAM(  debug_crs,             DEBUG_CRS,             Flag,  Flag,  FALSE,  )
 DEF_PARAM(  debug_map,             DEBUG_MAP,             Flag,  Flag,  FALSE,  )

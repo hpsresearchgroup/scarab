@@ -131,9 +131,6 @@ void bp_sched_recovery(Bp_Recovery_Info* bp_recovery_info, Op* op,
     const Addr next_fetch_addr = op->oracle_info.npc;
     const uns  latency         = late_bp_recovery ? LATE_BP_LATENCY :
                                            1 + EXTRA_RECOVERY_CYCLES;
-    if(op->oracle_info.recovery_sch){
-      DEBUG(op->proc_id, "ASSERT: op num %llu, late rec %d, decode bp %d, force offpath %d\n", op->op_num, late_bp_recovery, decode_bp_recovery,force_offpath);
-    }
     ASSERT(op->proc_id, !op->oracle_info.recovery_sch);
     op->oracle_info.recovery_sch          = TRUE;
     bp_recovery_info->recovery_cycle      = cycle + latency;
@@ -381,6 +378,9 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
     case CF_BR:
       op->oracle_info.pred      = TAKEN;
       op->oracle_info.late_pred = TAKEN;
+      if(BP_MECH == PC_TABLE_BP){
+        op->oracle_info.pred = bp_data->bp->pred_func(op);
+      }
       if(!op->off_path)
         STAT_EVENT(op->proc_id, CF_BR_USED_TARGET_CORRECT +
                                   (pred_target != op->oracle_info.npc));
@@ -418,6 +418,9 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
     case CF_CALL:
       op->oracle_info.pred      = TAKEN;
       op->oracle_info.late_pred = TAKEN;
+      if(BP_MECH == PC_TABLE_BP){
+        op->oracle_info.pred = bp_data->bp->pred_func(op);
+      }
       if(ENABLE_CRS)
         CRS_REALISTIC ? bp_crs_realistic_push(bp_data, op) :
                         bp_crs_push(bp_data, op);
@@ -429,6 +432,9 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
     case CF_IBR:
       op->oracle_info.pred      = TAKEN;
       op->oracle_info.late_pred = TAKEN;
+      if(BP_MECH == PC_TABLE_BP){
+        op->oracle_info.pred = bp_data->bp->pred_func(op);
+      }
       if(ENABLE_IBP) {
         Addr ibp_target = bp_data->bp_ibtb->pred_func(bp_data, op);
         if(ibp_target) {
@@ -451,6 +457,9 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
     case CF_ICALL:
       op->oracle_info.pred      = TAKEN;
       op->oracle_info.late_pred = TAKEN;
+      if(BP_MECH == PC_TABLE_BP){
+        op->oracle_info.pred = bp_data->bp->pred_func(op);
+      }
       if(ENABLE_IBP) {
         Addr ibp_target = bp_data->bp_ibtb->pred_func(bp_data, op);
         if(ibp_target) {
@@ -491,6 +500,9 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
     case CF_RET:
       op->oracle_info.pred      = TAKEN;
       op->oracle_info.late_pred = TAKEN;
+      if(BP_MECH == PC_TABLE_BP){
+        op->oracle_info.pred = bp_data->bp->pred_func(op);
+      }
       if(ENABLE_CRS)
         pred_target = CRS_REALISTIC ? bp_crs_realistic_pop(bp_data, op) :
                                       bp_crs_pop(bp_data, op);
@@ -669,8 +681,6 @@ Addr bp_predict_op(Bp_Data* bp_data, Op* op, uns br_num, Addr fetch_addr) {
     DEBUG(bp_data->proc_id,
           "LATE_BP: late_mispred:%d  late_misfetch:%d  late_pred:%d, late_npc:%llx\n",
           op->oracle_info.late_mispred, op->oracle_info.late_misfetch, op->oracle_info.late_pred, op->oracle_info.late_pred_npc);
-    if(op->oracle_info.late_mispred && !op->oracle_info.mispred)
-      DEBUG(bp_data->proc_id, "interesting!\n");
 
   if(ENABLE_BP_CONF && IS_CONF_CF(op)) {
     bp_data->br_conf->pred_func(op);

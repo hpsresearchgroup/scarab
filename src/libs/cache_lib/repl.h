@@ -29,18 +29,20 @@
 
 #include "globals/global_defs.h"
 #include "libs/list_lib.h"
-#include "globals/utils.h"
-#include "globals/assert.h"
 #include <vector>
-#include <string>
-#include <cstdlib>
 
-typedef enum Repl_Policy_enum {
-  REPL_TRUE_LRU,    /* actual least-recently-used replacement */
-  REPL_RANDOM,      /* random replacement */
-  REPL_MRU,
-  NUM_REPL
-} Repl_Policy;
+#ifndef __REPL_CPP_H__
+#define __REPL_CPP_H__
+
+#define max_rrpv 3
+
+typedef enum Repl_Policy_CPP_enum {
+  LRU_REPL,
+  RANDOM_REPL,
+  MRU_REPL,
+  SRRIP_REPL,
+  REPL_NUM
+} Repl_Policy_CPP;
 
 class Cache_address {
   public:
@@ -60,22 +62,24 @@ class per_line_data {
     uns proc_id;
     Counter insert_cycle;
     Counter access_cycle;
+    uns8 rrpv;
 
     per_line_data() {
         valid = false;
         access_cycle = MAX_CTR;
         insert_cycle = MAX_CTR;
+        rrpv = max_rrpv; 
     }
 };
 
 class repl_class {   
     public:
 
-    Repl_Policy repl_policy;
+    Repl_Policy_CPP repl_policy;
 
     std::vector<std::vector<per_line_data>> repl_data;
 
-    repl_class(Repl_Policy policy, uns num_sets, uns assoc);
+    repl_class(Repl_Policy_CPP policy, uns num_sets, uns assoc);
 
     Cache_address get_next_repl(std::vector<Cache_address> list);
 
@@ -86,3 +90,5 @@ class repl_class {
     void invalidate(Cache_address pos);
 
 };
+
+#endif  // __REPL_CPP_H__

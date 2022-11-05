@@ -27,14 +27,20 @@
  *                replacement policy
  ***************************************************************************************/
 
-#include "globals/global_defs.h"
-#include "libs/list_lib.h"
 #include "libs/cache_lib/repl.h"
-#include "globals/utils.h"
 #include <vector>
 #include <string>
+#include <cstdlib>
+extern "C" {
+#include "libs/list_lib.h"
+#include "globals/utils.h"
+#include "globals/assert.h"
+#include "globals/global_defs.h"
+#include "globals/global_types.h"
+#include "globals/global_vars.h"
+}
 
-repl_class::repl_class(Repl_Policy policy, uns num_sets, uns assoc) :
+repl_class::repl_class(Repl_Policy_CPP policy, uns num_sets, uns assoc) :
     repl_policy(policy), repl_data(num_sets) {
     for(uns ii = 0; ii < num_sets; ii++){
         repl_data[ii].resize(assoc);
@@ -50,7 +56,7 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
     Counter max_access_cycle; 
     Counter max_prefetch_cycle; 
     switch(repl_policy){
-        case REPL_TRUE_LRU:
+        case LRU_REPL:
             res = -1;
             prefetch_res = -1;
             current = 0;
@@ -58,6 +64,8 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
             min_prefetch_cycle = MAX_INT; 
             for(auto index:list){
                 if(!index.valid){
+                    //the list is hard-coded to be the associcatity of the cache
+                    //this allows the cache to send less than that to the repl class
                     continue;
                 }
                 if(repl_data[index.set][index.way].valid == false)
@@ -78,10 +86,10 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
             ASSERT(0, res != -1);
             return list.at(res);
             break;
-        case REPL_RANDOM:
+        case RANDOM_REPL:
             return list[rand()%list.size()];
             break;
-        case REPL_MRU:
+        case MRU_REPL:
             current = 0;
             res = -1;
             prefetch_res = -1;
@@ -109,8 +117,36 @@ Cache_address repl_class::get_next_repl(std::vector<Cache_address> list){
             ASSERT(0, res != -1);
             return list.at(res);
             break;
+        case SRRIP_REPL:
+            while(1) {
+                for(auto index:list){
+                    if(!index.valid){
+                        continue;
+                    }
+                    if(repl_data[index.set][index.way].valid == false){
+                        return index;
+                    }
+                }
+                for(auto index:list){
+                    if(!index.valid){
+                        continue;
+                    }
+                    if(repl_data[index.set][index.way].rrpv == max_rrpv){
+                        return index;
+                    }
+                }
+                for(auto index:list){
+                    if(!index.valid){
+                        continue;
+                    }
+                    ASSERT(0, repl_data[index.set][index.way].rrpv != max_rrpv);
+                    repl_data[index.set][index.way].rrpv += 1;
+                }
+            }
+            break;
         default:
             ASSERT(0, false);
+
     }
     //should never reach here
     return list[0];
@@ -122,12 +158,18 @@ void repl_class::insert(Cache_address pos, uns proc_id, Flag is_prefetch){
     repl_data[pos.set][pos.way].proc_id = proc_id;
     repl_data[pos.set][pos.way].insert_cycle = cycle_count;
     repl_data[pos.set][pos.way].access_cycle = cycle_count;
+    if(repl_policy == SRRIP_REPL){
+        repl_data[pos.set][pos.way].rrpv = max_rrpv - 1;
+    }
 }
 
 void repl_class::access(Cache_address pos){
     ASSERT(0, repl_data[pos.set][pos.way].valid);
     repl_data[pos.set][pos.way].access_cycle = cycle_count;
     repl_data[pos.set][pos.way].prefetch = false;
+    if(repl_policy == SRRIP_REPL){
+        repl_data[pos.set][pos.way].rrpv = 0;
+    }
 }
 
 void repl_class::invalidate(Cache_address pos){
@@ -135,4 +177,7 @@ void repl_class::invalidate(Cache_address pos){
     repl_data[pos.way][pos.set].valid = false;
     repl_data[pos.way][pos.set].access_cycle = MAX_CTR;
     repl_data[pos.way][pos.set].insert_cycle = MAX_CTR;
+    if(repl_policy == SRRIP_REPL){
+        repl_data[pos.set][pos.way].rrpv = max_rrpv;
+    }
 }

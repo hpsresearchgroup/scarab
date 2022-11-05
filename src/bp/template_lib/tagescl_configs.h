@@ -25,6 +25,8 @@ struct TAGE_SC_L_CONFIG_64KB {
   // static constexpr bool PIPELINE_SUPPORT = true;
   static constexpr bool USE_LOOP_PREDICTOR       = true;
   static constexpr bool USE_SC                   = true;
+  //static constexpr bool USE_LOOP_PREDICTOR       = false;
+  //static constexpr bool USE_SC                   = false;
   static constexpr int  CONFIDENCE_COUNTER_WIDTH = 7;
 
   struct TAGE {
