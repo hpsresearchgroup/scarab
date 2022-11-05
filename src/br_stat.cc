@@ -3,7 +3,8 @@
 #include "globals/global_types.h"
 #include "globals/global_vars.h"
 #include "globals/utils.h"
-#include "op_pool.h"
+#include "op_info.h"
+#include "op.h"
 
 #include "bp/bp.h"
 #include "exec_ports.h"
