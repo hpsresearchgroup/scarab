@@ -417,9 +417,9 @@ class Tage {
       past_branches_queue.push_back(temp);
       if(past_branches_queue.size() == STALE_HISTORY_DISTANCE){
         Past_branch_entry<TAGE_CONFIG> oldest = past_branches_queue.front();
-        past_branches_queue.pop_front();
         tage_histories_.push_into_history(oldest.br_pc, oldest.br_target, oldest.br_type,
                                           oldest.branch_dir, oldest.prediction_info);
+        past_branches_queue.pop_front();
       }
       for(auto item:past_branches_queue){
         prediction_info->old_branch_checkpoint.push_back(item);
