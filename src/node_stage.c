@@ -54,7 +54,6 @@
 #include "statistics.h"
 
 #include "bp/tagescl.h"
-#include "br_stat.h"
 
 /* Macros */
 
@@ -818,7 +817,6 @@ void node_retire() {
         bp_resolve_op(g_bp_data, op);
       }
       bp_retire_op(g_bp_data, op);
-      collect_br_stats(op);
     }
 
     if(op->table_info->mem_type == MEM_LD &&
