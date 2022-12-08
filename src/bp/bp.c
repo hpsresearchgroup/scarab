@@ -43,7 +43,6 @@
 #include "bp/gshare.h"
 #include "bp/hybridgp.h"
 #include "bp/tagescl.h"
-#include "bp/pc_table.h"
 #include "libs/cache_lib.h"
 #include "model.h"
 #include "thread.h"

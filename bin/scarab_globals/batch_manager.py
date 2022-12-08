@@ -90,8 +90,7 @@ class PBSJobDefaults:
     memory_per_core: the ammount of memory that one core will require.
   """
   pbs_args="-V"
-  #queue=None
-  queue="clx"
+  queue=None
   processor_cores_per_node=10
   memory_per_core=None
 
@@ -349,3 +348,4 @@ cd $PBS_O_WORKDIR
     ids = []
     for phase in self.phase_list:
       ids = self.run_phase(phase, ids)
+
