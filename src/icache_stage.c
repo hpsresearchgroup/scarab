@@ -597,15 +597,15 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
         //
         ic->next_fetch_addr = bp_predict_op(g_bp_data, op, (*cf_num)++,
                                             ic->fetch_addr);
+        if(FETCH_NT_AFTER_BTB_MISS && op->oracle_info.btb_miss) {
+          ic->next_fetch_addr = ADDR_PLUS_OFFSET(
+            op->inst_info->addr, op->inst_info->trace_info.inst_size);
+        }
         // initially bp_predict_op can return a garbage, for multi core run,
         // addr must follow cmp addr convention
         ic->next_fetch_addr = convert_to_cmp_addr(ic->proc_id,
                                                   ic->next_fetch_addr);
         // set the next fetch addr to the fall through path under a btb miss
-        if(FETCH_NT_AFTER_BTB_MISS && op->oracle_info.btb_miss) {
-          ic->next_fetch_addr = ADDR_PLUS_OFFSET(
-            op->inst_info->addr, op->inst_info->trace_info.inst_size);
-        }
         ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
       }
 
