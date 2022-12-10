@@ -348,4 +348,3 @@ cd $PBS_O_WORKDIR
     ids = []
     for phase in self.phase_list:
       ids = self.run_phase(phase, ids)
-

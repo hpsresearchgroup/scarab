@@ -354,9 +354,6 @@ void update_exec_stage(Stage_Data* src_sd) {
 
       if(!BP_UPDATE_AT_RETIRE) {
         // this code updates the branch prediction structures
-        if(CBR_TARGET_UPDATE_AT_EXEC && op ->table_info->cf_type == CF_CBR){
-          bp_target_known_op(g_bp_data, op);
-        }
         if(op->table_info->cf_type >= CF_IBR)
           bp_target_known_op(g_bp_data, op);
 
@@ -365,19 +362,22 @@ void update_exec_stage(Stage_Data* src_sd) {
 
       if(op->oracle_info.current_mispred || op->oracle_info.misfetch) {
         bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
-                          /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/FALSE, /*force_offpath=*/FALSE);
+                          /*late_bp_recovery=*/FALSE,
+                          /*decode_bp_recovery=*/FALSE,
+                          /*force_offpath=*/FALSE);
         if(!op->off_path)
           op->recovery_scheduled = TRUE;
-      }else if(op->table_info->cf_type >= CF_IBR &&
-                op->oracle_info.no_target){// && 
-      //          op->oracle_info.fetch_mispred) {
+      } else if(op->table_info->cf_type >= CF_IBR &&
+                op->oracle_info.no_target) {  // &&
+        //          op->oracle_info.fetch_mispred) {
         ASSERT(bp_recovery_info->proc_id,
                bp_recovery_info->proc_id == op->proc_id);
-        if(FETCH_NT_AFTER_BTB_MISS){
+        if(FETCH_NT_AFTER_BTB_MISS) {
           bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
-                          /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/FALSE, /*force_offpath=*/FALSE);
-        }
-        else {
+                            /*late_bp_recovery=*/FALSE,
+                            /*decode_bp_recovery=*/FALSE,
+                            /*force_offpath=*/FALSE);
+        } else {
           op->oracle_info.pred_npc = op->oracle_info.npc;
           bp_sched_redirect(bp_recovery_info, op, op->exec_cycle);
         }

@@ -65,7 +65,7 @@ typedef struct Bp_Recovery_Info_struct {
                                 // prediction.
   Flag late_bp_recovery_wrong;  // TRUE if recovery is due to a late branch
                                 // prediction that is wrong.
-  Flag decode_recovery;         // TRUE if recovery is due to a redirect 
+  Flag decode_recovery;         // TRUE if recovery is due to a redirect
                                 // from a btb miss at decode
 
 } Bp_Recovery_Info;

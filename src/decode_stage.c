@@ -210,48 +210,47 @@ static inline void stage_process_op(Op* op) {
     if(cf <= CF_CALL) {
       // it is a direct branch, so the target is now known
       op->oracle_info.misfetch = FALSE;
-      if(CBR_TARGET_UPDATE_AT_EXEC) {
-        if(cf != CF_CBR){
-          //true direction is known as well at decode
-          bp_target_known_op(g_bp_data, op);
-        }
-      }
-      else{
-        bp_target_known_op(g_bp_data, op);
-      }
-    }  
+      bp_target_known_op(g_bp_data, op);
+    }
 
     if(FETCH_NT_AFTER_BTB_MISS) {
-      Flag latest_pred = USE_LATE_BP ? op->oracle_info.late_pred : op->oracle_info.pred;
+      Flag latest_pred = USE_LATE_BP ? op->oracle_info.late_pred :
+                                       op->oracle_info.pred;
       if(op->oracle_info.btb_miss)
-        DEBUG(op->proc_id, "decode cf %llu, btb miss:%d, latest_dir:%d, t_dir:%d\n", op->op_num, op->oracle_info.btb_miss, latest_pred, op->oracle_info.dir);
+        DEBUG(op->proc_id,
+              "decode cf %llu, btb miss:%d, latest_dir:%d, t_dir:%d\n",
+              op->op_num, op->oracle_info.btb_miss, latest_pred,
+              op->oracle_info.dir);
 
       if(cf <= CF_CALL && op->oracle_info.btb_miss && !bf) {
-        if(cf == CF_BR || cf == CF_CALL){
-          //uncond branches, always redirect
+        if(cf == CF_BR || cf == CF_CALL) {
+          // uncond branches, always redirect
           bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
-                        /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
-                        /*force_offpath=*/FALSE);
-          DEBUG(op->proc_id, "uncond op %llu, next fetch addr 0x%s\n", op->op_num, hexstr64s(op->oracle_info.npc));
+                            /*late_bp_recovery=*/FALSE,
+                            /*decode_bp_recovery=*/TRUE,
+                            /*force_offpath=*/FALSE);
+          DEBUG(op->proc_id, "uncond op %llu, next fetch addr 0x%s\n",
+                op->op_num, hexstr64s(op->oracle_info.npc));
         } else if(REDIRECT_COND_BTB_MISS_AT_DECODE) {
           if(latest_pred) {
-            //btb miss on a predicted taken
-            //can redirect fetch at decode based on late pred direction
+            // btb miss on a predicted taken
+            // can redirect fetch at decode based on late pred direction
             if(op->oracle_info.dir) {
               bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
-                            /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
-                            /*force_offpath=*/FALSE);
+                                /*late_bp_recovery=*/FALSE,
+                                /*decode_bp_recovery=*/TRUE,
+                                /*force_offpath=*/FALSE);
             } else {
               bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
-                            /*late_bp_recovery=*/FALSE, /*decode_bp_recovery=*/TRUE, 
-                            /*force_offpath=*/TRUE);
+                                /*late_bp_recovery=*/FALSE,
+                                /*decode_bp_recovery=*/TRUE,
+                                /*force_offpath=*/TRUE);
             }
           }
         }
       }
     } else {
       if(cf <= CF_CALL) {
-
         // since it is not indirect, redirect the input stream if it was a btb
         // miss
         if(op->oracle_info.btb_miss && !bf) {
@@ -273,6 +272,6 @@ static inline void stage_process_op(Op* op) {
           bp_sched_redirect(bp_recovery_info, op, cycle_count);
         }
       }
-    } 
+    }
   }
 }
