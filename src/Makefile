@@ -56,6 +56,8 @@ clang-format: ## Run clang-format on the entire repository (not just src/*)
 	../bin/run_clang_format_on_all.sh
 
 release: clang-format ## Run clang-format and compile opt, dbg, vgr, and gpf. Should be run to ensure Scarab is ready for release.
+	cmake --version
+	gcc --version
 	make --no-print-directory clean
 	make --no-print-directory -j all
 	@echo
