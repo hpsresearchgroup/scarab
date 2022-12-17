@@ -14,12 +14,12 @@ if(DEFINED ENV{SCARAB_ENABLE_MEMTRACE})
   set(flags_enable_memtrace "-DENABLE_MEMTRACE")
 endif()
 
-set(CMAKE_C_FLAGS_SCARABOPT   "-O3 -DNO_DEBUG -DLINUX -DX86_64 ${flags_enable_memtrace}")
-set(CMAKE_CXX_FLAGS_SCARABOPT "-O3 -DNO_DEBUG -DLINUX -DX86_64 ${flags_enable_memtrace}")
-set(CMAKE_C_FLAGS_VALGRIND    "-O0 -g3 -DLINUX -DX86_64 ${flags_enable_memtrace}")
-set(CMAKE_CXX_FLAGS_VALGRIND  "-O0 -g3 -DLINUX -DX86_64 ${flags_enable_memtrace}")
-set(CMAKE_C_FLAGS_GPROF       "${CMAKE_CXX_FLAGS_SCARABOPT} -pg -g3 ${flags_enable_memtrace}")
-set(CMAKE_CXX_FLAGS_GPROF     "${CMAKE_CXX_FLAGS_SCARABOPT} -pg -g3 ${flags_enable_memtrace}")
+set(CMAKE_C_FLAGS_SCARABOPT   "-O3 -DNO_DEBUG -DLINUX -DX86_64 -fcommon ${flags_enable_memtrace}")
+set(CMAKE_CXX_FLAGS_SCARABOPT "-O3 -DNO_DEBUG -DLINUX -DX86_64 -fcommon ${flags_enable_memtrace}")
+set(CMAKE_C_FLAGS_VALGRIND    "-O0 -g3 -DLINUX -DX86_64  -fcommon ${flags_enable_memtrace}")
+set(CMAKE_CXX_FLAGS_VALGRIND  "-O0 -g3 -DLINUX -DX86_64  -fcommon ${flags_enable_memtrace}")
+set(CMAKE_C_FLAGS_GPROF       "${CMAKE_CXX_FLAGS_SCARABOPT} -pg -g3  -fcommon ${flags_enable_memtrace}")
+set(CMAKE_CXX_FLAGS_GPROF     "${CMAKE_CXX_FLAGS_SCARABOPT} -pg -g3  -fcommon ${flags_enable_memtrace}")
 
 #build dependencies with default warn flags, otherwise dynamorio will not build
 add_subdirectory(deps)
