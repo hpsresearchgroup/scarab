@@ -41,16 +41,10 @@ clean_pin_exec:
 	make --directory pin/pin_exec clean --no-print-directory
 
 clean%: ## Clean a specific build directory
-	@make --version
-	@cmake --version
-	@gcc --version
 	rm -rf build/$*
 	rm -f scarab
 
 clean: clean_pin_exec ## Clean all build directories
-	@make --version
-	@cmake --version
-	@gcc --version
 	rm -rf build/
 	rm -f scarab
 
@@ -62,9 +56,6 @@ clang-format: ## Run clang-format on the entire repository (not just src/*)
 	../bin/run_clang_format_on_all.sh
 
 release: clang-format ## Run clang-format and compile opt, dbg, vgr, and gpf. Should be run to ensure Scarab is ready for release.
-	@make --version
-	@cmake --version
-	@gcc --version
 	make --no-print-directory clean
 	make --no-print-directory -j all
 	@echo
