@@ -99,7 +99,7 @@ typedef struct Trace_Uop_struct Trace_Uop;
 extern int op_type_delays[NUM_OP_TYPES];
 extern uns NEW_INST_TABLE_SIZE;  // TODO: what is this?
 
-char* trace_files[MAX_NUM_PROCS];
+// char* trace_files[MAX_NUM_PROCS];
 
 char dbg_print_buf[1024];
 
