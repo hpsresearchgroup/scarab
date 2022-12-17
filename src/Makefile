@@ -41,10 +41,16 @@ clean_pin_exec:
 	make --directory pin/pin_exec clean --no-print-directory
 
 clean%: ## Clean a specific build directory
+	@make --version
+	@cmake --version
+	@gcc --version
 	rm -rf build/$*
 	rm -f scarab
 
 clean: clean_pin_exec ## Clean all build directories
+	@make --version
+	@cmake --version
+	@gcc --version
 	rm -rf build/
 	rm -f scarab
 
