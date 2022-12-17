@@ -37,6 +37,7 @@ add_compile_options(
         "$<$<COMPILE_LANGUAGE:C>:${warn_c_flags}>"
         "$<$<COMPILE_LANGUAGE:CXX>:${warn_cxx_flags}>"
 )
+add_link_options("-fcommon")
 
 add_subdirectory(ramulator)
 add_subdirectory(pin/pin_lib)
