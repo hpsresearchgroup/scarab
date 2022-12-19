@@ -68,7 +68,7 @@ typedef struct Proc_Info_struct {
 
 FILE*         trace;
 Bank_Info*    bank_infos;
-Proc_Info*    proc_infos;
+Proc_Info*    mem_view_proc_infos;
 Trigger*      start_trigger;
 Mem_Req_Type* req_types;
 
@@ -96,15 +96,15 @@ void memview_init(void) {
   ASSERTM(0, trace, "Could not open %s\n", memview_filename);
 
   bank_infos = calloc(RAMULATOR_CHANNELS * RAMULATOR_BANKS, sizeof(Bank_Info));
-  proc_infos = calloc(NUM_CORES, sizeof(Proc_Info));
-  req_types  = malloc(
+  mem_view_proc_infos = calloc(NUM_CORES, sizeof(Proc_Info));
+  req_types           = malloc(
     (MEM_REQ_BUFFER_ENTRIES * (PRIVATE_MSHR_ON ? NUM_CORES : 1)) *
     sizeof(Mem_Req_Type));
 
   // Timing simulation start time might not be zero due to warmup
   // (which has to update time to maintain cache LRU information_
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    Proc_Info* info                   = &proc_infos[proc_id];
+    Proc_Info* info                   = &mem_view_proc_infos[proc_id];
     info->last_stalled_event_time     = freq_time();
     info->last_mem_blocked_event_time = freq_time();
     info->last_fus_change_time        = freq_time();
@@ -179,7 +179,7 @@ void memview_memqueue(Memview_Memqueue_Event event, Mem_Req* req) {
     return;
 
   ASSERT(0, req);
-  Proc_Info* proc_info = &proc_infos[req->proc_id];
+  Proc_Info* proc_info = &mem_view_proc_infos[req->proc_id];
   if(trigger_on(start_trigger)) {
     trace_memqueue_state(req->proc_id, proc_info->last_memqueue_change_time,
                          freq_time(), proc_info->num_reqs_by_type);
@@ -208,7 +208,7 @@ void memview_req_changed_type(struct Mem_Req_struct* req) {
           "We don't have mem_queue anymore. How can we make sure that req is a "
           "memory request?\n");
   ASSERT(0, req);
-  Proc_Info*   proc_info = &proc_infos[req->proc_id];
+  Proc_Info*   proc_info = &mem_view_proc_infos[req->proc_id];
   Mem_Req_Type old_type  = req_types[req->id];
   if(req->type == old_type)
     return;  // same type, no change
@@ -246,7 +246,7 @@ void memview_core_stall(uns proc_id, Flag stalled, Flag mem_blocked) {
   if(!MEMVIEW)
     return;
 
-  Proc_Info* proc_info = &proc_infos[proc_id];
+  Proc_Info* proc_info = &mem_view_proc_infos[proc_id];
 
   if(proc_info->stalled != stalled) {
     if(trigger_on(start_trigger)) {
@@ -283,7 +283,7 @@ void memview_fus_busy(uns proc_id, uns fus_busy) {
   if(!MEMVIEW)
     return;
 
-  Proc_Info* proc_info = &proc_infos[proc_id];
+  Proc_Info* proc_info = &mem_view_proc_infos[proc_id];
 
   if(proc_info->fus_busy != fus_busy) {
     if(trigger_on(start_trigger)) {
@@ -311,7 +311,7 @@ void memview_done(void) {
     return;
   if(trigger_on(start_trigger)) {
     for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-      Proc_Info* proc_info = &proc_infos[proc_id];
+      Proc_Info* proc_info = &mem_view_proc_infos[proc_id];
       trace_core_state(proc_id, proc_info->last_stalled_event_time, freq_time(),
                        proc_info->stalled ? "STALL" : "COMPUTE");
       trace_core_state(proc_id, proc_info->last_mem_blocked_event_time,

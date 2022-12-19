@@ -59,7 +59,7 @@
 
 extern Memory*       mem;
 extern Dcache_Stage* dc;
-Cache*               l1_cache;
+Cache*               l2l1_l1_cache;
 
 /***************************************************************************************/
 /* Local Prototypes */
@@ -79,7 +79,7 @@ Counter    last_hps_hit;
 void init_prefetch(void) {
   if(model->mem == MODEL_MEM) {
     ASSERTM(0, !PRIVATE_L1, "L2L1 Prefetcher assumes shared L1\n");
-    l1_cache = &mem->uncores[0].l1->cache;
+    l2l1_l1_cache = &mem->uncores[0].l1->cache;
   }
 
   if(L2L1PREF_ON)
@@ -132,7 +132,8 @@ void l2l1pref_mem_process(Mem_Req_Info* req) {
     l2next_pref(req);
 
   if(L1_HIT_DUMP_FILE_ON && (req->type == MRT_DFETCH)) {
-    int l1_set = req->addr >> (l1_cache)->shift_bits & (l1_cache)->set_mask;
+    int l1_set = req->addr >> (l2l1_l1_cache)->shift_bits &
+                 (l2l1_l1_cache)->set_mask;
     int dc_set = req->addr >> (&dc->dcache)->shift_bits &
                  (&dc->dcache)->set_mask;
     if(!L1_HIT_DUMP_WO_TXT)
@@ -215,8 +216,9 @@ void l2l1pref_dcache(Addr line_addr, Op* op) {
     int  train_hit = 0;
     int  pref_req  = 0;
     Addr req_addr  = 0;
-    int  l1_set    = line_addr >> (l1_cache)->shift_bits & (l1_cache)->set_mask;
-    int  dc_set    = line_addr >> (&dc->dcache)->shift_bits &
+    int  l1_set    = line_addr >> (l2l1_l1_cache)->shift_bits &
+                 (l2l1_l1_cache)->set_mask;
+    int dc_set = line_addr >> (&dc->dcache)->shift_bits &
                  (&dc->dcache)->set_mask;
 
     l2markv_pref(&tmp_req, &train_hit, &pref_req, &req_addr);
@@ -274,7 +276,7 @@ Dcache_Data* dc_pref_cache_access(Op* op) {
 
   if(DC_PREF_ONLY_L1HIT) {
     Addr     line_addr;
-    L1_Data* l1_data = (L1_Data*)cache_access(l1_cache, op->oracle_info.va,
+    L1_Data* l1_data = (L1_Data*)cache_access(l2l1_l1_cache, op->oracle_info.va,
                                               &line_addr, FALSE);
     if(!l1_data) {
       pref_cache_hit = FALSE;
@@ -333,8 +335,8 @@ Dcache_Data* dc_pref_cache_access(Op* op) {
     if(PREF_DCACHE_HIT_FILL_L1) {
       if(model->mem == MODEL_MEM) {
         Addr     line_addr;
-        L1_Data* l1_data = (L1_Data*)cache_access(l1_cache, op->oracle_info.va,
-                                                  &line_addr, TRUE);
+        L1_Data* l1_data = (L1_Data*)cache_access(
+          l2l1_l1_cache, op->oracle_info.va, &line_addr, TRUE);
         if(!l1_data) {
           Mem_Req tmp_req;
           tmp_req.addr     = op->oracle_info.va;
@@ -392,7 +394,8 @@ void dc_pref_cache_insert(Addr addr) {
   Dcache_Data* dc_data = (Dcache_Data*)cache_access(&dc->dcache, addr,
                                                     &line_addr, FALSE);
 
-  L1_Data* l1_data = (L1_Data*)cache_access(l1_cache, addr, &line_addr, FALSE);
+  L1_Data* l1_data = (L1_Data*)cache_access(l2l1_l1_cache, addr, &line_addr,
+                                            FALSE);
 
   if(dc_data)
     STAT_EVENT(0, DC_PREF_REQ_DCACHE_HIT);
@@ -425,7 +428,7 @@ void ideal_l2l1_prefetcher(Op* op) {
 
   if(!line) {  // dcache miss
     L1_Data* data = (L1_Data*)cache_access(
-      l1_cache, op->oracle_info.va, &line_addr,
+      l2l1_l1_cache, op->oracle_info.va, &line_addr,
       TRUE);  // update the replacement policy
 
     if(data) {  // l1 hit

@@ -112,7 +112,7 @@ enum {
 static Counter   chip_cycle_count;
 static Stat_Mon* stat_mon;
 
-Proc_Info* proc_infos;
+Proc_Info* perf_pred_proc_infos;
 
 /* static function prototypes */
 static void critical_access_plot(uns proc_id, Mem_Req_Type type, uns req_ret,
@@ -126,7 +126,7 @@ static void init_mlp_infos(void);
 
 static void critical_access_plot(uns proc_id, Mem_Req_Type type, uns req_ret,
                                  uns num) {
-  Proc_Info* proc = &proc_infos[proc_id];
+  Proc_Info* proc = &perf_pred_proc_infos[proc_id];
   _TRACE(CRITICAL_ACCESS_PLOT_ENABLE, proc->critical_access_plot_file,
          "%lld\t%lld\t%s\t%d\t%d\n", proc->last_plotted_cycle, chip_cycle_count,
          Mem_Req_Type_str(type), req_ret, num);
@@ -143,9 +143,9 @@ void init_perf_pred(void) {
   if(!PERF_PRED_ENABLE)
     return;
 
-  proc_infos = (Proc_Info*)malloc(sizeof(Proc_Info) * NUM_CORES);
+  perf_pred_proc_infos = (Proc_Info*)malloc(sizeof(Proc_Info) * NUM_CORES);
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    Proc_Info* proc  = &proc_infos[proc_id];
+    Proc_Info* proc  = &perf_pred_proc_infos[proc_id];
     proc->bank_infos = (Bank_Info*)malloc(sizeof(Bank_Info) * RAMULATOR_BANKS *
                                           RAMULATOR_CHANNELS);
     if(CRITICAL_ACCESS_PLOT_ENABLE) {
@@ -209,7 +209,7 @@ void perf_pred_mem_req_start(Mem_Req* req) {
   DEBUG(0, "Mem req %d (%s) started (bank %d)\n", req->id,
         Mem_Req_Type_str(req->type), req->mem_flat_bank);
 
-  Proc_Info* proc = &proc_infos[req->proc_id];
+  Proc_Info* proc = &perf_pred_proc_infos[req->proc_id];
 
   // Update these first so that is_critical() works
   req->perf_pred_type               = req->type;
@@ -257,7 +257,7 @@ void perf_pred_mem_req_done(Mem_Req* req) {
 
   DEBUG(0, "Mem req %d done (bank %d)\n", req->id, req->mem_flat_bank);
 
-  Proc_Info* proc = &proc_infos[req->proc_id];
+  Proc_Info* proc = &perf_pred_proc_infos[req->proc_id];
 
   // Leading load latency computation
 
@@ -372,8 +372,9 @@ void perf_pred_dram_latency_start(Mem_Req* req) {
     Flag row_hit = req->row_access_status == DRAM_REQ_ROW_HIT ||
                    req->shadow_row_hit;
     Flag       write = req->type == MRT_WB;
-    Bank_Info* info  = &proc_infos[req->proc_id].bank_infos[req->mem_flat_bank];
-    Counter    full_latency = freq_convert(
+    Bank_Info* info =
+      &perf_pred_proc_infos[req->proc_id].bank_infos[req->mem_flat_bank];
+    Counter full_latency = freq_convert(
       FREQ_DOMAIN_MEMORY,
       full_dram_latency(info->last_access_row_hit, row_hit, write),
       FREQ_DOMAIN_L1);
@@ -416,7 +417,8 @@ void perf_pred_dram_latency_end(Mem_Req* req) {
                                            FREQ_DOMAIN_L1);
   Counter pipelined_dram_latency = freq_convert(
     FREQ_DOMAIN_MEMORY, pipelined_dram_cycles, FREQ_DOMAIN_L1);
-  Bank_Info* info = &proc_infos[req->proc_id].bank_infos[req->mem_flat_bank];
+  Bank_Info* info =
+    &perf_pred_proc_infos[req->proc_id].bank_infos[req->mem_flat_bank];
   info->core_service_cycles = MAX2(
     info->core_service_cycles + pipelined_dram_latency,
     req->dram_core_service_cycles_at_start + full_dram_latency);
@@ -427,7 +429,7 @@ void perf_pred_update_mem_req_type(Mem_Req* req, Mem_Req_Type old_type,
   if(!PERF_PRED_ENABLE)
     return;
 
-  Proc_Info* proc = &proc_infos[req->proc_id];
+  Proc_Info* proc = &perf_pred_proc_infos[req->proc_id];
 
   //    ASSERT(0, is_critical_type(old_type) <= is_critical_type(req->type));
   //    // not necessarily true if prefetches are critical
@@ -455,7 +457,7 @@ void reset_perf_pred() {
     return;
 
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    Proc_Info* proc                    = &proc_infos[proc_id];
+    Proc_Info* proc                    = &perf_pred_proc_infos[proc_id];
     proc->current_leading_load         = NULL;
     proc->mem_req_critical_path_length = 0;
     for(int bank_id = 0; bank_id < RAMULATOR_BANKS * RAMULATOR_CHANNELS;
@@ -489,7 +491,7 @@ void perf_pred_core_busy(uns proc_id, uns num_fus_busy) {
   if(!PERF_PRED_ENABLE)
     return;
 
-  Proc_Info* proc = &proc_infos[proc_id];
+  Proc_Info* proc = &perf_pred_proc_infos[proc_id];
 
   Flag busy = num_fus_busy > 0;
   INC_STAT_EVENT(proc_id, CHIP_UTILIZATION, busy);
@@ -535,7 +537,7 @@ void perf_pred_done() {
   perf_pred_interval_done();
 
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    Proc_Info* proc = &proc_infos[proc_id];
+    Proc_Info* proc = &perf_pred_proc_infos[proc_id];
 
     if(CRITICAL_ACCESS_PLOT_ENABLE) {
       fclose(proc->critical_access_plot_file);
@@ -550,7 +552,7 @@ void perf_pred_slack(Mem_Req* req, Counter old_constraint, Counter latency,
   if(!PERF_PRED_ENABLE)
     return;
 
-  Proc_Info* proc = &proc_infos[0];
+  Proc_Info* proc = &perf_pred_proc_infos[0];
 
   if(old_constraint < proc->last_slack_period_start_in_memory_cycles) {
     /* This check really guards against using an old_constraint
@@ -589,7 +591,7 @@ void perf_pred_slack(Mem_Req* req, Counter old_constraint, Counter latency,
 }
 
 static void process_slack_period(uns proc_id, Counter slack_period_end) {
-  Proc_Info* proc = &proc_infos[proc_id];
+  Proc_Info* proc = &perf_pred_proc_infos[proc_id];
 
   Counter least_slack     = slack_period_end - proc->last_slack_period_start;
   Counter min_bus_latency = PERF_PRED_SLACK_PERIOD_SIZE * BUS_WIDTH_IN_BYTES /
@@ -631,7 +633,7 @@ void perf_pred_off_chip_effect_start(Mem_Req* req) {
   if(!PERF_PRED_ENABLE)
     return;
 
-  Proc_Info* proc = &proc_infos[req->proc_id];
+  Proc_Info* proc = &perf_pred_proc_infos[req->proc_id];
 
   ASSERT(
     0, proc->total_off_chip_delays < 10000);  // sanity check with magic number
@@ -644,7 +646,7 @@ void perf_pred_off_chip_effect_end(Mem_Req* req) {
   if(!PERF_PRED_ENABLE)
     return;
 
-  Proc_Info* proc = &proc_infos[req->proc_id];
+  Proc_Info* proc = &perf_pred_proc_infos[req->proc_id];
 
   ASSERT(0, proc->total_off_chip_delays > 0);
   proc->total_off_chip_delays -= 1;
@@ -657,7 +659,7 @@ void perf_pred_reset_stats(void) {
     return;
 
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    Proc_Info* proc = &proc_infos[proc_id];
+    Proc_Info* proc = &perf_pred_proc_infos[proc_id];
 
     STAT_EVENT(proc_id, PERF_PRED_NUM_STAT_RESETS);
     GET_STAT_EVENT(proc_id,
