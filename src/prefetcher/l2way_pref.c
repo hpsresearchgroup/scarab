@@ -64,7 +64,7 @@ L2way_Rec**    l2way_table;
 L1pref_Req*    l1pref_req_queue;
 static Counter l1pref_send_no;
 static Counter l1pref_req_no;
-Cache*         l2way_l1_cache;
+static Cache*  l1_cache;
 
 /**************************************************************************************/
 
@@ -91,7 +91,7 @@ void l2way_init(void) {
 
   if(model->mem == MODEL_MEM) {
     ASSERTM(0, !PRIVATE_L1, "L2 Way Prefetcher assumes shared L1\n");
-    l2way_l1_cache = &mem->uncores[0].l1->cache;
+    l1_cache = &mem->uncores[0].l1->cache;
   }
 }
 
@@ -107,7 +107,7 @@ void l2way_pref_train(Mem_Req_Info* req) {
   Addr   tag;
   Addr   line_addr;
   Addr   addr     = req->addr;
-  Cache* cache    = l2way_l1_cache;
+  Cache* cache    = l1_cache;
   uns    set      = cache_index_l(cache, addr, &tag, &line_addr);
   uns    prev_way = l2way_table[set][0].last_way;
 #define INIT_WAY 99999
@@ -162,7 +162,7 @@ void l2way_pref_pred(Mem_Req_Info* req) {
   Addr   tag;
   Addr   line_addr;
   Addr   addr  = req->addr;
-  Cache* cache = l2way_l1_cache;
+  Cache* cache = l1_cache;
   uns    set   = cache_index_l(cache, addr, &tag, &line_addr);
   uns    ii;
   uns    current_way = INIT_WAY;
@@ -181,7 +181,7 @@ void l2way_pref_pred(Mem_Req_Info* req) {
 
   if(l2way_table[set][current_way].counter > 2) {
     uns  fetch_way = l2way_table[set][current_way].pred_way;
-    Addr tag       = l2way_l1_cache->entries[set][fetch_way].tag;
+    Addr tag       = l1_cache->entries[set][fetch_way].tag;
     Addr va        = line_addr | (tag << cache->shift_bits);
     Addr line_addr, repl_line_addr;
 

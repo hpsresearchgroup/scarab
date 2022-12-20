@@ -64,8 +64,8 @@ typedef void (*Search_Func)(void);
 /**************************************************************************************/
 /* Global variables */
 
-Proc_Info* cache_part_proc_infos;
-Trigger*   l1_part_start;  // indicates the L1 partition has been enabled
+static Proc_Info* proc_infos;
+Trigger*          l1_part_start;  // indicates the L1 partition has been enabled
 Trigger* l1_part_trigger;  // external trigger for trigger repart (should not be
                            // set too often)
 Stat_Mon*   stat_mon;
@@ -112,9 +112,9 @@ void cache_part_init(void) {
   ASSERT(0, L1_ASSOC <= 128);
 
   // create shadow cache for each core
-  cache_part_proc_infos = calloc(NUM_CORES, sizeof(Proc_Info));
+  proc_infos = calloc(NUM_CORES, sizeof(Proc_Info));
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    Proc_Info* proc_info = &cache_part_proc_infos[proc_id];
+    Proc_Info* proc_info = &proc_infos[proc_id];
     char       buf[MAX_STR_LENGTH + 1];
     sprintf(buf, "SHADOW L1[%d]", proc_id);
     init_cache(&proc_info->shadow_cache, buf, L1_SIZE, L1_ASSOC, L1_LINE_SIZE,
@@ -454,7 +454,7 @@ void cache_part_l1_access(Mem_Req* req) {
   if(!in_shadow_cache(req->addr))
     return;
 
-  Proc_Info* proc_info = &cache_part_proc_infos[req->proc_id];
+  Proc_Info* proc_info = &proc_infos[req->proc_id];
   Addr       dummy_line_addr;
   int  pos = cache_find_pos_in_lru_stack(&proc_info->shadow_cache, req->proc_id,
                                         req->addr, &dummy_line_addr);
@@ -506,7 +506,7 @@ void cache_part_l1_access(Mem_Req* req) {
 /* cache_part_l1_warmup: */
 
 void cache_part_l1_warmup(uns proc_id, Addr addr) {
-  Proc_Info* proc_info = &cache_part_proc_infos[proc_id];
+  Proc_Info* proc_info = &proc_infos[proc_id];
   Addr       dummy_line_addr;
   L1_Data*   data = (L1_Data*)cache_access(&proc_info->shadow_cache, addr,
                                          &dummy_line_addr, TRUE);
@@ -556,8 +556,8 @@ void cache_part_update(void) {
 
 Flag in_shadow_cache(Addr addr) {
   Addr dummy_addr;
-  uns  set = ext_cache_index(&cache_part_proc_infos[0].shadow_cache, addr,
-                            &dummy_addr, &dummy_addr);
+  uns  set = ext_cache_index(&proc_infos[0].shadow_cache, addr, &dummy_addr,
+                            &dummy_addr);
   return set % L1_SHADOW_TAGS_MODULO == 0;
 }
 
@@ -566,7 +566,7 @@ Flag in_shadow_cache(Addr addr) {
 
 void measure_miss_curves(void) {
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    Proc_Info* proc_info   = &cache_part_proc_infos[proc_id];
+    Proc_Info* proc_info   = &proc_infos[proc_id];
     uns        access_stat = L1_PART_USE_STALLING ? L1_SHADOW_ACCESS_STALLING :
                                              L1_SHADOW_ACCESS_DEMAND;
     uns pos0_hit_stat = L1_PART_USE_STALLING ? L1_SHADOW_STALLING_HIT_POS0 :
@@ -747,7 +747,7 @@ void debug_cache_part(uns* old_partition, uns* new_partition) {
     ptr += sprintf(ptr, "%d,", new_partition[proc_id]);
     DPRINTF("Miss curve[%d]:", proc_id);
     for(uns ii = 0; ii < L1_ASSOC - 1; ii++) {
-      DPRINTF(" %.4f", cache_part_proc_infos[proc_id].miss_rates[ii]);
+      DPRINTF(" %.4f", proc_infos[proc_id].miss_rates[ii]);
     }
     DPRINTF("\n");
   }
@@ -761,7 +761,7 @@ void debug_cache_part(uns* old_partition, uns* new_partition) {
 double get_global_miss_rate(uns* partition) {
   double sum = 0.0;
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    Proc_Info* proc_info = &cache_part_proc_infos[proc_id];
+    Proc_Info* proc_info = &proc_infos[proc_id];
     Counter    accesses  = stat_mon_get_count(stat_mon, proc_id,
                                           L1_PART_USE_STALLING ?
                                             L1_SHADOW_ACCESS_STALLING :
@@ -777,7 +777,7 @@ double get_global_miss_rate(uns* partition) {
 double get_miss_rate_sum(uns* partition) {
   double sum = 0.0;
   for(uns proc_id = 0; proc_id < NUM_CORES; proc_id++) {
-    Proc_Info* proc_info = &cache_part_proc_infos[proc_id];
+    Proc_Info* proc_info = &proc_infos[proc_id];
     sum += proc_info->miss_rates[partition[proc_id]];
   }
   return sum;
@@ -809,7 +809,7 @@ double get_gmean_perf(uns* partition) {
            1 + | ------------- - 1 | x stall frac
                \ old miss rate     /
     */
-    Proc_Info* proc_info  = &cache_part_proc_infos[proc_id];
+    Proc_Info* proc_info  = &proc_infos[proc_id];
     double     stall_frac = (double)stat_mon_get_count(stat_mon, proc_id,
                                                    RET_BLOCKED_L1_MISS) /
                         (double)stat_mon_get_count(stat_mon, proc_id,
