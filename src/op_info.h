@@ -99,8 +99,18 @@ struct Op_Info_struct {
   Addr pred_addr;  // address used to predict branch (might be fetch_addr)
   uns8 pred;       // predicted direction of branch, set by the branch predictor
   Flag misfetch;   // true if target address is the ONLY thing that was wrong
-  Flag mispred;  // true if the direction of the branch was mispredicted and the
-                 // branch should cause a recovery, set by the branch predictor
+
+  //*mispred* in general only deals with directional prediction
+  // (late_)mispred is only looking at if the direcitonal predictor matches with
+  // the true direction fetch_(late_)mispred also consider that a btb miss
+  // forces the NT path regardless of the BP
+
+  Flag mispred;  // true if the direction of the branch was mispredicted by the
+                 // BP set by the branch predictor
+  Flag fetch_mispred;       // is the direction correct after early BP and BTB
+  Flag fetch_late_mispred;  // is the direction correct after late BP and BTB
+  Flag current_mispred;     // is the branch currently mispredicting in the
+                            // pipeline
   Flag btb_miss;           // true if the target is not known at prediction time
   Flag btb_miss_resolved;  // true if the btb miss is resolved by the pipeline.
   Flag no_target;  // true if there is no target for this branch at prediction
@@ -109,6 +119,9 @@ struct Op_Info_struct {
                    // branch predictor
   Addr late_pred_npc;  // predicted next pc field by the multi-cycle branch
                        // predictor
+  Addr pred_target_known_npc;  // predict next pc assuming a btb miss
+                               // this is not the same as npc for indirect
+                               // branches
   Flag late_misfetch;  // true if target address is the ONLY thing that was
                        // wrong after the multi-cycle branch prediction kicks in
   Flag  late_mispred;  // true if the multi-cycle branch predictor mispredicted

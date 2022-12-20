@@ -66,11 +66,11 @@ typedef struct Proc_Info_struct {
 /**************************************************************************************/
 /* Global Variables */
 
-FILE*         trace;
-Bank_Info*    bank_infos;
-Proc_Info*    proc_infos;
-Trigger*      start_trigger;
-Mem_Req_Type* req_types;
+FILE*             trace;
+Bank_Info*        bank_infos;
+static Proc_Info* proc_infos;
+Trigger*          start_trigger;
+Mem_Req_Type*     req_types;
 
 /**************************************************************************************/
 /* Local Prototypes */

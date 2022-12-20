@@ -36,6 +36,7 @@
 #include "isa/isa_macros.h"
 
 #include "bp/bp.h"
+#include "bp/bp.param.h"
 #include "decode_stage.h"
 #include "op_pool.h"
 
@@ -208,27 +209,68 @@ static inline void stage_process_op(Op* op) {
 
     if(cf <= CF_CALL) {
       // it is a direct branch, so the target is now known
+      op->oracle_info.misfetch = FALSE;
       bp_target_known_op(g_bp_data, op);
+    }
 
-      // since it is not indirect, redirect the input stream if it was a btb
-      // miss
-      if(op->oracle_info.btb_miss && !bf) {
-        // since this is direct, it can no longer a misfetch
-        op->oracle_info.misfetch = FALSE;
-        op->oracle_info.pred_npc = op->oracle_info.pred ?
-                                     op->oracle_info.target :
-                                     ADDR_PLUS_OFFSET(
-                                       op->inst_info->addr,
-                                       op->inst_info->trace_info.inst_size);
-        ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
-        // schedule a redirect using the predicted npc
-        bp_sched_redirect(bp_recovery_info, op, cycle_count);
+    if(FETCH_NT_AFTER_BTB_MISS) {
+      Flag latest_pred = USE_LATE_BP ? op->oracle_info.late_pred :
+                                       op->oracle_info.pred;
+      if(op->oracle_info.btb_miss)
+        DEBUG(op->proc_id,
+              "decode cf %llu, btb miss:%d, latest_dir:%d, t_dir:%d\n",
+              op->op_num, op->oracle_info.btb_miss, latest_pred,
+              op->oracle_info.dir);
+
+      if(cf <= CF_CALL && op->oracle_info.btb_miss && !bf) {
+        if(cf == CF_BR || cf == CF_CALL) {
+          // uncond branches, always redirect
+          bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
+                            /*late_bp_recovery=*/FALSE,
+                            /*decode_bp_recovery=*/TRUE,
+                            /*force_offpath=*/FALSE);
+          DEBUG(op->proc_id, "uncond op %llu, next fetch addr 0x%s\n",
+                op->op_num, hexstr64s(op->oracle_info.npc));
+        } else if(REDIRECT_COND_BTB_MISS_AT_DECODE) {
+          if(latest_pred) {
+            // btb miss on a predicted taken
+            // can redirect fetch at decode based on late pred direction
+            if(op->oracle_info.dir) {
+              bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
+                                /*late_bp_recovery=*/FALSE,
+                                /*decode_bp_recovery=*/TRUE,
+                                /*force_offpath=*/FALSE);
+            } else {
+              bp_sched_recovery(bp_recovery_info, op, op->exec_cycle,
+                                /*late_bp_recovery=*/FALSE,
+                                /*decode_bp_recovery=*/TRUE,
+                                /*force_offpath=*/TRUE);
+            }
+          }
+        }
       }
     } else {
-      // the instruction is indirect, so we can only unstall the front end
-      if(op->oracle_info.btb_miss && !op->oracle_info.no_target && !bf) {
-        // schedule a redirect using the predicted npc
-        bp_sched_redirect(bp_recovery_info, op, cycle_count);
+      if(cf <= CF_CALL) {
+        // since it is not indirect, redirect the input stream if it was a btb
+        // miss
+        if(op->oracle_info.btb_miss && !bf) {
+          // since this is direct, it can no longer a misfetch
+          op->oracle_info.misfetch = FALSE;
+          op->oracle_info.pred_npc = op->oracle_info.pred ?
+                                       op->oracle_info.target :
+                                       ADDR_PLUS_OFFSET(
+                                         op->inst_info->addr,
+                                         op->inst_info->trace_info.inst_size);
+          ASSERT_PROC_ID_IN_ADDR(op->proc_id, op->oracle_info.pred_npc);
+          // schedule a redirect using the predicted npc
+          bp_sched_redirect(bp_recovery_info, op, cycle_count);
+        }
+      } else {
+        // the instruction is indirect, so we can only unstall the front end
+        if(op->oracle_info.btb_miss && !op->oracle_info.no_target && !bf) {
+          // schedule a redirect using the predicted npc
+          bp_sched_redirect(bp_recovery_info, op, cycle_count);
+        }
       }
     }
   }

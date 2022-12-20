@@ -164,6 +164,9 @@ DEF_PARAM(fetch_taken_bubble_cycles, FETCH_TAKEN_BUBBLE_CYCLES, uns, uns, 0, )
 DEF_PARAM(wp_collect_stats, WP_COLLECT_STATS, Flag, Flag, FALSE, )
 DEF_PARAM(switch_ic_fetch_on_recovery, SWITCH_IC_FETCH_ON_RECOVERY, Flag, Flag,
           TRUE, )
+DEF_PARAM(fetch_nt_after_btb_miss, FETCH_NT_AFTER_BTB_MISS, Flag, Flag, FALSE, )
+DEF_PARAM(btb_only_insert_taken_br, BTB_ONLY_INSERT_TAKEN_BR, Flag, Flag, FALSE, )
+DEF_PARAM(redirect_cond_btb_miss_at_decode, REDIRECT_COND_BTB_MISS_AT_DECODE, Flag, Flag, FALSE, )
 
 /* functional unit delays by op_type */
 /* note: memory delays correspond to address computation time.  This

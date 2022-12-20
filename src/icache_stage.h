@@ -69,6 +69,8 @@ typedef struct Icache_Stage_struct {
   Addr        fetch_addr;      /* address fetched */
   Addr        next_fetch_addr; /* address to fetch */
   Flag        off_path;        /* is the icache fetching on the correct path? */
+  Flag        off_path_btb_miss; /* is the icache off path from a btb miss */
+  Counter     oldest_btb_miss_op_num; /* uid of the oldest btb miss*/
   Flag back_on_path; /* did a recovery happen to put the machine back on path?
                       */
 
@@ -96,13 +98,6 @@ typedef struct Icache_Data_struct {
   Counter fetch_cycle;
   Counter onpath_use_cycle;
 } Icache_Data;
-
-
-/**************************************************************************************/
-/* Global Variables */
-
-Pb_Data* ic_pb_data;  // cmp cne is fine for cmp now assuming homogeneous cmp
-// But decided to use array for future use
 
 
 /**************************************************************************************/
