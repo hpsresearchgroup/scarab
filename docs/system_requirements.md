@@ -10,6 +10,7 @@ Scarab relies on the following software packages:
 * [Intel PIN (see below)](#tested-intel-pin-versions)
 * g++ 7.3.1
 * gcc 7.3.1
+* cmake 3.12
 * Clang 5.0.1
 * Python 3.6.3
 * [Intel XED 12.01](https://github.com/intelxed/xed/releases) (included as a git submodule)
