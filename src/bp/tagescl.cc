@@ -83,6 +83,7 @@ void bp_tagescl_init() {
   }
   ASSERTM(0, tagescl_predictors.size() == NUM_CORES,
           "tagescl_predictors not initialized correctly");
+  tagescl_predictors[0]->print_size();
 }
 
 void bp_tagescl_timestamp(Op* op) {

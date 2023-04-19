@@ -207,6 +207,12 @@ class Loop_Predictor {
     }
   }
 
+  int64_t size() {
+    int64_t num_entries = int64_t(1) << LOOP_CONFIG::LOG_NUM_ENTRIES;
+    int64_t entry_bits = (2 * LOOP_CONFIG::ITERATION_COUNTER_WIDTH  + LOOP_CONFIG::TAG_BITS + 4 + 4 + 1);
+    return num_entries * entry_bits + LOOP_CONFIG::CONFIDENCE_THRESHOLD ;
+  }
+
   static void build_empty_prediction(
     Loop_Prediction_Info<LOOP_CONFIG>* prediction_info) {
     prediction_info->hit_bank = -1;

@@ -192,6 +192,75 @@ class Statistical_Corrector {
     }
   }
 
+  template<class Histories>
+  static int64_t sc_gehl_component_size (int64_t log_entries_per_table, int64_t precision) {
+      static constexpr int num_histories = sizeof(Histories::arr) / sizeof(Histories::arr[0]);
+      int64_t max_hist = Histories::arr[0];
+      int64_t part1 = (num_histories - 2) * (int64_t(1) <<  log_entries_per_table) * precision;
+      int64_t part2 = (int64_t(1) <<  (log_entries_per_table - 1)) * (2 * precision);
+      return part1 + part2 + max_hist;
+  };
+
+  int64_t size() {
+    int64_t update_threshold_table = (int64_t(1) << CONFIG::SC::LOG_SIZE_PERPC_THRESHOLD_TABLE) * (CONFIG::SC::PERPC_UPDATE_THRESHOLD_WIDTH);
+    int64_t variable_threshold_table = 3 * (int64_t(1) << CONFIG::SC::LOG_SIZE_VARIABLE_THRESHOLD_TABLE) * (CONFIG::SC::VARIABLE_THRESHOLD_WIDTH);
+    int64_t bias_table = (int64_t(1) << CONFIG::SC::LOG_BIAS_ENTRIES) * CONFIG::SC::PRECISION;
+
+    int64_t global_component_storage = sc_gehl_component_size<typename CONFIG::SC::GLOBAL_HISTORY_GEHL_HISTORIES>(
+        CONFIG::SC::LOG_SIZE_GLOBAL_HISTORY_GEHL,
+        CONFIG::SC::PRECISION
+    );
+    int64_t path_component_storage = sc_gehl_component_size<typename CONFIG::SC::PATH_GEHL_HISTORIES>(
+        CONFIG::SC::LOG_SIZE_PATH_GEHL,
+        CONFIG::SC::PRECISION
+    );
+    path_component_storage -= CONFIG::SC::PATH_GEHL_HISTORIES::arr[0]; // already accounted for in Tage
+
+    int64_t first_local_storage = 0;
+    int64_t second_local_storage = 0;
+    int64_t third_local_storage = 0;
+    if (CONFIG::SC::USE_LOCAL_HISTORY) {
+      first_local_storage = sc_gehl_component_size<typename CONFIG::SC::FIRST_LOCAL_GEHL_HISTORIES >(
+          CONFIG::SC::LOG_SIZE_FIRST_LOCAL_GEHL,
+          CONFIG::SC::PRECISION);
+      first_local_storage += (int64_t(1) << CONFIG::SC::FIRST_LOCAL_HISTORY_LOG_TABLE_SIZE ) * CONFIG::SC::FIRST_LOCAL_GEHL_HISTORIES::arr[0];
+      first_local_storage += (int64_t(1) << CONFIG::SC::LOG_SIZE_VARIABLE_THRESHOLD_TABLE) * (CONFIG::SC::VARIABLE_THRESHOLD_WIDTH);
+
+      if (CONFIG::SC::USE_SECOND_LOCAL_HISTORY) {
+        second_local_storage = sc_gehl_component_size<typename CONFIG::SC::SECOND_LOCAL_GEHL_HISTORIES >(
+            CONFIG::SC::LOG_SIZE_SECOND_LOCAL_GEHL,
+            CONFIG::SC::PRECISION);
+        second_local_storage += (int64_t(1) << CONFIG::SC::SECOND_LOCAL_HISTORY_LOG_TABLE_SIZE ) * CONFIG::SC::SECOND_LOCAL_GEHL_HISTORIES::arr[0];
+        second_local_storage += (int64_t(1) << CONFIG::SC::LOG_SIZE_VARIABLE_THRESHOLD_TABLE) * (CONFIG::SC::VARIABLE_THRESHOLD_WIDTH);
+      }
+
+      if (CONFIG::SC::USE_THIRD_LOCAL_HISTORY) {
+        third_local_storage = sc_gehl_component_size<typename CONFIG::SC::THIRD_LOCAL_GEHL_HISTORIES >(
+            CONFIG::SC::LOG_SIZE_THIRD_LOCAL_GEHL,
+            CONFIG::SC::PRECISION);
+        third_local_storage += (int64_t(1) << CONFIG::SC::THIRD_LOCAL_HISTORY_LOG_TABLE_SIZE ) * CONFIG::SC::THIRD_LOCAL_GEHL_HISTORIES::arr[0];
+        third_local_storage += (int64_t(1) << CONFIG::SC::LOG_SIZE_VARIABLE_THRESHOLD_TABLE) * (CONFIG::SC::VARIABLE_THRESHOLD_WIDTH);
+      }
+    }
+
+    int64_t imli_storage = 0;
+    if (CONFIG::SC::USE_IMLI) {
+      imli_storage += (int64_t(1) << (CONFIG::SC::log_size_first_imli_gehl - 1)) * CONFIG::SC::PRECISION;
+      imli_storage += CONFIG::SC::IMLI_COUNTER_WIDTH;
+
+      using IMLI_HISTORIES = typename CONFIG::SC::SECOND_IMLI_GEHL_HISTORIES;
+      static constexpr int num_imli_histories = sizeof(IMLI_HISTORIES::arr) / sizeof(IMLI_HISTORIES::arr[0]);
+      imli_storage += num_imli_histories * (int64_t(1) << (CONFIG::SC::LOG_SIZE_SECOND_IMLI_GEHL)) * CONFIG::SC::PRECISION;
+      imli_storage += 2 * (int64_t(1) << CONFIG::SC::LOG_SIZE_VARIABLE_THRESHOLD_TABLE) * (CONFIG::SC::VARIABLE_THRESHOLD_WIDTH);
+      imli_storage += CONFIG::SC::IMLI_TABLE_SIZE * IMLI_HISTORIES::arr[0];
+    }
+
+    int64_t confidence_counter_bits = 2 * CONFIG::CONFIDENCE_COUNTER_WIDTH;
+    
+    return update_threshold_table  + variable_threshold_table + bias_table + global_component_storage + path_component_storage  +
+first_local_storage  + second_local_storage + third_local_storage + imli_storage + confidence_counter_bits;
+  }
+
  private:
   using Counter_Type = Saturating_Counter<CONFIG::SC::PRECISION, true>;
   using Per_PC_Threshold_Table_Type =

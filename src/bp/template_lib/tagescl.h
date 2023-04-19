@@ -50,6 +50,7 @@ class Tage_SC_L_Base {
                                              Branch_Type br_type,
                                              bool        resolve_dir,
                                              uint64_t    br_target)      = 0;
+  virtual void print_size() = 0;
 };
 
 /* Interface functions:
@@ -115,11 +116,13 @@ class Tage_SC_L : public Tage_SC_L_Base {
 
   // Flushes the branch and all branches that came after it and repairs the
   // speculative state of the predictor. It invalidated all branch_id of
-  // flushed
-  // branches.
+  // flushed branches.
   void flush_branch_and_repair_state(int64_t branch_id, uint64_t br_pc,
                                      Branch_Type br_type, bool resolve_dir,
                                      uint64_t br_target) override;
+
+  // Print the breakdown and the total storage of the predictor.
+  void print_size() override;
 
  private:
   Random_Number_Generator               random_number_gen_;
@@ -242,6 +245,38 @@ void Tage_SC_L<CONFIG>::flush_branch_and_repair_state(int64_t     branch_id,
     statistical_corrector_.update_speculative_state(
       br_pc, resolve_dir, br_target, br_type, &prediction_info.sc);
   }
+}
+
+template <class CONFIG>
+void Tage_SC_L<CONFIG>::print_size() {
+  printf("----- Tage-SC-L Size Breakdown -----\n");
+
+  int64_t tage_size = tage_.size();
+
+  int64_t loop_predictor_size = 0;
+  if(CONFIG::USE_LOOP_PREDICTOR) {
+    loop_predictor_size = loop_predictor_.size();
+  }
+
+  int64_t sc_size = 0;
+  if(CONFIG::USE_LOOP_PREDICTOR) {
+    sc_size = statistical_corrector_.size();
+  }
+
+  printf("Tage Size: %ld bits, %.3f KB\n",
+         tage_size, static_cast<double>(tage_size) / 8 / 1024 );
+
+  printf("Loop Predictor Size: %ld bits, %.3f KB\n",
+         loop_predictor_size, static_cast<double>(loop_predictor_size) / 8 / 1024 );
+
+  printf("Statistical Correctoer Size: %ld bits, %.3f KB\n",
+         sc_size, static_cast<double>(sc_size) / 8 / 1024 );
+
+  auto total_size = tage_size + loop_predictor_size + sc_size;
+
+  printf("......\n");
+  printf("Total TAGE-SC-L Size: %ld bits, %.3f KB\n",
+         total_size, static_cast<double>(total_size) / 8 / 1024 );
 }
 
 template <class CONFIG>

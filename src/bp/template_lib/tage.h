@@ -603,6 +603,23 @@ class Tage {
   void local_recover_speculative_state(
     const Tage_Prediction_Info<TAGE_CONFIG>& prediction_info) {}
 
+  int64_t size() {
+    int64_t entries_per_bank = int64_t(1) << TAGE_CONFIG::LOG_ENTRIES_PER_BANK;
+    int64_t long_history_entry_bits = TAGE_CONFIG::LONG_HISTORY_TAG_BITS       +  TAGE_CONFIG::PRED_COUNTER_WIDTH          + TAGE_CONFIG::USEFUL_BITS;
+    int64_t short_history_entry_bits = TAGE_CONFIG::SHORT_HISTORY_TAG_BITS       +  TAGE_CONFIG::PRED_COUNTER_WIDTH          + TAGE_CONFIG::USEFUL_BITS;
+
+    int64_t long_history_banks_storage = TAGE_CONFIG::LONG_HISTORY_NUM_BANKS * entries_per_bank * long_history_entry_bits;
+    int64_t short_history_banks_storage = TAGE_CONFIG::SHORT_HISTORY_NUM_BANKS * entries_per_bank * short_history_entry_bits;
+    
+    int64_t alt_table_storage = (int64_t(1) << TAGE_CONFIG::ALT_SELECTOR_LOG_TABLE_SIZE) * TAGE_CONFIG::ALT_SELECTOR_ENTRY_WIDTH;
+    int64_t bimodal_storage = (int64_t(1) << TAGE_CONFIG::BIMODAL_LOG_TABLES_SIZE) + ((1 << (TAGE_CONFIG::BIMODAL_LOG_TABLES_SIZE - TAGE_CONFIG::BIMODAL_HYSTERESIS_SHIFT)));
+
+    int64_t history_bits = TAGE_CONFIG::MAX_HISTORY_SIZE            + TAGE_CONFIG::PATH_HISTORY_WIDTH          ;
+    int64_t tick_counter_bits =  get_min_num_bits_to_represent(TAGE_CONFIG::TICKS_UNTIL_USEFUL_SHIFT);
+
+    return long_history_banks_storage  + short_history_banks_storage  +alt_table_storage  + bimodal_storage + history_bits + tick_counter_bits;
+  }
+
   static void build_empty_prediction(
     Tage_Prediction_Info<TAGE_CONFIG>* prediction_info) {
     *prediction_info = {};
