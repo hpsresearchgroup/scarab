@@ -36,6 +36,7 @@
 
 #include "bp/bp.h"
 #include "dcache_stage.h"
+#include "libs/cache_lib.h"
 #include "map.h"
 #include "model.h"
 
@@ -90,8 +91,11 @@ void init_dcache_stage(uns8 proc_id, const char* name) {
   dc->sd.ops          = (Op**)malloc(sizeof(Op*) * STAGE_MAX_OP_COUNT);
 
   /* initialize the cache structure */
-  init_cache(&dc->dcache, "DCACHE", DCACHE_SIZE, DCACHE_ASSOC, DCACHE_LINE_SIZE,
-             sizeof(Dcache_Data), DCACHE_REPL);
+  init_cache(&dc->dcache, "DCACHE", DCACHE_SIZE, DCACHE_ASSOC, DCACHE_LINE_SIZE, sizeof(Dcache_Data), DCACHE_REPL);
+
+  uns full_assoc = DCACHE_SIZE / DCACHE_LINE_SIZE;
+  init_cache(&dc->fa_dcache, "FA_DCACHE", DCACHE_SIZE, full_assoc, DCACHE_LINE_SIZE, sizeof(Dcache_Data), DCACHE_REPL);
+  init_hash_table(&dc->compulsory_table, "COMPULSORY_MISS_TABLE", sizeof(Addr));
 
   reset_dcache_stage();
 
@@ -156,6 +160,7 @@ void debug_dcache_stage() {
 /* update_dcache_stage: */
 void update_dcache_stage(Stage_Data* src_sd) {
   Dcache_Data* line;
+  Dcache_Data* fa_line;
   Counter      oldest_op_num, last_oldest_op_num;
   uns          oldest_index;
   int          start_op_count;
@@ -284,8 +289,8 @@ void update_dcache_stage(Stage_Data* src_sd) {
 
     /* now access the dcache with it */
 
-    line = (Dcache_Data*)cache_access(&dc->dcache, op->oracle_info.va,
-                                      &line_addr, TRUE);
+    line = (Dcache_Data*)cache_access(&dc->dcache, op->oracle_info.va, &line_addr, TRUE);
+    fa_line = (Dcache_Data*)cache_access(&dc->fa_dcache, op->oracle_info.va, &line_addr, TRUE);
     op->dcache_cycle = cycle_count;
     dc->idle_cycle   = MAX2(dc->idle_cycle, cycle_count + DCACHE_CYCLES);
 
@@ -367,6 +372,23 @@ void update_dcache_stage(Stage_Data* src_sd) {
         wake_up_ops(op, REG_DATA_DEP, model->wake_hook);
       }
     } else {  // data cache miss
+
+      // insert into FA cache if not already there
+      if (!fa_line){
+        Addr fa_line_addr, fa_repl_line_addr;
+        cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr, &fa_repl_line_addr);
+      }
+
+      // check compulsory miss
+      Addr *comp_hit = (Addr*)hash_table_access(dc->compulsory_table, line_addr);
+      if (!comp_hit){
+        STAT_EVENT(op->proc_id, DCACHE_COMPULSORY_MISS);
+      } else if (fa_line) {
+        STAT_EVENT(op->proc_id, DCACHE_CONFLICT_MISS);
+      } else {
+        STAT_EVENT(op->proc_id, DCACHE_CAPACITY_MISS);
+      }
+
       if(op->table_info->mem_type == MEM_ST)
         STAT_EVENT(op->proc_id, POWER_DCACHE_WRITE_MISS);
       else
