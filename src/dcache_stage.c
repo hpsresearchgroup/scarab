@@ -92,11 +92,23 @@ void init_dcache_stage(uns8 proc_id, const char* name) {
   dc->sd.ops          = (Op**)malloc(sizeof(Op*) * STAGE_MAX_OP_COUNT);
 
   /* initialize the cache structure */
-  init_cache(&dc->dcache, "DCACHE", DCACHE_SIZE, DCACHE_ASSOC, DCACHE_LINE_SIZE, sizeof(Dcache_Data), DCACHE_REPL);
+  init_cache(&dc->dcache, "DCACHE", DCACHE_SIZE, DCACHE_ASSOC, DCACHE_LINE_SIZE,
+             sizeof(Dcache_Data), DCACHE_REPL);
 
+  /* (nilay) To track compulsory misses, we simply log every memory address we
+     access into a hash table and see if its been accessed before.
+
+     To track conflict misses, we use a second fake cache that's fully
+     associative, since that will have 0 conflict misses, and thus we can count
+     conflicts by subtracting the total misses from the FA misses.
+
+     The rest are capacity misses.
+   */
   uns full_assoc = DCACHE_SIZE / DCACHE_LINE_SIZE;
-  init_cache(&dc->fa_dcache, "FA_DCACHE", DCACHE_SIZE, full_assoc, DCACHE_LINE_SIZE, sizeof(Dcache_Data), DCACHE_REPL);
-  init_hash_table(&dc->compulsory_table, "COMPULSORY_MISS_TABLE", DCACHE_SIZE, sizeof(Addr));
+  init_cache(&dc->fa_dcache, "FA_DCACHE", DCACHE_SIZE, full_assoc,
+             DCACHE_LINE_SIZE, sizeof(Dcache_Data), DCACHE_REPL);
+  init_hash_table(&dc->compulsory_table, "COMPULSORY_MISS_TABLE", DCACHE_SIZE,
+                  sizeof(Addr));
 
   reset_dcache_stage();
 
@@ -290,8 +302,10 @@ void update_dcache_stage(Stage_Data* src_sd) {
 
     /* now access the dcache with it */
 
-    line = (Dcache_Data*)cache_access(&dc->dcache, op->oracle_info.va, &line_addr, TRUE);
-    fa_line = (Dcache_Data*)cache_access(&dc->fa_dcache, op->oracle_info.va, &line_addr, TRUE);
+    line    = (Dcache_Data*)cache_access(&dc->dcache, op->oracle_info.va,
+                                         &line_addr, TRUE);
+    fa_line = (Dcache_Data*)cache_access(&dc->fa_dcache, op->oracle_info.va,
+                                         &line_addr, TRUE);
     op->dcache_cycle = cycle_count;
     dc->idle_cycle   = MAX2(dc->idle_cycle, cycle_count + DCACHE_CYCLES);
 
@@ -375,16 +389,20 @@ void update_dcache_stage(Stage_Data* src_sd) {
     } else {  // data cache miss
 
       // insert into FA cache if not already there
-      if (!fa_line){
+      if(!fa_line) {
         Addr fa_line_addr, fa_repl_line_addr;
-        cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr, &fa_repl_line_addr);
+        cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
+                     &fa_repl_line_addr);
       }
 
       // check compulsory miss
-      Addr *comp_hit = (Addr*)hash_table_access(&dc->compulsory_table, line_addr);
-      if (!comp_hit){
+      Addr* comp_hit = (Addr*)hash_table_access(&dc->compulsory_table,
+                                                line_addr);
+      if(!comp_hit) {
         STAT_EVENT(op->proc_id, DCACHE_COMPULSORY_MISS);
-      } else if (fa_line) {
+        Flag new_entry;
+        hash_table_access_create(&dc->compulsory_table, line_addr, &new_entry);
+      } else if(fa_line) {
         STAT_EVENT(op->proc_id, DCACHE_CONFLICT_MISS);
       } else {
         STAT_EVENT(op->proc_id, DCACHE_CAPACITY_MISS);
@@ -400,9 +418,9 @@ void update_dcache_stage(Stage_Data* src_sd) {
 
       if(op->table_info->mem_type == MEM_LD) {  // load request
         if(((model->mem == MODEL_MEM) &&
-            scan_stores(
-              op->oracle_info.va,
-              op->oracle_info.mem_size))) {  // scan the store forwarding buffer
+            scan_stores(op->oracle_info.va,
+                        op->oracle_info.mem_size))) {  // scan the store
+                                                       // forwarding buffer
           if(!op->off_path) {
             STAT_EVENT(op->proc_id, DCACHE_ST_BUFFER_HIT);
             STAT_EVENT(op->proc_id, DCACHE_ST_BUFFER_HIT_ONPATH);
@@ -716,12 +734,12 @@ Flag dcache_fill_line(Mem_Req* req) {
   data->misc_state         = req->off_path | req->off_path << 1;
   data->fetched_by_offpath = USE_CONFIRMED_OFF ? req->off_path_confirmed :
                                                  req->off_path;
-  data->offpath_op_addr   = req->oldest_op_addr;
-  data->offpath_op_unique = req->oldest_op_unique_num;
-  data->fetch_cycle       = cycle_count;
-  data->onpath_use_cycle  = (req->type == MRT_DPRF || req->off_path) ?
-                             0 :
-                             cycle_count;
+  data->offpath_op_addr    = req->oldest_op_addr;
+  data->offpath_op_unique  = req->oldest_op_unique_num;
+  data->fetch_cycle        = cycle_count;
+  data->onpath_use_cycle   = (req->type == MRT_DPRF || req->off_path) ?
+                               0 :
+                               cycle_count;
 
   wp_process_dcache_fill(data, req);
 
