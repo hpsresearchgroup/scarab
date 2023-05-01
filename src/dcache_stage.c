@@ -306,6 +306,12 @@ void update_dcache_stage(Stage_Data* src_sd) {
                                          &line_addr, TRUE);
     fa_line = (Dcache_Data*)cache_access(&dc->fa_dcache, op->oracle_info.va,
                                          &line_addr, TRUE);
+    // insert into FA cache if not already there
+    if(!fa_line) {
+      Addr fa_line_addr, fa_repl_line_addr;
+      cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
+                   &fa_repl_line_addr);
+    }
     op->dcache_cycle = cycle_count;
     dc->idle_cycle   = MAX2(dc->idle_cycle, cycle_count + DCACHE_CYCLES);
 
@@ -387,13 +393,6 @@ void update_dcache_stage(Stage_Data* src_sd) {
         wake_up_ops(op, REG_DATA_DEP, model->wake_hook);
       }
     } else {  // data cache miss
-
-      // insert into FA cache if not already there
-      if(!fa_line) {
-        Addr fa_line_addr, fa_repl_line_addr;
-        cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
-                     &fa_repl_line_addr);
-      }
 
       // check compulsory miss
       Addr* comp_hit = (Addr*)hash_table_access(&dc->compulsory_table,
