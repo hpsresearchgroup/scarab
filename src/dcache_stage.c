@@ -37,6 +37,7 @@
 #include "bp/bp.h"
 #include "dcache_stage.h"
 #include "libs/cache_lib.h"
+#include "libs/hash_lib.h"
 #include "map.h"
 #include "model.h"
 
@@ -95,7 +96,7 @@ void init_dcache_stage(uns8 proc_id, const char* name) {
 
   uns full_assoc = DCACHE_SIZE / DCACHE_LINE_SIZE;
   init_cache(&dc->fa_dcache, "FA_DCACHE", DCACHE_SIZE, full_assoc, DCACHE_LINE_SIZE, sizeof(Dcache_Data), DCACHE_REPL);
-  init_hash_table(&dc->compulsory_table, "COMPULSORY_MISS_TABLE", sizeof(Addr));
+  init_hash_table(&dc->compulsory_table, "COMPULSORY_MISS_TABLE", DCACHE_SIZE, sizeof(Addr));
 
   reset_dcache_stage();
 
@@ -380,7 +381,7 @@ void update_dcache_stage(Stage_Data* src_sd) {
       }
 
       // check compulsory miss
-      Addr *comp_hit = (Addr*)hash_table_access(dc->compulsory_table, line_addr);
+      Addr *comp_hit = (Addr*)hash_table_access(&dc->compulsory_table, line_addr);
       if (!comp_hit){
         STAT_EVENT(op->proc_id, DCACHE_COMPULSORY_MISS);
       } else if (fa_line) {
