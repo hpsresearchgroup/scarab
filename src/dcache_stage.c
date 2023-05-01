@@ -173,7 +173,6 @@ void debug_dcache_stage() {
 /* update_dcache_stage: */
 void update_dcache_stage(Stage_Data* src_sd) {
   Dcache_Data* line;
-  Dcache_Data* fa_line;
   Counter      oldest_op_num, last_oldest_op_num;
   uns          oldest_index;
   int          start_op_count;
@@ -302,16 +301,8 @@ void update_dcache_stage(Stage_Data* src_sd) {
 
     /* now access the dcache with it */
 
-    line    = (Dcache_Data*)cache_access(&dc->dcache, op->oracle_info.va,
-                                         &line_addr, TRUE);
-    fa_line = (Dcache_Data*)cache_access(&dc->fa_dcache, op->oracle_info.va,
-                                         &line_addr, TRUE);
-    // insert into FA cache if not already there
-    if(!fa_line) {
-      Addr fa_line_addr, fa_repl_line_addr;
-      cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
-                   &fa_repl_line_addr);
-    }
+    line = (Dcache_Data*)cache_access(&dc->dcache, op->oracle_info.va,
+                                      &line_addr, TRUE);
     op->dcache_cycle = cycle_count;
     dc->idle_cycle   = MAX2(dc->idle_cycle, cycle_count + DCACHE_CYCLES);
 
@@ -394,19 +385,6 @@ void update_dcache_stage(Stage_Data* src_sd) {
       }
     } else {  // data cache miss
 
-      // check compulsory miss
-      Addr* comp_hit = (Addr*)hash_table_access(&dc->compulsory_table,
-                                                line_addr);
-      if(!comp_hit) {
-        STAT_EVENT(op->proc_id, DCACHE_COMPULSORY_MISS);
-        Flag new_entry;
-        hash_table_access_create(&dc->compulsory_table, line_addr, &new_entry);
-      } else if(fa_line) {
-        STAT_EVENT(op->proc_id, DCACHE_CONFLICT_MISS);
-      } else {
-        STAT_EVENT(op->proc_id, DCACHE_CAPACITY_MISS);
-      }
-
       if(op->table_info->mem_type == MEM_ST)
         STAT_EVENT(op->proc_id, POWER_DCACHE_WRITE_MISS);
       else
@@ -466,6 +444,7 @@ void update_dcache_stage(Stage_Data* src_sd) {
           }
 
           if(!op->off_path) {
+            handle_3c_counts(op, line_addr);
             STAT_EVENT(op->proc_id, DCACHE_MISS);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ONPATH);
             STAT_EVENT(op->proc_id, DCACHE_MISS_LD_ONPATH);
@@ -521,6 +500,7 @@ void update_dcache_stage(Stage_Data* src_sd) {
           }
 
           if(!op->off_path) {
+            handle_3c_counts(op, line_addr);
             STAT_EVENT(op->proc_id, DCACHE_MISS);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ONPATH);
             STAT_EVENT(op->proc_id, DCACHE_MISS_LD_ONPATH);
@@ -579,6 +559,7 @@ void update_dcache_stage(Stage_Data* src_sd) {
           }
 
           if(!op->off_path) {
+            handle_3c_counts(op, line_addr);
             STAT_EVENT(op->proc_id, DCACHE_MISS);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ONPATH);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ST_ONPATH);
@@ -914,4 +895,29 @@ void wp_process_dcache_fill(Dcache_Data* line, Mem_Req* req) {
         break;
     }
   }
+}
+
+void handle_3c_counts(Op* op, Addr line_addr) {
+  Addr* comp_hit = (Addr*)hash_table_access(&dc->compulsory_table, line_addr);
+
+  // insert into FA cache if not already there
+  Dcache_Data* fa_line = (Dcache_Data*)cache_access(
+    &dc->fa_dcache, op->oracle_info.va, &line_addr, TRUE);
+  if(!fa_line) {
+    Addr fa_line_addr, fa_repl_line_addr;
+    cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
+                 &fa_repl_line_addr);
+  }
+
+  // now check if it's a miss
+  if(!comp_hit) {  // compulsory miss
+    STAT_EVENT(op->proc_id, DCACHE_COMPULSORY_MISS);
+    Flag new_entry;
+    hash_table_access_create(&dc->compulsory_table, line_addr, &new_entry);
+  } else if(fa_line) {  // conflict miss
+    STAT_EVENT(op->proc_id, DCACHE_CONFLICT_MISS);
+  } else {  // capacity miss
+    STAT_EVENT(op->proc_id, DCACHE_CAPACITY_MISS);
+  }
+  return;
 }
