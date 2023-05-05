@@ -303,6 +303,16 @@ void update_dcache_stage(Stage_Data* src_sd) {
 
     line = (Dcache_Data*)cache_access(&dc->dcache, op->oracle_info.va,
                                       &line_addr, TRUE);
+
+    // (nilay) This line fixes the fa-dcache bug. Before, we were inserting into the (fake) fully
+    // associative cache even when it shouldn't have been in the normal cache, leading to many of
+    // the misses being counted as conflict misses rather than capacity misses. Now we only insert
+    // if it should be inserted, which fixes it.
+    if (line) {
+      Addr  fa_line_addr, fa_repl_line_addr;
+      cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr, &fa_repl_line_addr);
+    }
+
     op->dcache_cycle = cycle_count;
     dc->idle_cycle   = MAX2(dc->idle_cycle, cycle_count + DCACHE_CYCLES);
 
@@ -332,7 +342,6 @@ void update_dcache_stage(Stage_Data* src_sd) {
         wake_up_ops(op, REG_DATA_DEP, model->wake_hook);
       }
     } else if(line) {  // data cache hit
-
       if(PREF_FRAMEWORK_ON &&  // if framework is on use new prefetcher.
                                // otherwise old one
          (PREF_UPDATE_ON_WRONGPATH || !op->off_path)) {
@@ -899,15 +908,8 @@ void wp_process_dcache_fill(Dcache_Data* line, Mem_Req* req) {
 
 void handle_3c_counts(Op* op, Addr line_addr) {
   Addr* comp_hit = (Addr*)hash_table_access(&dc->compulsory_table, line_addr);
-
-  // insert into FA cache if not already there
   Dcache_Data* fa_line = (Dcache_Data*)cache_access(
     &dc->fa_dcache, op->oracle_info.va, &line_addr, TRUE);
-  if(!fa_line) {
-    Addr fa_line_addr, fa_repl_line_addr;
-    cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
-                 &fa_repl_line_addr);
-  }
 
   // now check if it's a miss
   if(!comp_hit) {  // compulsory miss
