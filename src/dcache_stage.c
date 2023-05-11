@@ -95,6 +95,10 @@ void init_dcache_stage(uns8 proc_id, const char* name) {
   init_cache(&dc->dcache, "DCACHE", DCACHE_SIZE, DCACHE_ASSOC, DCACHE_LINE_SIZE,
              sizeof(Dcache_Data), DCACHE_REPL);
 
+  /* (nilay) Initialize (fully associative) miss cache of size 5 */
+  init_cache(&dc->miss_cache, "MISS_CACHE", 5 * DCACHE_LINE_SIZE, 5, DCACHE_LINE_SIZE,
+             sizeof(Dcache_Data), DCACHE_REPL);
+
   /* (nilay) To track compulsory misses, we simply log every memory address we
      access into a hash table and see if its been accessed before.
 
