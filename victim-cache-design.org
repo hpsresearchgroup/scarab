@@ -1,0 +1,8 @@
+#+title: Victim Cache Design
+
+* Victim Cache
+The victim cache is a small (2-5 line) fully-associative cache placed between the D-cache and
+memory. It is designed for cases where a small number of values fighting for the same block are
+repeatedly flushed in favor of the other, causing a high number of expensive misses. Instead, now
+the flushed address is stored in the victim cache so the miss penalty is just one cycle rather than
+the expensive memory access.

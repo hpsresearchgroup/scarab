@@ -47,7 +47,7 @@ typedef struct Dcache_Stage_struct {
   Stage_Data sd; /* stage interface data */
 
   Cache  dcache;      /* the data cache */
-  Cache  miss_cache;      /* the fully associative miss cache */
+  Cache  victim_cache;      /* the fully associative miss cache */
   Cache  fa_dcache;      /* the fully associative data cache to track conflict misses */
   Hash_Table compulsory_table; /* the tracker for compulsory misses */
   Ports* ports;       /* read and write ports to the data cache (per bank) */

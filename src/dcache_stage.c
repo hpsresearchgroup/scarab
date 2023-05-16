@@ -96,8 +96,8 @@ void init_dcache_stage(uns8 proc_id, const char* name) {
              sizeof(Dcache_Data), DCACHE_REPL);
 
   /* (nilay) Initialize (fully associative) miss cache of size 5 */
-  init_cache(&dc->miss_cache, "MISS_CACHE", 5 * DCACHE_LINE_SIZE, 5, DCACHE_LINE_SIZE,
-             sizeof(Dcache_Data), DCACHE_REPL);
+  init_cache(&dc->victim_cache, "VICTIM_CACHE", 5 * DCACHE_LINE_SIZE, 5,
+             DCACHE_LINE_SIZE, sizeof(Dcache_Data), DCACHE_REPL);
 
   /* (nilay) To track compulsory misses, we simply log every memory address we
      access into a hash table and see if its been accessed before.
@@ -177,6 +177,7 @@ void debug_dcache_stage() {
 /* update_dcache_stage: */
 void update_dcache_stage(Stage_Data* src_sd) {
   Dcache_Data* line;
+  Dcache_Data* victim_cache_line;
   Counter      oldest_op_num, last_oldest_op_num;
   uns          oldest_index;
   int          start_op_count;
@@ -308,13 +309,48 @@ void update_dcache_stage(Stage_Data* src_sd) {
     line = (Dcache_Data*)cache_access(&dc->dcache, op->oracle_info.va,
                                       &line_addr, TRUE);
 
-    // (nilay) This line fixes the fa-dcache bug. Before, we were inserting into the (fake) fully
-    // associative cache even when it shouldn't have been in the normal cache, leading to many of
-    // the misses being counted as conflict misses rather than capacity misses. Now we only insert
-    // if it should be inserted, which fixes it.
-    if (line) {
-      Addr  fa_line_addr, fa_repl_line_addr;
-      cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr, &fa_repl_line_addr);
+    /* Check to see if it's a cache hit, and if not, check the victim-cache */
+    if(!line) {
+      victim_cache_line = (Dcache_Data*)cache_access(
+        &dc->victim_cache, op->oracle_info.va, &line_addr, TRUE);
+
+      /* If it's a miss-cache hit, swap the values in the main/victim cache, and
+       * log as victim cache hit. */
+      if(victim_cache_line) {
+        // victim cache hit
+        Addr block_addr, victim_line_addr, vc_block_addr, vc_victim_line_addr;
+
+        // first, insert the requested line into the main cache, and note the
+        // address of the victim
+        cache_insert(&dc->dcache, dc->proc_id, line_addr, &block_addr,
+                     &victim_line_addr);
+
+        // now store the address of the victim into the victim cache
+        cache_insert(&dc->victim_cache, dc->proc_id, victim_line_addr,
+                     &vc_block_addr, &vc_victim_line_addr);
+
+        // log
+        line = victim_cache_line;
+        STAT_EVENT(op->proc_id, VICTIM_CACHE_HIT);
+
+      } else {
+        // victim cache miss
+        STAT_EVENT(op->proc_id, VICTIM_CACHE_MISS);
+        // TODO handle regular cache miss, and then put whatever gets evicted
+        // into victim cache.
+      }
+    }
+
+    /* (nilay) This line fixes the fa-dcache bug. Before, we were inserting into
+       the (fake) fully associative cache even when it shouldn't have been in
+       the normal cache, leading to many of the misses being counted as conflict
+       misses rather than capacity misses. Now we only insert if it should be
+       inserted, which fixes it.
+     */
+    if(line) {
+      Addr fa_line_addr, fa_repl_line_addr;
+      cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
+                   &fa_repl_line_addr);
     }
 
     op->dcache_cycle = cycle_count;
@@ -345,7 +381,7 @@ void update_dcache_stage(Stage_Data* src_sd) {
         op->wake_cycle = op->done_cycle;
         wake_up_ops(op, REG_DATA_DEP, model->wake_hook);
       }
-    } else if(line) {  // data cache hit
+    } else if(line) {          // data cache hit
       if(PREF_FRAMEWORK_ON &&  // if framework is on use new prefetcher.
                                // otherwise old one
          (PREF_UPDATE_ON_WRONGPATH || !op->off_path)) {
@@ -378,8 +414,9 @@ void update_dcache_stage(Stage_Data* src_sd) {
       if(!op->off_path) {
         STAT_EVENT(op->proc_id, DCACHE_HIT);
         STAT_EVENT(op->proc_id, DCACHE_HIT_ONPATH);
-      } else
+      } else {
         STAT_EVENT(op->proc_id, DCACHE_HIT_OFFPATH);
+      }
 
       op->done_cycle = cycle_count + DCACHE_CYCLES +
                        op->inst_info->extra_ld_latency;
@@ -414,8 +451,9 @@ void update_dcache_stage(Stage_Data* src_sd) {
           if(!op->off_path) {
             STAT_EVENT(op->proc_id, DCACHE_ST_BUFFER_HIT);
             STAT_EVENT(op->proc_id, DCACHE_ST_BUFFER_HIT_ONPATH);
-          } else
+          } else {
             STAT_EVENT(op->proc_id, DCACHE_ST_BUFFER_HIT_OFFPATH);
+          }
           op->done_cycle = cycle_count + DCACHE_CYCLES +
                            op->inst_info->extra_ld_latency;
           op->wake_cycle = cycle_count + DCACHE_CYCLES +
