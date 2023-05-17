@@ -123,6 +123,11 @@ DEF_PARAM(dcache_banks, DCACHE_BANKS, uns, uns, 1, )
 DEF_PARAM(dcache_repl, DCACHE_REPL, uns, uns, 0, )
 DEF_PARAM(dcache_repl_pref_thresh, DCACHE_REPL_PREF_THRESH, uns, uns, 1, )
 
+/* (nilay) Victim cache. If the value is higher than 0, enables the victim
+ * cache with that size.
+ */
+DEF_PARAM(victim_cache_num_lines, VICTIM_CACHE_NUM_LINES, uns, uns, 0, )
+
 DEF_PARAM(mem_ooo_stores, MEM_OOO_STORES, Flag, Flag, TRUE, )
 DEF_PARAM(mem_obey_store_dep, MEM_OBEY_STORE_DEP, Flag, Flag, TRUE, )
 

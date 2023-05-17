@@ -263,6 +263,153 @@ void* cache_insert(Cache* cache, uns8 proc_id, Addr addr, Addr* line_addr,
   return cache_insert_replpos(cache, proc_id, addr, line_addr, repl_line_addr,
                               INSERT_REPL_DEFAULT, FALSE);
 }
+
+void* cache_insert_with_victim(Cache* cache, Cache* victim_cache, uns8 proc_id,
+                               Addr addr, Addr* line_addr,
+                               Addr* repl_line_addr) {
+  return cache_insert_replpos_with_victim(cache, victim_cache, proc_id, addr,
+                                          line_addr, repl_line_addr,
+                                          INSERT_REPL_DEFAULT, FALSE);
+}
+
+void* cache_insert_replpos_with_victim(Cache* cache, Cache* victim_cache,
+                                       uns8 proc_id, Addr addr, Addr* line_addr,
+                                       Addr*             repl_line_addr,
+                                       Cache_Insert_Repl insert_repl_policy,
+                                       Flag              isPrefetch) {
+  Addr         tag;
+  uns          repl_index;
+  uns          set = cache_index(cache, addr, &tag, line_addr);
+  Cache_Entry* new_line;
+
+  if(cache->repl_policy == REPL_IDEAL) {
+    new_line        = insert_sure_line(cache, set, tag);
+    *repl_line_addr = 0;
+  } else {
+    new_line = find_repl_entry(cache, proc_id, set, &repl_index);
+    /* before insert the data into cache, if the cache has shadow entry */
+    /* insert that entry to the shadow cache */
+    if((cache->repl_policy == REPL_SHADOW_IDEAL) && new_line->valid)
+      shadow_cache_insert(cache, set, new_line->tag, new_line->base);
+    if(new_line->valid) {  // bug fixed. 4/26/04 if the entry is not valid,
+                           // repl_line_addr should be set to 0
+      *repl_line_addr = new_line->base;
+
+      /* (nilay) If we got here, that means we're trying to insert into main
+       cache, and are now evicting something. In this case, we just have to
+       insert the evicted line into the victim cache.
+       .*/
+      Addr block_addr, victim_line_addr;
+      cache_insert(victim_cache, proc_id, *repl_line_addr, &block_addr,
+                   &victim_line_addr);
+    } else
+      *repl_line_addr = 0;
+    DEBUG(0,
+          "Replacing 2.2f(set %u, way %u, tag 0x%s, base 0x%s) in cache '%s' "
+          "with base 0x%s\n",
+          set, repl_index, hexstr64s(new_line->tag), hexstr64s(new_line->base),
+          cache->name, hexstr64s(*line_addr));
+  }
+
+  new_line->proc_id          = proc_id;
+  new_line->valid            = TRUE;
+  new_line->tag              = tag;
+  new_line->base             = *line_addr;
+  new_line->last_access_time = sim_time;  // FIXME: this fixes valgrind warnings
+                                          // in update_prf_
+
+  new_line->pref = isPrefetch;
+
+  switch(insert_repl_policy) {
+    case INSERT_REPL_DEFAULT:
+      update_repl_policy(cache, new_line, set, repl_index, TRUE);
+      break;
+    case INSERT_REPL_LRU:
+      new_line->last_access_time = 123;  // Just choose a small number
+      break;
+    case INSERT_REPL_MRU:
+      new_line->last_access_time = sim_time;
+      break;
+    case INSERT_REPL_MID:  // Insert such that it is Middle(Roughly) of the repl
+                           // order
+    case INSERT_REPL_LOWQTR:  // Insert such that it is Quarter(Roughly) of the
+                              // repl order
+    {
+      // first form the lru array
+      Counter* access = (Counter*)malloc(sizeof(Counter) * cache->assoc);
+      int      ii, jj;
+      for(ii = 0; ii < cache->assoc; ii++) {
+        Cache_Entry* entry = &cache->entries[set][ii];
+        if(entry->valid)
+          access[ii] = entry->last_access_time;
+        else
+          access[ii] = 0;
+        // Sort
+        for(jj = ii - 1; jj >= 0; jj--) {
+          if(access[jj + 1] < access[jj]) {  // move data
+            Counter temp   = access[jj];
+            access[jj]     = access[jj + 1];
+            access[jj + 1] = temp;
+          } else {
+            break;
+          }
+        }
+      }
+      if(insert_repl_policy == INSERT_REPL_MID) {
+        new_line->last_access_time = access[cache->assoc / 2];
+      } else if(insert_repl_policy == INSERT_REPL_LOWQTR) {
+        new_line->last_access_time = access[cache->assoc / 4];
+      }
+      if(new_line->last_access_time == 0)
+        new_line->last_access_time = sim_time;
+      free(access);
+    } break;
+    default:
+      ASSERT(0, FALSE);  // should never come here
+  }
+  if(cache->repl_policy == REPL_IDEAL_STORAGE) {
+    new_line->last_access_time = cache->assoc;
+    /* debug */
+    /* insert into the entry also */
+    {
+      uns          lru_ind  = 0;
+      Counter      lru_time = MAX_CTR;
+      Cache_Entry* main_line;
+      uns          ii;
+
+      /* first cache access */
+      for(ii = 0; ii < cache->assoc; ii++) {
+        Cache_Entry* line = &cache->entries[set][ii];
+
+        if(line->tag == tag && line->valid) {
+          /* update replacement state if necessary */
+          ASSERT(0, line->data);
+          line->last_access_time = sim_time;
+          return new_line->data;
+        }
+      }
+      /* looking for lru */
+      for(ii = 0; ii < cache->assoc; ii++) {
+        Cache_Entry* entry = &cache->entries[set][ii];
+        if(!entry->valid) {
+          lru_ind = ii;
+          break;
+        }
+        if(entry->last_access_time < lru_time) {
+          lru_ind  = ii;
+          lru_time = cache->entries[set][ii].last_access_time;
+        }
+      }
+      main_line                   = &cache->entries[set][lru_ind];
+      main_line->valid            = TRUE;
+      main_line->tag              = tag;
+      main_line->base             = *line_addr;
+      main_line->last_access_time = sim_time;
+    }
+  }
+  return new_line->data;
+}
+
 /**************************************************************************************/
 /* cache_insert_replpos: returns a pointer to the data section of the new cache
    line.  Sets line_addr to the address of the first block of the new line.
@@ -441,7 +588,7 @@ void* get_next_repl_line(Cache* cache, uns8 proc_id, Addr addr,
   uns          repl_index;
   uns          set_index = cache_index(cache, addr, &line_tag, &line_addr);
   Cache_Entry* new_line  = find_repl_entry(cache, proc_id, set_index,
-                                          &repl_index);
+                                           &repl_index);
 
   *repl_line_addr = new_line->base;
   *valid          = new_line->valid;
