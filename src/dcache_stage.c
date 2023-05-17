@@ -352,7 +352,11 @@ void update_dcache_stage(Stage_Data* src_sd) {
        misses rather than capacity misses. Now we only insert if it should be
        inserted, which fixes it.
      */
-    if(line) {}
+    if(line) {
+      Addr fa_line_addr, fa_repl_line_addr;
+      cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
+                   &fa_repl_line_addr);
+    }
 
     op->dcache_cycle = cycle_count;
     dc->idle_cycle   = MAX2(dc->idle_cycle, cycle_count + DCACHE_CYCLES);
@@ -382,23 +386,7 @@ void update_dcache_stage(Stage_Data* src_sd) {
         op->wake_cycle = op->done_cycle;
         wake_up_ops(op, REG_DATA_DEP, model->wake_hook);
       }
-    } else if(line) {  // data cache hit
-
-      /* (nilay) This line fixes the fa-dcache bug. Before, we were inserting
-        into the (fake) fully associative cache even when it shouldn't have been
-        in the normal cache, leading to many of the misses being counted as
-        conflict misses rather than capacity misses. Now we only insert if it
-        should be inserted, which fixes it.
-      */
-
-      Addr         fa_line_addr, fa_repl_line_addr;
-      Dcache_Data* fa_line = (Dcache_Data*)cache_access(
-        &dc->fa_dcache, op->oracle_info.va, &line_addr, TRUE);
-      if(!fa_line) {
-        cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
-                     &fa_repl_line_addr);
-      }
-
+    } else if(line) {          // data cache hit
       if(PREF_FRAMEWORK_ON &&  // if framework is on use new prefetcher.
                                // otherwise old one
          (PREF_UPDATE_ON_WRONGPATH || !op->off_path)) {
@@ -980,33 +968,14 @@ void handle_3c_counts(Op* op, Addr line_addr) {
     &dc->fa_dcache, op->oracle_info.va, &line_addr, TRUE);
 
   // now check if it's a miss
-  if(!comp_hit) {
-    // compulsory miss
+  if(!comp_hit) {  // compulsory miss
     STAT_EVENT(op->proc_id, DCACHE_COMPULSORY_MISS);
-
     Flag new_entry;
     hash_table_access_create(&dc->compulsory_table, line_addr, &new_entry);
-
-    Addr fa_line_addr, fa_repl_line_addr;
-    if(!fa_line) {
-      cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
-                   &fa_repl_line_addr);
-    }
-
-
-  } else if(fa_line) {
-    // conflict miss
+  } else if(fa_line) {  // conflict miss
     STAT_EVENT(op->proc_id, DCACHE_CONFLICT_MISS);
-  } else {
-    // capacity miss
+  } else {  // capacity miss
     STAT_EVENT(op->proc_id, DCACHE_CAPACITY_MISS);
-
-
-    Addr fa_line_addr, fa_repl_line_addr;
-    if(!fa_line) {
-      cache_insert(&dc->fa_dcache, dc->proc_id, line_addr, &fa_line_addr,
-                   &fa_repl_line_addr);
-    }
   }
   return;
 }
