@@ -54,7 +54,10 @@ typedef enum Repl_Policy_enum {
                          isn't stored at the cache */
   REPL_MLP,           /* mlp based replacement  -- uses MLP_REPL_POLICY */
   REPL_PARTITION,     /* Based on the partition*/
-  NUM_REPL
+  REPL_SRRIP,         /* Static RRIP */
+  REPL_BRRIP,         /* Bimodal RRIP */
+  REPL_DRRIP,         /* Dynamic RRIP */
+  NUM_REPL,
 } Repl_Policy;
 
 typedef struct Cache_Entry_struct {
@@ -66,24 +69,25 @@ typedef struct Cache_Entry_struct {
   Counter insertion_time;   /* for replacement policy */
   void*   data;             /* pointer to arbitrary data */
   Flag    pref;             /* extra replacement info */
-  Flag dirty; /* Dirty bit should have been here, however this is used only in
-                 warmup now */
+  Flag    dirty;            /* Dirty bit should have been here, however this is used only in warmup now */
+  uns8    rrip_bits;        /* extra RRIP bits  */
 } Cache_Entry;
 
 // DO NOT CHANGE THIS ORDER
 typedef enum Cache_Insert_Repl_enum {
   INSERT_REPL_DEFAULT = 0, /* Insert with default replacement information */
   INSERT_REPL_LRU,         /* Insert into LRU position */
-  INSERT_REPL_LOWQTR, /* Insert such that it is Quarter(Roughly) of the repl
-                         order*/
+  INSERT_REPL_LOWQTR, /* Insert such that it is Quarter(Roughly) of the repl order*/
   INSERT_REPL_MID, /* Insert such that it is Middle(Roughly) of the repl order*/
   INSERT_REPL_MRU, /* Insert into MRU position */
+  INSERT_REPL_SRRIP, /* Insert using SRRIP */
+  INSERT_REPL_BRRIP, /* Insert using BRRIP */
+  INSERT_REPL_DRRIP, /* Insert using DRRIP */
   NUM_INSERT_REPL
 } Cache_Insert_Repl;
 
 typedef struct Cache_struct {
-  char name[MAX_STR_LENGTH + 1]; /* name to identify the cache (for debugging)
-                                  */
+  char name[MAX_STR_LENGTH + 1]; /* name to identify the cache (for debugging) */
   uns data_size; /* how big are the data items in each cache entry? (for malloc)
                   */
 

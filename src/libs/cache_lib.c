@@ -242,6 +242,15 @@ void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
           set, hexstr64s(addr));
     return access_shadow_lines(cache, set, tag);
   }
+  if(cache->repl_policy == REPL_SRRIP) {
+    // TODO add logic for SRRIP here
+  }
+  if(cache->repl_policy == REPL_BRRIP) {
+    // TODO add logic for BRRIP here
+  }
+  if(cache->repl_policy == REPL_DRRIP) {
+    // TODO add logic for DRRIP here
+  }
 
 
   DEBUG(0, "Didn't find line in set %u in cache '%s' base 0x%s\n", set,
@@ -502,6 +511,12 @@ void* cache_insert_replpos(Cache* cache, uns8 proc_id, Addr addr,
         new_line->last_access_time = sim_time;
       free(access);
     } break;
+    case INSERT_REPL_SRRIP:
+      {}
+    case INSERT_REPL_BRRIP:
+      {}
+    case INSERT_REPL_DRRIP:
+      {}
     default:
       ASSERT(0, FALSE);  // should never come here
   }
@@ -727,7 +742,12 @@ Cache_Entry* find_repl_entry(Cache* cache, uns8 proc_id, uns set, uns* way) {
       return &cache->entries[set][lru_ind];
     }
 
-
+    case INSERT_REPL_SRRIP:
+      {break}
+    case INSERT_REPL_BRRIP:
+      {break}
+    case INSERT_REPL_DRRIP:
+      {break}
     default:
       ASSERT(0, FALSE);
   }
@@ -795,6 +815,12 @@ static inline void update_repl_policy(Cache* cache, Cache_Entry* cur_entry,
         cache->repl_ctrs[set] = lru_ind;
       }
       break;
+    case REPL_SRRIP:
+      break
+    case REPL_BRRIP:
+      break
+    case REPL_DRRIP:
+      break
     default:
       ASSERT(0, FALSE);
   }
