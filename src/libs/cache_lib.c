@@ -742,12 +742,12 @@ Cache_Entry* find_repl_entry(Cache* cache, uns8 proc_id, uns set, uns* way) {
       return &cache->entries[set][lru_ind];
     }
 
-    case INSERT_REPL_SRRIP:
-      {break}
-    case INSERT_REPL_BRRIP:
-      {break}
-    case INSERT_REPL_DRRIP:
-      {break}
+    case REPL_SRRIP:
+      {break;}
+    case REPL_BRRIP:
+      {break;}
+    case REPL_DRRIP:
+      {break;}
     default:
       ASSERT(0, FALSE);
   }
@@ -816,11 +816,11 @@ static inline void update_repl_policy(Cache* cache, Cache_Entry* cur_entry,
       }
       break;
     case REPL_SRRIP:
-      break
+      break;
     case REPL_BRRIP:
-      break
+      break;
     case REPL_DRRIP:
-      break
+      break;
     default:
       ASSERT(0, FALSE);
   }
