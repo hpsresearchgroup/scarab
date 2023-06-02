@@ -80,9 +80,6 @@ typedef enum Cache_Insert_Repl_enum {
   INSERT_REPL_LOWQTR, /* Insert such that it is Quarter(Roughly) of the repl order*/
   INSERT_REPL_MID, /* Insert such that it is Middle(Roughly) of the repl order*/
   INSERT_REPL_MRU, /* Insert into MRU position */
-  INSERT_REPL_SRRIP, /* Insert using SRRIP */
-  INSERT_REPL_BRRIP, /* Insert using BRRIP */
-  INSERT_REPL_DRRIP, /* Insert using DRRIP */
   NUM_INSERT_REPL
 } Cache_Insert_Repl;
 
@@ -157,6 +154,7 @@ int   cache_find_pos_in_lru_stack(Cache* cache, uns8 proc_id, Addr addr,
                                   Addr* line_addr);
 void  set_partition_allocate(Cache* cache, uns8 proc_id, uns num_ways);
 uns   get_partition_allocated(Cache* cache, uns8 proc_id);
+void print_cache_rrip(Cache* cache, uns set);
 /**************************************************************************************/
 
 

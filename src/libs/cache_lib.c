@@ -26,7 +26,12 @@
  * Description  : This is a library of cache functions.
  ***************************************************************************************/
 
+#include <stdbool.h>
+#include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 #include "debug/debug_macros.h"
 #include "globals/assert.h"
 #include "globals/global_defs.h"
@@ -90,6 +95,7 @@ void init_cache(Cache* cache, const char* name, uns cache_size, uns assoc,
   uns num_lines = cache_size / line_size;
   uns num_sets  = cache_size / line_size / assoc;
   uns ii, jj;
+  srand(time(NULL));
 
   DEBUG(0, "Initializing cache called '%s'.\n", name);
 
@@ -241,15 +247,6 @@ void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
     DEBUG(0, "Checking shadow cache '%s' at (set %u), base 0x%s\n", cache->name,
           set, hexstr64s(addr));
     return access_shadow_lines(cache, set, tag);
-  }
-  if(cache->repl_policy == REPL_SRRIP) {
-    // TODO add logic for SRRIP here
-  }
-  if(cache->repl_policy == REPL_BRRIP) {
-    // TODO add logic for BRRIP here
-  }
-  if(cache->repl_policy == REPL_DRRIP) {
-    // TODO add logic for DRRIP here
   }
 
 
@@ -442,6 +439,14 @@ void* cache_insert_replpos(Cache* cache, uns8 proc_id, Addr addr,
     *repl_line_addr = 0;
   } else {
     new_line = find_repl_entry(cache, proc_id, set, &repl_index);
+    /* If new_line is NULL, then we don't insert anything -- just increment the
+     * whole cache by 1 then return NULL.
+     */
+    if(!new_line) {
+      *repl_line_addr = 0;
+      return NULL;
+    }
+
     /* before insert the data into cache, if the cache has shadow entry */
     /* insert that entry to the shadow cache */
     if((cache->repl_policy == REPL_SHADOW_IDEAL) && new_line->valid)
@@ -511,12 +516,6 @@ void* cache_insert_replpos(Cache* cache, uns8 proc_id, Addr addr,
         new_line->last_access_time = sim_time;
       free(access);
     } break;
-    case INSERT_REPL_SRRIP:
-      {}
-    case INSERT_REPL_BRRIP:
-      {}
-    case INSERT_REPL_DRRIP:
-      {}
     default:
       ASSERT(0, FALSE);  // should never come here
   }
@@ -604,6 +603,12 @@ void* get_next_repl_line(Cache* cache, uns8 proc_id, Addr addr,
   uns          set_index = cache_index(cache, addr, &line_tag, &line_addr);
   Cache_Entry* new_line  = find_repl_entry(cache, proc_id, set_index,
                                            &repl_index);
+  if(!new_line) {
+    // didn't find any replacement item
+    *repl_line_addr = 0;
+    *valid          = FALSE;
+    return NULL;
+  }
 
   *repl_line_addr = new_line->base;
   *valid          = new_line->valid;
@@ -742,12 +747,42 @@ Cache_Entry* find_repl_entry(Cache* cache, uns8 proc_id, uns set, uns* way) {
       return &cache->entries[set][lru_ind];
     }
 
-    case REPL_SRRIP:
-      {break;}
+    case REPL_SRRIP:  // all three of these have the same replacement policy
     case REPL_BRRIP:
-      {break;}
-    case REPL_DRRIP:
-      {break;}
+    case REPL_DRRIP: {
+      // use the current replacement???
+      uns  rrip_victim_ind = 0;
+      bool found           = false;
+      for(ii = 0; ii < cache->assoc; ii++) {
+        Cache_Entry* entry = &cache->entries[set][ii];
+        if(!entry->valid) {
+          rrip_victim_ind = ii;
+          found           = true;
+          break;
+        } else if(entry->rrip_bits >= (1 << SRRIP_PRED_BITS) - 1) {
+          rrip_victim_ind = ii;
+          found           = true;
+          break;
+        }
+      }
+      if(!found) {  // if we didn't find any, just increment all the cache entry
+                    // RRIP bits by 1
+        for(ii = 0; ii < cache->assoc; ii++) {
+          Cache_Entry* entry = &cache->entries[set][ii];
+          if(entry->valid) {
+            entry->rrip_bits += 1;
+          }
+        }
+        //fprintf(stderr, "Found no replacement value\n");
+        //print_cache_rrip(cache, set);
+        *way = 0;
+        return NULL;
+      }
+      //fprintf(stderr, "Returning a replacement value\n");
+      //print_cache_rrip(cache, set);
+      *way = rrip_victim_ind;
+      return &cache->entries[set][rrip_victim_ind];
+    } break;
     default:
       ASSERT(0, FALSE);
   }
@@ -816,11 +851,15 @@ static inline void update_repl_policy(Cache* cache, Cache_Entry* cur_entry,
       }
       break;
     case REPL_SRRIP:
+      // //fprintf(stderr, "(nilay) Set rrip_bits to 0 at addr %p\n", cur_entry);
+      if(repl) {
+        cur_entry->rrip_bits = (1 << SRRIP_PRED_BITS) - 2;
+      } else {
+        cur_entry->rrip_bits = 0;
+      }
       break;
     case REPL_BRRIP:
-      break;
     case REPL_DRRIP:
-      break;
     default:
       ASSERT(0, FALSE);
   }
@@ -1265,4 +1304,16 @@ uns get_partition_allocated(Cache* cache, uns8 proc_id) {
   ASSERT(proc_id, cache->repl_policy == REPL_PARTITION);
   ASSERT(proc_id, cache->num_ways_allocted_core);
   return cache->num_ways_allocted_core[proc_id];
+}
+
+
+void print_cache_rrip(Cache* cache, uns set) {
+    fprintf(stderr, "SRRIP_PRED_BITS: %d\n", (1 << SRRIP_PRED_BITS) - 2);
+    fprintf(mystdout, "== cache RRIP contents in %s set %d == (%d)", cache->name, set,  (1<<SRRIP_PRED_BITS) - 1);
+    for (int ii = 0; ii < cache-> assoc; ii++) {
+        Cache_Entry* entry = &cache->entries[set][ii];
+        fprintf(mystdout, " %d", entry->valid ? entry->rrip_bits : -1);
+    }
+    fprintf(mystdout, "\n");
+
 }
