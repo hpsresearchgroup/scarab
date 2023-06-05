@@ -114,11 +114,11 @@ void init_dcache_stage(uns8 proc_id, const char* name) {
 
      The rest are capacity misses.
    */
-  uns full_assoc = DCACHE_SIZE / DCACHE_LINE_SIZE;
-  init_cache(&dc->fa_dcache, "FA_DCACHE", DCACHE_SIZE, full_assoc,
-             DCACHE_LINE_SIZE, sizeof(Dcache_Data), DCACHE_REPL);
-  init_hash_table(&dc->compulsory_table, "COMPULSORY_MISS_TABLE", DCACHE_SIZE,
-                  sizeof(Addr));
+  // uns full_assoc = DCACHE_SIZE / DCACHE_LINE_SIZE;
+  // init_cache(&dc->fa_dcache, "FA_DCACHE", DCACHE_SIZE, full_assoc,
+  //            DCACHE_LINE_SIZE, sizeof(Dcache_Data), DCACHE_REPL);
+  // init_hash_table(&dc->compulsory_table, "COMPULSORY_MISS_TABLE", DCACHE_SIZE,
+  //                 sizeof(Addr));
 
   reset_dcache_stage();
 
@@ -501,7 +501,7 @@ void update_dcache_stage(Stage_Data* src_sd) {
           }
 
           if(!op->off_path) {
-            handle_3c_counts(op, line_addr);
+            //handle_3c_counts(op, line_addr);
             STAT_EVENT(op->proc_id, DCACHE_MISS);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ONPATH);
             STAT_EVENT(op->proc_id, DCACHE_MISS_LD_ONPATH);
@@ -557,7 +557,7 @@ void update_dcache_stage(Stage_Data* src_sd) {
           }
 
           if(!op->off_path) {
-            handle_3c_counts(op, line_addr);
+            // handle_3c_counts(op, line_addr);
             STAT_EVENT(op->proc_id, DCACHE_MISS);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ONPATH);
             STAT_EVENT(op->proc_id, DCACHE_MISS_LD_ONPATH);
@@ -616,7 +616,7 @@ void update_dcache_stage(Stage_Data* src_sd) {
           }
 
           if(!op->off_path) {
-            handle_3c_counts(op, line_addr);
+            // handle_3c_counts(op, line_addr);
             STAT_EVENT(op->proc_id, DCACHE_MISS);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ONPATH);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ST_ONPATH);

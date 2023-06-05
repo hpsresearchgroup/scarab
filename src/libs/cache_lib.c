@@ -30,6 +30,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include "debug/debug_macros.h"
@@ -70,9 +71,9 @@ static inline void         invalidate_unsure_line(Cache*, uns, Addr);
 /**************************************************************************************/
 /* Global Variables */
 
-char rand_repl_state[31];
-uns  BRRIP_SDM_MISSES = 0, BRRIP_SDM_TOTAL = 0;
-uns  SRRIP_SDM_MISSES = 0, SRRIP_SDM_TOTAL = 0;
+char  rand_repl_state[31];
+float BRRIP_SDM_MISSES = 0, BRRIP_SDM_TOTAL = 0;
+float SRRIP_SDM_MISSES = 0, SRRIP_SDM_TOTAL = 0;
 
 
 /**************************************************************************************/
@@ -218,10 +219,11 @@ void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
     return access_ideal_storage(cache, set, tag, addr);
   }
 
-  if(cache->repl_policy == REPL_DRRIP) {
-    if(set < DRRIP_SDM_SETS) {
+  if(cache->repl_policy == REPL_DRRIP && strcmp(cache->name, "DCACHE") == 0 &&
+     update_repl) {
+    if(set % DRRIP_SDM_SETS == 0) {
       SRRIP_SDM_TOTAL += 1;
-    } else if(set < 2 * DRRIP_SDM_SETS) {
+    } else if(set % DRRIP_SDM_SETS == 1) {
       BRRIP_SDM_TOTAL += 1;
     }
   }
@@ -258,10 +260,10 @@ void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
     return access_shadow_lines(cache, set, tag);
   }
   // if using DRRIP, increment the respective miss counts to track performance
-  if(cache->repl_policy == REPL_DRRIP) {
-    if(set < DRRIP_SDM_SETS) {
+  if(cache->repl_policy == REPL_DRRIP && strcmp(cache->name, "DCACHE") == 0) {
+    if(set % DRRIP_SDM_SETS == 0) {
       SRRIP_SDM_MISSES += 1;
-    } else if(set < 2 * DRRIP_SDM_SETS) {
+    } else if(set % DRRIP_SDM_SETS == 1) {
       BRRIP_SDM_MISSES += 1;
     }
   }
@@ -1341,29 +1343,37 @@ void brrip_repl(Cache_Entry* cur_entry, Flag repl) {
 }
 
 void drrip_repl(Cache_Entry* cur_entry, Flag repl, uns set) {
-  float brrip_miss_rate = 1, srrip_miss_rate = 1;
+  // float brrip_miss_rate = 1, srrip_miss_rate = 1;
   if(repl) {
     // Case 1: it's in the SRRIP sets
-    if(set < DRRIP_SDM_SETS) {
+    if(set % DRRIP_SDM_SETS == 0) {
       srrip_repl(cur_entry, repl);
     }
     // Case 2: it's in the BRRIP sets
-    else if(set < 2 * DRRIP_SDM_SETS) {
+    else if(set % DRRIP_SDM_SETS == 1) {
       brrip_repl(cur_entry, repl);
     }
     // Case 3: it's in the rest of the cache; choose the best option
     else {
       // calculate miss rates
-      if(BRRIP_SDM_TOTAL > 0) {
-        brrip_miss_rate = BRRIP_SDM_MISSES / BRRIP_SDM_TOTAL;
-      }
-      if(SRRIP_SDM_TOTAL > 0) {
-        srrip_miss_rate = SRRIP_SDM_MISSES / SRRIP_SDM_TOTAL;
-      }
+      // if(BRRIP_SDM_TOTAL > 0) {
+      //   // brrip_miss_rate = BRRIP_SDM_MISSES / BRRIP_SDM_TOTAL;
+      //   // fprintf(stderr, "Bimodal miss rate: misses: %f\t total: %f\t %f\n",
+      //   // BRRIP_SDM_MISSES, BRRIP_SDM_TOTAL, brrip_miss_rate);
+      //   fprintf(stderr, "Bimodal miss rate: misses: %f\t total: %f\n",
+      //           BRRIP_SDM_MISSES, BRRIP_SDM_TOTAL);
+      // }
+      // if(SRRIP_SDM_TOTAL > 0) {
+      //   // srrip_miss_rate = SRRIP_SDM_MISSES / SRRIP_SDM_TOTAL;
+      //   // fprintf(stderr, "Static miss rate: misses: %f\t total: %f\t %f\n",
+      //   // SRRIP_SDM_MISSES, SRRIP_SDM_TOTAL, srrip_miss_rate);
+      //   fprintf(stderr, "Static miss rate: misses: %f\t total: %f\n",
+      //           SRRIP_SDM_MISSES, SRRIP_SDM_TOTAL);
+      // }
       // if srrip is better, do that
-      if(srrip_miss_rate <= brrip_miss_rate) {
+      if(SRRIP_SDM_MISSES <= BRRIP_SDM_MISSES) {
         srrip_repl(cur_entry, repl);
-      } else { // otherwise, use brrip
+      } else {  // otherwise, use brrip
         brrip_repl(cur_entry, repl);
       }
     }
