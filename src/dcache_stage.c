@@ -93,21 +93,8 @@ void init_dcache_stage(uns8 proc_id, const char* name) {
   dc->sd.ops          = (Op**)malloc(sizeof(Op*) * STAGE_MAX_OP_COUNT);
 
   /* initialize the cache structure */
-  uns rrip_type;
-  if (SRRIP_PRED_BITS > 1){
-    rrip_type = REPL_SRRIP;
-    if (BRRIP_2M_MINUS_1_PROB > 0){
-      rrip_type = REPL_BRRIP;
-    }
-    if (DRRIP_SDM_SETS > 0){
-      rrip_type = REPL_DRRIP;
-    }
-    init_cache(&dc->dcache, "DCACHE", DCACHE_SIZE, DCACHE_ASSOC, DCACHE_LINE_SIZE,
-              sizeof(Dcache_Data), rrip_type);
-  } else{
-    init_cache(&dc->dcache, "DCACHE", DCACHE_SIZE, DCACHE_ASSOC, DCACHE_LINE_SIZE,
-              sizeof(Dcache_Data), DCACHE_REPL);
-  }
+  init_cache(&dc->dcache, "DCACHE", DCACHE_SIZE, DCACHE_ASSOC, DCACHE_LINE_SIZE,
+            sizeof(Dcache_Data), DCACHE_REPL);
 
   /* (nilay) Initialize (fully associative) miss cache of size
    * VICTIM_CACHE_NUM_LINES. If it's 0, disable the victim cache. */
