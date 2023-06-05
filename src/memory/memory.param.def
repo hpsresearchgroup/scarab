@@ -129,8 +129,8 @@ DEF_PARAM(dcache_repl_pref_thresh, DCACHE_REPL_PREF_THRESH, uns, uns, 1, )
 DEF_PARAM(victim_cache_num_lines, VICTIM_CACHE_NUM_LINES, uns, uns, 0, )
 
 /* (nilay) add parameters for SRRIP/BRRIP/DRRIP */
-DEF_PARAM(srrip_pred_bits, SRRIP_PRED_BITS, uns, uns, 1, ) /* Use M=2 or 2 */
-DEF_PARAM(brrip_2m_minus_1_prob, BRRIP_2M_MINUS_1_PROB, float, float, 0.0, )
+DEF_PARAM(srrip_pred_bits, SRRIP_PRED_BITS, uns, uns, 1, ) /* Use M=2*/
+DEF_PARAM(brrip_2m_minus_1_prob, BRRIP_2M_MINUS_1_PROB, float, float, 0.0, ) /* Use P = 1 - (1/32) = 31/32 */
 DEF_PARAM(drrip_sdm_sets, DRRIP_SDM_SETS, uns, uns, 0, ) /* Use K=32 */
 
 DEF_PARAM(mem_ooo_stores, MEM_OOO_STORES, Flag, Flag, TRUE, )

@@ -26,8 +26,8 @@
  * Description  : This is a library of cache functions.
  ***************************************************************************************/
 
-#include <stdbool.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -71,6 +71,8 @@ static inline void         invalidate_unsure_line(Cache*, uns, Addr);
 /* Global Variables */
 
 char rand_repl_state[31];
+uns  BRRIP_SDM_MISSES = 0, BRRIP_SDM_TOTAL = 0;
+uns  SRRIP_SDM_MISSES = 0, SRRIP_SDM_TOTAL = 0;
 
 
 /**************************************************************************************/
@@ -216,6 +218,14 @@ void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
     return access_ideal_storage(cache, set, tag, addr);
   }
 
+  if(cache->repl_policy == REPL_DRRIP) {
+    if(set < DRRIP_SDM_SETS) {
+      SRRIP_SDM_TOTAL += 1;
+    } else if(set < 2 * DRRIP_SDM_SETS) {
+      BRRIP_SDM_TOTAL += 1;
+    }
+  }
+
   for(ii = 0; ii < cache->assoc; ii++) {
     Cache_Entry* line = &cache->entries[set][ii];
 
@@ -232,7 +242,6 @@ void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
         cache->num_demand_access++;
         update_repl_policy(cache, line, set, ii, FALSE);
       }
-
       return line->data;
     }
   }
@@ -247,6 +256,14 @@ void* cache_access(Cache* cache, Addr addr, Addr* line_addr, Flag update_repl) {
     DEBUG(0, "Checking shadow cache '%s' at (set %u), base 0x%s\n", cache->name,
           set, hexstr64s(addr));
     return access_shadow_lines(cache, set, tag);
+  }
+  // if using DRRIP, increment the respective miss counts to track performance
+  if(cache->repl_policy == REPL_DRRIP) {
+    if(set < DRRIP_SDM_SETS) {
+      SRRIP_SDM_MISSES += 1;
+    } else if(set < 2 * DRRIP_SDM_SETS) {
+      BRRIP_SDM_MISSES += 1;
+    }
   }
 
 
@@ -439,13 +456,6 @@ void* cache_insert_replpos(Cache* cache, uns8 proc_id, Addr addr,
     *repl_line_addr = 0;
   } else {
     new_line = find_repl_entry(cache, proc_id, set, &repl_index);
-    /* If new_line is NULL, then we don't insert anything -- just increment the
-     * whole cache by 1 then return NULL.
-     */
-    if(!new_line) {
-      *repl_line_addr = 0;
-      return NULL;
-    }
 
     /* before insert the data into cache, if the cache has shadow entry */
     /* insert that entry to the shadow cache */
@@ -603,15 +613,8 @@ void* get_next_repl_line(Cache* cache, uns8 proc_id, Addr addr,
   uns          set_index = cache_index(cache, addr, &line_tag, &line_addr);
   Cache_Entry* new_line  = find_repl_entry(cache, proc_id, set_index,
                                            &repl_index);
-  if(!new_line) {
-    // didn't find any replacement item
-    *repl_line_addr = 0;
-    *valid          = FALSE;
-    return NULL;
-  }
-
-  *repl_line_addr = new_line->base;
-  *valid          = new_line->valid;
+  *repl_line_addr        = new_line->base;
+  *valid                 = new_line->valid;
   return new_line->data;
 }
 
@@ -750,38 +753,36 @@ Cache_Entry* find_repl_entry(Cache* cache, uns8 proc_id, uns set, uns* way) {
     case REPL_SRRIP:  // all three of these have the same replacement policy
     case REPL_BRRIP:
     case REPL_DRRIP: {
-      // use the current replacement???
       uns  rrip_victim_ind = 0;
       bool found           = false;
-      for(ii = 0; ii < cache->assoc; ii++) {
-        Cache_Entry* entry = &cache->entries[set][ii];
-        if(!entry->valid) {
-          rrip_victim_ind = ii;
-          found           = true;
-          break;
-        } else if(entry->rrip_bits >= (1 << SRRIP_PRED_BITS) - 1) {
-          rrip_victim_ind = ii;
-          found           = true;
-          break;
-        }
-      }
-      if(!found) {  // if we didn't find any, just increment all the cache entry
-                    // RRIP bits by 1
+      while(!found) {
         for(ii = 0; ii < cache->assoc; ii++) {
           Cache_Entry* entry = &cache->entries[set][ii];
-          if(entry->valid) {
-            entry->rrip_bits += 1;
+          if(!entry->valid) {
+            rrip_victim_ind = ii;
+            found           = true;
+            break;
+          } else if(entry->rrip_bits >= (1 << SRRIP_PRED_BITS) - 1) {
+            rrip_victim_ind = ii;
+            found           = true;
+            break;
           }
         }
-        //fprintf(stderr, "Found no replacement value\n");
-        //print_cache_rrip(cache, set);
-        *way = 0;
-        return NULL;
+        // if we didn't find any, increment all the cache entry RRIP bits by 1
+        // then try again
+        if(!found) {
+          for(ii = 0; ii < cache->assoc; ii++) {
+            Cache_Entry* entry = &cache->entries[set][ii];
+            if(entry->valid) {
+              entry->rrip_bits += 1;
+            }
+          }
+        }
       }
-      //fprintf(stderr, "Returning a replacement value\n");
-      //print_cache_rrip(cache, set);
+      // finally, we found a victim
       *way = rrip_victim_ind;
       return &cache->entries[set][rrip_victim_ind];
+
     } break;
     default:
       ASSERT(0, FALSE);
@@ -851,15 +852,14 @@ static inline void update_repl_policy(Cache* cache, Cache_Entry* cur_entry,
       }
       break;
     case REPL_SRRIP:
-      // //fprintf(stderr, "(nilay) Set rrip_bits to 0 at addr %p\n", cur_entry);
-      if(repl) {
-        cur_entry->rrip_bits = (1 << SRRIP_PRED_BITS) - 2;
-      } else {
-        cur_entry->rrip_bits = 0;
-      }
+      srrip_repl(cur_entry, repl);
       break;
     case REPL_BRRIP:
+      brrip_repl(cur_entry, repl);
+      break;
     case REPL_DRRIP:
+      drrip_repl(cur_entry, repl, set);
+      break;
     default:
       ASSERT(0, FALSE);
   }
@@ -1308,12 +1308,66 @@ uns get_partition_allocated(Cache* cache, uns8 proc_id) {
 
 
 void print_cache_rrip(Cache* cache, uns set) {
-    fprintf(stderr, "SRRIP_PRED_BITS: %d\n", (1 << SRRIP_PRED_BITS) - 2);
-    fprintf(mystdout, "== cache RRIP contents in %s set %d == (%d)", cache->name, set,  (1<<SRRIP_PRED_BITS) - 1);
-    for (int ii = 0; ii < cache-> assoc; ii++) {
-        Cache_Entry* entry = &cache->entries[set][ii];
-        fprintf(mystdout, " %d", entry->valid ? entry->rrip_bits : -1);
-    }
-    fprintf(mystdout, "\n");
+  fprintf(stderr, "SRRIP_PRED_BITS: %d\n", (1 << SRRIP_PRED_BITS) - 2);
+  fprintf(mystdout, "== cache RRIP contents in %s set %d == (%d)", cache->name,
+          set, (1 << SRRIP_PRED_BITS) - 1);
+  for(int ii = 0; ii < cache->assoc; ii++) {
+    Cache_Entry* entry = &cache->entries[set][ii];
+    fprintf(mystdout, " %d", entry->valid ? entry->rrip_bits : -1);
+  }
+  fprintf(mystdout, "\n");
+}
 
+
+void srrip_repl(Cache_Entry* cur_entry, Flag repl) {
+  if(repl) {
+    cur_entry->rrip_bits = (1 << SRRIP_PRED_BITS) - 2;
+  } else {
+    cur_entry->rrip_bits = 0;
+  }
+}
+
+void brrip_repl(Cache_Entry* cur_entry, Flag repl) {
+  if(repl) {
+    float p = rand() / RAND_MAX;
+    if(p < BRRIP_2M_MINUS_1_PROB) {
+      cur_entry->rrip_bits = (1 << SRRIP_PRED_BITS) - 1;
+    } else {
+      cur_entry->rrip_bits = (1 << SRRIP_PRED_BITS) - 2;
+    }
+  } else {
+    cur_entry->rrip_bits = 0;
+  }
+}
+
+void drrip_repl(Cache_Entry* cur_entry, Flag repl, uns set) {
+  float brrip_miss_rate = 1, srrip_miss_rate = 1;
+  if(repl) {
+    // Case 1: it's in the SRRIP sets
+    if(set < DRRIP_SDM_SETS) {
+      srrip_repl(cur_entry, repl);
+    }
+    // Case 2: it's in the BRRIP sets
+    else if(set < 2 * DRRIP_SDM_SETS) {
+      brrip_repl(cur_entry, repl);
+    }
+    // Case 3: it's in the rest of the cache; choose the best option
+    else {
+      // calculate miss rates
+      if(BRRIP_SDM_TOTAL > 0) {
+        brrip_miss_rate = BRRIP_SDM_MISSES / BRRIP_SDM_TOTAL;
+      }
+      if(SRRIP_SDM_TOTAL > 0) {
+        srrip_miss_rate = SRRIP_SDM_MISSES / SRRIP_SDM_TOTAL;
+      }
+      // if srrip is better, do that
+      if(srrip_miss_rate <= brrip_miss_rate) {
+        srrip_repl(cur_entry, repl);
+      } else { // otherwise, use brrip
+        brrip_repl(cur_entry, repl);
+      }
+    }
+  } else {
+    cur_entry->rrip_bits = 0;
+  }
 }
