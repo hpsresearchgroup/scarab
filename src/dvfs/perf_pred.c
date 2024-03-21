@@ -112,7 +112,7 @@ enum {
 static Counter   chip_cycle_count;
 static Stat_Mon* stat_mon;
 
-Proc_Info* proc_infos;
+static Proc_Info* proc_infos;
 
 /* static function prototypes */
 static void critical_access_plot(uns proc_id, Mem_Req_Type type, uns req_ret,

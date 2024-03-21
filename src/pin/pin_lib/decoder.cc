@@ -137,7 +137,7 @@ ctype_pin_inst* pin_decoder_get_latest_inst() {
 }
 
 void pin_decoder_print_unknown_opcodes() {
-  for(const auto opcode : unknown_opcodes) {
+  for(const auto &opcode : unknown_opcodes) {
     (*glb_err_ostream) << opcode << std::endl;
   }
 }

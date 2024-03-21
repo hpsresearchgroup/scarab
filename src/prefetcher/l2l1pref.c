@@ -59,7 +59,7 @@
 
 extern Memory*       mem;
 extern Dcache_Stage* dc;
-Cache*               l1_cache;
+static Cache*        l1_cache;
 
 /***************************************************************************************/
 /* Local Prototypes */
