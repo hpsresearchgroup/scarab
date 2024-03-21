@@ -73,9 +73,9 @@ extern Rob_Stall_Reason       rob_stall_reason;
 extern Rob_Block_Issue_Reason rob_block_issue_reason;
 
 
-static Pb_Data* ic_pb_data;  // cmp cne is fine for cmp now assuming homogeneous cmp
+static Pb_Data* ic_pb_data;  // cmp cne is fine for cmp now assuming homogeneous
+                             // cmp
 // But decided to use array for future use
-
 
 
 /**************************************************************************************/

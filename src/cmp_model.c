@@ -64,7 +64,7 @@ static void warmup_uncore(uns proc_id, Addr addr, Flag write);
 /**************************************************************************************/
 /* Global vars */
 
-Cmp_Model        cmp_model;
+Cmp_Model cmp_model;
 
 /**************************************************************************************/
 /* cmp_init */
