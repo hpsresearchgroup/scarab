@@ -27,6 +27,7 @@
  ***************************************************************************************/
 
 #include "cmp_model_support.h"
+#include "bp/decoupled_bp.h"
 #include "cmp_model.h"
 #include "core.param.h"
 #include "frontend/pin_trace_fe.h"
@@ -35,6 +36,7 @@
 #include "globals/utils.h"
 #include "packet_build.h"
 #include "statistics.h"
+#include "bp/bp.param.h"
 
 /**************************************************************************************/
 /* cmp_init_cmp_model  */
@@ -59,6 +61,9 @@ void cmp_init_cmp_model() {
   cmp_model.node_stage   = (Node_Stage*)malloc(sizeof(Node_Stage) * NUM_CORES);
   cmp_model.exec_stage   = (Exec_Stage*)malloc(sizeof(Exec_Stage) * NUM_CORES);
   cmp_model.dcache_stage = (Dcache_Stage*)malloc(sizeof(Dcache_Stage) *
+                                                 NUM_CORES);
+  if(DECOUPLED_BP)
+    cmp_model.bp_stage = (Decoupled_BP*)malloc(sizeof(Decoupled_BP) * 
                                                  NUM_CORES);
 }
 
@@ -85,6 +90,8 @@ void cmp_set_all_stages(uns8 proc_id) {
   set_node_stage(&cmp_model.node_stage[proc_id]);
   set_exec_stage(&cmp_model.exec_stage[proc_id]);
   set_dcache_stage(&cmp_model.dcache_stage[proc_id]);
+  if(DECOUPLED_BP)
+    set_dbp_stage(&cmp_model.bp_stage[proc_id]);
 }
 
 /**************************************************************************************/
@@ -122,4 +129,7 @@ void cmp_init_bogus_sim(uns8 proc_id) {
   reset_all_ops_node_stage();
   reset_exec_stage();
   reset_dcache_stage();
+  if(DECOUPLED_BP){
+    ASSERT(proc_id, FALSE);
+  }
 }

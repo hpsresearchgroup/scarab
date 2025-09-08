@@ -168,6 +168,14 @@ void init_configs() {
 }
 
 
+/**
+ * @brief Send req to ramulator
+ *
+ * This func is the interface between scarab and ramulator
+ *
+ * @param scarab_req
+ * @return int
+ */
 int ramulator_send(Mem_Req* scarab_req) {
   Request req;
 

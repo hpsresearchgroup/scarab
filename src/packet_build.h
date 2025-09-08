@@ -103,6 +103,7 @@ typedef enum Break_Reason_enum {
   BREAK_STALL,         // break because the pipeline is stalled
   BREAK_BARRIER,       // break because of a system call or a fetch barrier
                        // instruction
+  BREAK_EMPTY_FETCH_QUEUE,// break because of an empty fetch queue 
   BREAK_OFFPATH,       // break because the machine is offpath
   BREAK_ALIGNMENT,     // break because of misaligned fetch (offpath)
   BREAK_TAKEN,         // break because of nonsequential control flow

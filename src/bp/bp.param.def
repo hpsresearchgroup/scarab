@@ -57,7 +57,13 @@ DEF_PARAM(  perfect_crs               , PERFECT_CRS               , Flag    , Fl
 DEF_PARAM(  perfect_cbr_btb           , PERFECT_CBR_BTB           , Flag    , Flag       , FALSE      ,        )
 DEF_PARAM(  perfect_nt_btb            , PERFECT_NT_BTB            , Flag    , Flag       , FALSE      ,        )
 
+DEF_PARAM(  decoupled_bp              , DECOUPLED_BP              , Flag    , Flag       , FALSE      ,        )
+DEF_PARAM(  fetch_queue_size          , FETCH_QUEUE_SIZE          , uns     , uns        , 32         ,        )
+DEF_PARAM(  fetch_queue_num_taken     , FETCH_QUEUE_NUM_TAKEN     , uns     , uns        , 4         ,        )
 DEF_PARAM(  cfs_per_cycle             , CFS_PER_CYCLE             , uns     , uns        , 3          ,        )
+DEF_PARAM(  taken_per_cycle           , TAKEN_PER_CYCLE           , uns     , uns        , 1          ,        )
+DEF_PARAM(  bp_op_per_cycle           , BP_OP_PER_CYCLE           , uns     , uns        , 24         ,        )
+
 DEF_PARAM(  update_bp_off_path        , UPDATE_BP_OFF_PATH        , Flag    , Flag       , FALSE      ,        )
 DEF_PARAM(  bp_update_at_retire       , BP_UPDATE_AT_RETIRE       , Flag    , Flag       , FALSE      ,        )
 
@@ -66,7 +72,7 @@ DEF_PARAM(  bp_mech                   , BP_MECH                   , uns     , bp
 DEF_PARAM(  late_bp_mech              , LATE_BP_MECH              , uns     , bp_mech    , NUM_BP     ,        )
 DEF_PARAM(  late_bp_latency           , LATE_BP_LATENCY           , uns     , uns        , 5          ,        )
 DEF_PARAM(  hist_length               , HIST_LENGTH               , uns     , uns        , 16         ,        )
-DEF_PARAM(  pht_ctr_bits              , PHT_CTR_BITS              , uns     , uns        , 2          , const  ) /* const */
+DEF_PARAM(  pht_ctr_bits              , PHT_CTR_BITS              , uns     , uns        , 2          ,        ) /* const */
 DEF_PARAM(  bht_entries               , BHT_ENTRIES               , uns     , uns        , (4 * 1024) ,        )
 DEF_PARAM(  bht_assoc                 , BHT_ASSOC                 , uns     , uns        , 4          ,        )
 DEF_PARAM(  hybrids_index_length      , HYBRIDS_INDEX_LENGTH      , uns     , uns        , 16         ,        )
@@ -151,3 +157,32 @@ DEF_PARAM(  perceptron_train_misp_factor  , PERCEPTRON_TRAIN_MISP_FACTOR        
 DEF_PARAM(  perceptron_train_corr_factor  , PERCEPTRON_TRAIN_CORR_FACTOR          , uns     , uns        , 1          ,        )
 DEF_PARAM(  perceptron_conf_his_both     , PERCEPTRON_CONF_HIS_BOTH   , Flag    , Flag        , FALSE     ,           )
 DEF_PARAM(  perceptron_conf_his_both_length  , PERCEPTRON_CONF_HIS_BOTH_LENGTH   , uns    , uns        , 4     ,           )
+DEF_PARAM(  path_under_cf_hist_length, PATH_UNDER_CF_HIST_LENGTH,    uns    , uns        , 16     ,           )
+
+
+DEF_PARAM(  use_2_bit_counter_in_l0, USE_2_BIT_COUNTER_IN_L0 ,    Flag, Flag, TRUE     ,           )
+DEF_PARAM(  l0_btb_size, L0_BTB_SIZE,    uns, uns, 1024,           )
+DEF_PARAM(  l0_btb_assoc, L0_BTB_ASSOC,    uns, uns, 4,           )
+
+DEF_PARAM(  ffp_tage_with_ras, FFP_TAGE_WITH_RAS,    Flag, Flag, FALSE     ,           )
+DEF_PARAM(  ffp_use_late_pred, FFP_USE_LATE_PRED,    Flag, Flag, FALSE     ,           )
+DEF_PARAM(  ffp_num_tage, FFP_NUM_TAGE,    uns, uns, 4,           )
+DEF_PARAM(  ffp_use_bm, FFP_USE_BM,    Flag, Flag, FALSE,           )
+DEF_PARAM(  ffp_use_gshare, FFP_USE_GSHARE,    Flag, Flag, FALSE,           )
+DEF_PARAM(  ffp_skip_tage_if_use_bm, FFP_SKIP_TAGE_IF_USE_BM,    Flag, Flag, FALSE,           )
+DEF_PARAM(  ahead_distance, AHEAD_DISTANCE,    uns, uns, 5,           )
+DEF_PARAM(  ffp_hash_pc_bits, FFP_HASH_PC_BITS,    uns, uns, 3,           )
+DEF_PARAM(  future_tage_size_kb, FUTURE_TAGE_SIZE_KB,    uns, uns, 64,           )
+DEF_PARAM(  future_tage_latency, FUTURE_TAGE_LATENCY,    uns, uns, 3,           )
+DEF_PARAM(  ffp_gshare_thresh, FFP_GSHARE_THRESH,    int, int, 4,           )
+DEF_PARAM(  ffp_bm_thresh, FFP_BM_THRESH,    int, int, 2,           )
+DEF_PARAM(  ffp_ffp_thresh, FFP_FFP_THRESH,    int, int, 0,           )
+DEF_PARAM(  ffp_kill_bm_one_wrong, FFP_KILL_BM_ONE_WRONG,    Flag, Flag, FALSE,           )
+DEF_PARAM(  ffp_hash_dir, FFP_HASH_DIR,    Flag, Flag, TRUE,           )
+DEF_PARAM(  ffp_gshare_hist, FFP_GSHARE_HIST,    uns, uns, 5,           )
+DEF_PARAM(  ffp_dyn_ahead, FFP_DYN_AHEAD,    Flag, Flag, FALSE,           )
+DEF_PARAM(  tagescl_size, TAGESCL_SIZE,    uns, uns, 64,           )
+DEF_PARAM(  ffp_use_tage, FFP_USE_TAGE,    Flag, Flag, FALSE,           )
+
+DEF_PARAM(  tage_no_uncond_update, TAGE_NO_UNCOND_UPDATE,    Flag, Flag, FALSE,           )
+DEF_PARAM(  tagescl_hist_length,TAGESCL_HIST_LENGTH ,    int, int, 3000,           )

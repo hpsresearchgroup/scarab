@@ -64,7 +64,7 @@ L2way_Rec**    l2way_table;
 L1pref_Req*    l1pref_req_queue;
 static Counter l1pref_send_no;
 static Counter l1pref_req_no;
-Cache*         l1_cache;
+static Cache*  l1_cache;
 
 /**************************************************************************************/
 

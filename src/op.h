@@ -215,6 +215,8 @@ struct Op_struct {
   struct Op_struct* next_rdy;      // pointer to next ready op (node table)
   Flag              in_rdy_list;   // is the op in the node stage's ready list?
   struct Op_struct* next_node;     // pointer to the next op in the node table
+  struct Op_struct* next_lq_node;  // pointer to the next load in the LQ
+  struct Op_struct* next_sq_node;  // pointer to the next store in the SQ
   Flag              in_node_list;  // is the op in the node list?
   Flag              replay;        // is the op waiting to replay?
   uns               replay_count;  // number of times the op has replayed

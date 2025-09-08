@@ -30,6 +30,7 @@
 /* Global variables */
 #include "cmp_model.h"
 #include "bp/bp.param.h"
+#include "bp/decoupled_bp.h"
 #include "core.param.h"
 #include "debug/debug.param.h"
 #include "debug/debug_macros.h"
@@ -50,6 +51,7 @@
 #include "freq.h"
 
 Flag perf_pred_started = FALSE;
+Cmp_Model        cmp_model;
 
 /**************************************************************************************/
 /* Static prototypes */
@@ -94,6 +96,9 @@ void cmp_init(uns mode) {
 
     cmp_init_thread_data(proc_id);
 
+    if(DECOUPLED_BP){
+      init_dbp_stage(proc_id);
+    }
     init_icache_stage(proc_id, "ICACHE");
     init_icache_trace();
 
@@ -140,6 +145,9 @@ void cmp_reset() {
 
   for(proc_id = 0; proc_id < NUM_CORES; proc_id++) {
     cmp_set_all_stages(proc_id);
+    if(DECOUPLED_BP){
+      reset_dbp_stage();
+    }
     reset_icache_stage();
     reset_decode_stage();
     reset_map_stage();
@@ -211,6 +219,9 @@ void cmp_cores(void) {
       update_map_stage(dec->last_sd);
       update_decode_stage(&ic->sd);
       update_icache_stage();
+      if(DECOUPLED_BP){
+        update_decoupled_bp();
+      }
 
       node_sched_ops();
 
@@ -339,6 +350,9 @@ void cmp_recover() {
                  bp_recovery_info->recovery_inst_uid,
                  bp_recovery_info->late_bp_recovery_wrong);
 
+  if(DECOUPLED_BP){
+    recover_fetch_queue();
+  }
   recover_icache_stage();
   recover_decode_stage();
   recover_map_stage();
@@ -360,7 +374,12 @@ void cmp_redirect() {
   bp_recovery_info->redirect_op->oracle_info.btb_miss_resolved = TRUE;
   ASSERT_PROC_ID_IN_ADDR(bp_recovery_info->proc_id,
                          bp_recovery_info->redirect_op->oracle_info.pred_npc);
-  redirect_icache_stage();
+  if(DECOUPLED_BP){
+    redirect_decoupled_bp();
+  }
+  else{
+    redirect_icache_stage();
+  }
 }
 
 /**************************************************************************************/
@@ -413,10 +432,18 @@ void cmp_warmup(Op* op) {
 
   // Warmup caches for instructions
   Icache_Stage* ic = &(cmp_model.icache_stage[proc_id]);
+  Decoupled_BP* dbp = NULL;
   // keep next_fetch_addr current to avoid confusing simulation mode
   if(op->eom) {
-    ic->next_fetch_addr = op->oracle_info.npc;
-    ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
+    if(DECOUPLED_BP){
+      dbp = &(cmp_model.bp_stage[proc_id]);
+      dbp->next_addr = op->oracle_info.npc;
+      ASSERT_PROC_ID_IN_ADDR(dbp->proc_id, dbp->next_addr)
+    }
+    else{
+      ic->next_fetch_addr = op->oracle_info.npc;
+      ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
+    }
   }
   Cache*      icache  = &(ic->icache);
   Inst_Info** ic_data = (Inst_Info**)cache_access(icache, ia, &dummy_line_addr,

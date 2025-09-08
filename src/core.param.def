@@ -124,6 +124,8 @@ DEF_PARAM(rs_fill_width, RS_FILL_WIDTH, uns, uns, 8, )
 DEF_PARAM(node_table_size, NODE_TABLE_SIZE, uns, uns, 256, )
 DEF_PARAM(node_ret_width, NODE_RET_WIDTH, uns, uns, 4, )
 DEF_PARAM(node_retire_rate, NODE_RETIRE_RATE, uns, uns, 10, )
+DEF_PARAM(load_queue_entries, LOAD_QUEUE_SIZE, uns, uns, 64, )
+DEF_PARAM(store_queue_entries, STORE_QUEUE_SIZE, uns, uns, 64, )
 
 /********EXEC PORT
  * PARAMETERS*********************************************************/

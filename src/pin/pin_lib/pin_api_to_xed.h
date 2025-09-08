@@ -133,7 +133,7 @@ struct InstInfo {
 // TODO: Double check that below works calls and branches
 #define XED_INS_IsDirectBranchOrCall(ins) XED_INS_IsDirectBranch(ins)
 #define XED_INS_IsIndirectBranchOrCall(ins) !XED_INS_IsDirectBranchOrCall(ins)
-#define XED_INS_IsSyscall(ins) (XED_INS_Category(ins) == XED_CATEGORY_SYSCALL)
+#define XED_INS_IsSyscall(ins) (XED_INS_Category(ins) == XED_CATEGORY_SYSCALL || XED_INS_Category(ins) == XED_CATEGORY_SYSTEM)
 #define XED_INS_IsSysret(ins) (XED_INS_Category(ins) == XED_CATEGORY_SYSRET)
 #define XED_INS_IsInterrupt(ins) \
   (XED_INS_Category(ins) == XED_CATEGORY_INTERRUPT)

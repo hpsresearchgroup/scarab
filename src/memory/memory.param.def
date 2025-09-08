@@ -51,13 +51,18 @@
 */
 DEF_PARAM(enable_swprf, ENABLE_SWPRF, Flag, Flag, FALSE, )
 
-/* MLC */
+/**
+ * MLC
+ * parameters (size, bank etc.) refer to single MLC is configured 
+ * as private. If shared, parameters refer to the aggregated capacity
+ */
 DEF_PARAM(mlc_present, MLC_PRESENT, Flag, Flag, FALSE, )
 DEF_PARAM(mlc_size, MLC_SIZE, uns, uns, (512 * 1024), )
-DEF_PARAM(mlc_assoc, MLC_ASSOC, uns, uns, 4, )
+DEF_PARAM(mlc_assoc, MLC_ASSOC, uns, uns, 8, )
 DEF_PARAM(mlc_line_size, MLC_LINE_SIZE, uns, uns, 64, )
 DEF_PARAM(mlc_cycles, MLC_CYCLES, uns, uns, 12, )
 DEF_PARAM(perfect_mlc, PERFECT_MLC, Flag, Flag, FALSE, )
+DEF_PARAM(private_mlc, PRIVATE_MLC, Flag, Flag, TRUE, )
 DEF_PARAM(mlc_read_ports, MLC_READ_PORTS, uns, uns, 1, )
 DEF_PARAM(mlc_write_ports, MLC_WRITE_PORTS, uns, uns, 1, )
 DEF_PARAM(mlc_banks, MLC_BANKS, uns, uns, 8, )
@@ -75,6 +80,7 @@ DEF_PARAM(l1_line_size, L1_LINE_SIZE, uns, uns,
 DEF_PARAM(l1_cycles, L1_CYCLES, uns, uns, 24, )
 DEF_PARAM(perfect_l1, PERFECT_L1, Flag, Flag, FALSE, )
 DEF_PARAM(private_l1, PRIVATE_L1, Flag, Flag, FALSE, )
+DEF_PARAM(exclusive_l1, EXCLUSIVE_L1, Flag, Flag, TRUE, )
 DEF_PARAM(l1_read_ports, L1_READ_PORTS, uns, uns, 1, )
 DEF_PARAM(l1_write_ports, L1_WRITE_PORTS, uns, uns, 1, )
 DEF_PARAM(l1_banks, L1_BANKS, uns, uns, 8, )

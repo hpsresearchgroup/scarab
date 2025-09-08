@@ -52,7 +52,7 @@
 /**************************************************************************************/
 /* Global Variables */
 
-char* trace_files[MAX_NUM_PROCS];
+static char* trace_files[MAX_NUM_PROCS];
 
 ctype_pin_inst* next_pi;
 

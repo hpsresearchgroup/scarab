@@ -87,7 +87,12 @@ Flag op_not_ready_for_retire(Op* op);
 Flag is_node_table_empty(void);
 void collect_not_ready_to_retire_stats(Op* op);
 Flag is_node_table_full(void);
+Flag get_mem_ld(Op *op);
+Flag get_mem_st(Op *op);
+Flag is_lq_full(void);
+Flag is_sq_full(void);
 void collect_node_table_full_stats(Op* op);
+void collect_lsq_full_stats(Op* op);
 
 /**************************************************************************************/
 /* set_node_stage:*/
@@ -133,6 +138,12 @@ void reset_node_stage() {
   node->mem_blocked          = FALSE;
   node->mem_block_length     = 0;
   node->ret_stall_length     = 0;
+  node->num_loads        = 0;
+  node->num_stores       = 0;
+  node->node_lq_head     = NULL;
+  node->node_sq_head     = NULL;
+  node->node_lq_tail     = NULL;
+  node->node_sq_tail     = NULL;
 }
 
 /**************************************************************************************/
@@ -153,6 +164,12 @@ void reset_all_ops_node_stage() {
   node->node_count       = 0;
   node->mem_blocked      = FALSE;
   node->ret_stall_length = 0;
+  node->num_loads        = 0;
+  node->num_stores       = 0;
+  node->node_lq_head     = NULL;
+  node->node_sq_head     = NULL;
+  node->node_lq_tail     = NULL;
+  node->node_sq_tail     = NULL;
 }
 
 /**************************************************************************************/
@@ -228,6 +245,8 @@ void flush_window() {
   uns  keep_ops  = 0;
 
   node->node_tail = NULL;
+  node->node_lq_tail = NULL;
+  node->node_sq_tail = NULL;
   for(op = node->node_head, last = &node->node_head; op; op = *last) {
     ASSERT(node->proc_id, node->proc_id == op->proc_id);
 
@@ -242,6 +261,30 @@ void flush_window() {
         ASSERT(op->proc_id, node->rs[op->rs_id].rs_op_count > 0);
         node->rs[op->rs_id].rs_op_count--;
       }
+ 
+      if(get_mem_ld(op)) {
+        node->num_loads--;
+        if(node->node_lq_head==op) {
+          node->node_lq_head = NULL;
+          node->node_lq_tail = NULL;
+        }
+        else if(node->node_lq_tail!= NULL && node->node_lq_tail->next_lq_node==op) {
+          node->node_lq_tail->next_lq_node = NULL;
+        }
+      }
+      if(get_mem_st(op)) {
+        node->num_stores--;
+        if(node->node_sq_head==op){
+          node->node_sq_head = NULL;
+          node->node_sq_tail = NULL;
+        }
+        else if(node->node_sq_tail!= NULL && node->node_sq_tail->next_sq_node==op) {
+          node->node_sq_tail->next_sq_node = NULL;
+        }
+      }
+      ASSERT(node->proc_id, node->num_loads>=0);
+      ASSERT(node->proc_id, node->num_stores>=0);
+
       free_op(op);
     } else {
       /* Keep op */
@@ -255,9 +298,13 @@ void flush_window() {
       keep_ops++;
       last            = &op->next_node;
       node->node_tail = op;
+      if(get_mem_ld(op)) node->node_lq_tail = op;
+      if(get_mem_st(op)) node->node_sq_tail = op;
     }
   }
 
+  ASSERT(node->proc_id, !((node->node_lq_head==NULL) ^ (node->num_loads==0)));
+  ASSERT(node->proc_id, !((node->node_sq_head==NULL) ^ (node->num_stores==0)));
   ASSERT(node->proc_id, flush_ops + keep_ops == node->node_count);
   node->node_count = keep_ops;
   ASSERT(node->proc_id, node->node_count <= NODE_TABLE_SIZE);
@@ -415,18 +462,32 @@ void node_issue(Stage_Data* src_sd) {
   // Table.
   // We will stick them into the RS later
   for(ii = 0; ii < src_sd->max_op_count; ii++) {
+
+    // If it is not full, issue the next op
+    Op* op = src_sd->ops[ii];
+    if(!op)
+      continue;
+    
     /* if node table is full, stall */
     if(is_node_table_full()) {
       collect_node_table_full_stats(node->node_head);
       rob_block_issue_reason = ROB_BLOCK_ISSUE_FULL;
       return;
     }
+    else if(get_mem_ld(op) && is_lq_full())
+    {
+      collect_lsq_full_stats(node->node_lq_head);
+      rob_block_issue_reason = ROB_BLOCK_ISSUE_FULL;
+      return;
+    }
+    else if(get_mem_st(op) && is_sq_full())
+    {
+      collect_lsq_full_stats(node->node_sq_head);
+      rob_block_issue_reason = ROB_BLOCK_ISSUE_FULL;
+      return;
+    }
+    
     rob_block_issue_reason = ROB_BLOCK_ISSUE_NONE;
-
-    // If it is not full, issue the next op
-    Op* op = src_sd->ops[ii];
-    if(!op)
-      continue;
 
     ASSERT(node->proc_id, node->proc_id == op->proc_id);
     /* check if it's a synchronizing op that can't issue  */
@@ -451,6 +512,44 @@ void node_issue(Stage_Data* src_sd) {
     op->next_node    = NULL;
     op->in_node_list = TRUE;
     node->node_tail  = op;
+
+    // Add mem ops to load and store queues
+    if(get_mem_ld(op))
+    {
+      ASSERT(0, !((node->node_lq_head!=NULL) ^ (node->node_lq_tail!=NULL)));
+      node->num_loads++;
+      op->next_lq_node = NULL;
+      if(node->node_lq_head == NULL)
+      {
+        ASSERT(0, node->node_lq_tail==NULL);
+        node->node_lq_head = op;
+        node->node_lq_tail = op;
+      }
+      else
+      {
+        node->node_lq_tail->next_lq_node = op;
+        node->node_lq_tail = op;
+      }
+      ASSERT(0, node->node_lq_head->op_num <= node->node_lq_tail->op_num);
+    }
+    if(get_mem_st(op))
+    {
+      ASSERT(0, !((node->node_sq_head!=NULL) ^ (node->node_sq_tail!=NULL)));
+      node->num_stores++;
+      op->next_sq_node = NULL;
+      if(node->node_sq_head == NULL)
+      {
+        ASSERT(0, node->node_sq_tail==NULL);
+        node->node_sq_head = op;
+        node->node_sq_tail = op;
+      }
+      else
+      {
+        node->node_sq_tail->next_sq_node = op;
+        node->node_sq_tail = op;
+      }
+      ASSERT(0, node->node_sq_head->op_num <= node->node_sq_tail->op_num);
+    }
 
     STAT_EVENT(node->proc_id, OP_ISSUED);
 
@@ -800,6 +899,42 @@ void node_retire() {
 
     node->ret_op++;
 
+    if(get_mem_ld(op))
+    {
+      node->num_loads--;
+      ASSERT(0, node->num_loads>=0);
+      ASSERT(0, node->node_lq_head!=NULL && node->node_lq_tail!=NULL);
+      ASSERT(0, node->node_lq_head->op_num <= node->node_lq_tail->op_num);
+      if(op->next_lq_node == NULL)
+      {
+        node->node_lq_head = NULL;
+        node->node_lq_tail = NULL;
+      }
+      else
+      {
+        node->node_lq_head = op->next_lq_node;
+      }
+    }
+    if(get_mem_st(op))
+    {
+      node->num_stores--;
+      ASSERT(0, node->num_stores>=0);
+      ASSERT(0, node->node_sq_head!=NULL && node->node_sq_tail!=NULL);
+      ASSERT(0, node->node_sq_head->op_num <= node->node_sq_tail->op_num);
+      if(op->next_sq_node == NULL)
+      {
+        node->node_sq_head = NULL;
+        node->node_sq_tail = NULL;
+      }
+      else
+      {
+        node->node_sq_head = op->next_sq_node;
+      }
+    }
+
+    ASSERT(node->proc_id, node->num_loads >= 0);
+    ASSERT(node->proc_id, node->num_stores >= 0);
+
     STAT_EVENT(op->proc_id, RET_ALL_INST);
 
     remove_from_seq_op_list(td, op);
@@ -1070,17 +1205,56 @@ Flag is_node_table_full() {
   return (node->node_count == NODE_TABLE_SIZE);
 }
 
+Flag get_mem_ld(Op * op) {
+  return op->table_info->mem_type==MEM_LD;
+}
+
+Flag get_mem_st(Op * op) {
+  return op->table_info->mem_type==MEM_ST || op->table_info->mem_type==MEM_EVICT;
+}
+
+Flag is_lq_full()
+{
+  ASSERT(node->proc_id, node->num_loads <= LOAD_QUEUE_SIZE);
+  return (node->num_loads == LOAD_QUEUE_SIZE);
+}
+
+Flag is_sq_full()
+{
+  ASSERT(node->proc_id, node->num_stores <= STORE_QUEUE_SIZE);
+  return (node->num_stores == STORE_QUEUE_SIZE);
+}
+
 void collect_node_table_full_stats(Op* op) {
   if(!(op->state == OS_DONE || OP_DONE(op))) {
     if(op->table_info->op_type == OP_IMEM ||
        op->table_info->op_type == OP_FMEM) {
-      STAT_EVENT(node->proc_id, FULL_WINDOW_MEM_OP);
+      STAT_EVENT(node->proc_id, FULL_WINDOW_ROB_MEM_OP);
     } else if(op->table_info->op_type >= OP_FCVT &&
               op->table_info->op_type <= OP_FCMOV) {
-      STAT_EVENT(node->proc_id, FULL_WINDOW_FP_OP);
+      STAT_EVENT(node->proc_id, FULL_WINDOW_ROB_FP_OP);
     } else {
-      STAT_EVENT(node->proc_id, FULL_WINDOW_OTHER_OP);
+      STAT_EVENT(node->proc_id, FULL_WINDOW_ROB_OTHER_OP);
     }
+  }
+  else {
+    STAT_EVENT(node->proc_id, FULL_WINDOW_WAITING_ON_RET);
+  }
+
+  STAT_EVENT(node->proc_id, FULL_WINDOW_STALL);
+}
+
+void collect_lsq_full_stats(Op* op) {
+
+  if(!(op->state == OS_DONE || OP_DONE(op))) {
+    if(get_mem_ld(op)) {
+      STAT_EVENT(node->proc_id, FULL_WINDOW_LQ_FULL);
+    } else {
+      STAT_EVENT(node->proc_id, FULL_WINDOW_SQ_FULL);
+    }
+  }
+  else {
+    STAT_EVENT(node->proc_id, FULL_WINDOW_WAITING_ON_RET);
   }
 
   STAT_EVENT(node->proc_id, FULL_WINDOW_STALL);

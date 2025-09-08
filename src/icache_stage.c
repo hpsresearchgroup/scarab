@@ -52,6 +52,7 @@
 #include "prefetcher/l2l1pref.h"
 #include "prefetcher/stream_pref.h"
 #include "statistics.h"
+#include "bp/decoupled_bp.h"
 
 
 /**************************************************************************************/
@@ -66,6 +67,7 @@
 /* Global Variables */
 
 Icache_Stage* ic = NULL;
+Pb_Data* ic_pb_data;
 
 extern Cmp_Model              cmp_model;
 extern Memory*                mem;
@@ -205,6 +207,16 @@ void recover_icache_stage() {
     }
   }
 
+  if(DECOUPLED_BP){
+    if(ic->next_state != IC_FILL && ic->next_state != IC_WAIT_FOR_MISS) {
+      ic->next_state = IC_FETCH;
+    }
+    if(SWITCH_IC_FETCH_ON_RECOVERY && model->id == CMP_MODEL) {
+      ic->next_state = IC_FETCH;
+    }
+    return;
+  }
+
   ic->back_on_path = !bp_recovery_info->recovery_force_offpath;
 
   Op* op = bp_recovery_info->recovery_op;
@@ -306,6 +318,16 @@ void update_icache_stage() {
       reset_packet_build(ic_pb_data);  // reset packet build counters
 
       while(!break_fetch) {
+        if(DECOUPLED_BP){
+
+          Op* top_of_queue = read_fetch_queue(ic->proc_id);
+          if(top_of_queue == NULL){
+            //DEBUG(ic->proc_id, "Fetch queue empty\n");
+            break_fetch = BREAK_EMPTY_FETCH_QUEUE;
+            return;
+          }
+          ic->next_fetch_addr = top_of_queue->inst_info->addr;
+        }
         ic->fetch_addr = ic->next_fetch_addr;
         ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->fetch_addr)
 
@@ -468,209 +490,239 @@ static inline Icache_State icache_issue_ops(Break_Reason* break_fetch,
   last_icache_issue_time = cycle_count;
 
   while(1) {
-    Op*        op   = alloc_op(ic->proc_id);
-    Inst_Info* inst = 0;
-    UNUSED(inst);
-
-    if(frontend_can_fetch_op(ic->proc_id)) {
-      frontend_fetch_op(ic->proc_id, op);
-      ASSERTM(ic->proc_id, ic->next_fetch_addr == op->inst_info->addr,
-              "Fetch address 0x%llx does not match op address 0x%llx\n",
-              ic->next_fetch_addr, op->inst_info->addr);
-      op->fetch_addr = ic->next_fetch_addr;
-      ASSERT_PROC_ID_IN_ADDR(ic->proc_id, op->fetch_addr)
-      op->off_path  = ic->off_path;
-      td->inst_addr = op->inst_info->addr;  // FIXME: BUG 54
-      ASSERT_PROC_ID_IN_ADDR(ic->proc_id, td->inst_addr);
-      if(!op->off_path) {
-        if(op->eom)
-          issued_real_inst++;
-        issued_uop++;
+    if(DECOUPLED_BP){
+      Op* op = read_fetch_queue(ic->proc_id);
+      if(op == NULL){
+        //fetch queue empty, try again next cycle
+        *break_fetch = BREAK_CF;
+        return IC_FETCH;
       }
-      inst = op->inst_info;
-    } else {
-      free_op(op);
-      *break_fetch = BREAK_BARRIER;
-      return IC_FETCH;
-    }
-
-    if(!op->off_path &&
-       (op->table_info->mem_type == MEM_LD ||
-        op->table_info->mem_type == MEM_ST) &&
-       op->oracle_info.va == 0) {
-      // don't care if the va is 0x0 if mem_type is MEM_PF(SW prefetch),
-      // MEM_WH(write hint), or MEM_EVICT(cache block eviction hint)
-      print_func_op(op);
-      FATAL_ERROR(ic->proc_id, "Access to 0x0\n");
-    }
-
-    if(DUMP_TRACE && DEBUG_RANGE_COND(ic->proc_id))
-      print_func_op(op);
-
-    if(DIE_ON_CALLSYS && !op->off_path) {
-      ASSERT(ic->proc_id, op->table_info->cf_type != CF_SYS);
-    }
-
-    packet_break = packet_build(ic_pb_data, break_fetch, op, 0);
-    if(packet_break == PB_BREAK_BEFORE) {
-      free_op(op);
-      break;
-    }
-
-    /* add to sequential op list */
-    add_to_seq_op_list(td, op);
-
-    ASSERT(ic->proc_id, td->seq_op_list.count <= op_pool_active_ops);
-
-    /* map the op based on true dependencies & set information in
-     * op->oracle_info */
-    /* num cycles since last group issued */
-    op->fetch_lag = fetch_lag;
-
-    thread_map_op(op);
-
-    STAT_EVENT(op->proc_id, FETCH_ALL_INST);
-    STAT_EVENT(op->proc_id, ORACLE_ON_PATH_INST + op->off_path);
-    STAT_EVENT(op->proc_id, ORACLE_ON_PATH_INST_MEM +
-                              (op->table_info->mem_type == NOT_MEM) +
-                              2 * op->off_path);
-
-    thread_map_mem_dep(op);
-    op->fetch_cycle = cycle_count;
-
-    ic->sd.ops[ic->sd.op_count] = op; /* put op in the exit list */
-    op_count[ic->proc_id]++;          /* increment instruction counters */
-    unique_count_per_core[ic->proc_id]++;
-    unique_count++;
-
-    /* check trigger */
-    if(op->inst_info->trigger_op_fetched_hook)
-      model->op_fetched_hook(op);
-
-    /* move on to next instruction in the cache line */
-    ic->sd.op_count++;
-    INC_STAT_EVENT(ic->proc_id, INST_LOST_FETCH + ic->off_path, 1);
-
-    DEBUG(ic->proc_id,
-          "Fetching op from Icache addr: %s off: %d inst_info: %p ii_addr: %s "
-          "dis: %s opnum: (%s:%s)\n",
-          hexstr64s(op->inst_info->addr), op->off_path, op->inst_info,
-          hexstr64s(op->inst_info->addr), disasm_op(op, TRUE),
-          unsstr64(op->op_num), unsstr64(op->unique_num));
-
-    /* figure out next address after current instruction */
-    if(op->table_info->cf_type) {
-      // For pipeline gating
-      if(op->table_info->cf_type == CF_CBR)
-        td->td_info.fetch_br_count++;
-
-      if(*break_fetch == BREAK_BARRIER) {
-        // for fetch barriers (including syscalls), we do not want to do
-        // redirect/recovery, BUT we still want to update the branch predictor.
-        bp_predict_op(g_bp_data, op, (*cf_num)++, ic->fetch_addr);
-        op->oracle_info.mispred   = 0;
-        op->oracle_info.misfetch  = 0;
-        op->oracle_info.btb_miss  = 0;
-        op->oracle_info.no_target = 0;
-        ic->next_fetch_addr       = ADDR_PLUS_OFFSET(
-          ic->next_fetch_addr, op->inst_info->trace_info.inst_size);
-        ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
-      } else {
-        //
-        ic->next_fetch_addr = bp_predict_op(g_bp_data, op, (*cf_num)++,
-                                            ic->fetch_addr);
-        // initially bp_predict_op can return a garbage, for multi core run,
-        // addr must follow cmp addr convention
-        ic->next_fetch_addr = convert_to_cmp_addr(ic->proc_id,
-                                                  ic->next_fetch_addr);
-        ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
-      }
-
-      ASSERT(ic->proc_id,
-             (op->oracle_info.mispred << 2 | op->oracle_info.misfetch << 1 |
-              op->oracle_info.btb_miss) <= 0x7);
-
-      const uns8 mispred       = op->oracle_info.mispred;
-      const uns8 late_mispred  = op->oracle_info.late_mispred;
-      const uns8 misfetch      = op->oracle_info.misfetch;
-      const uns8 late_misfetch = op->oracle_info.late_misfetch;
-
-      /* if it's a mispredict, kick the oracle off path */
-      if(mispred || misfetch ||
-         (USE_LATE_BP && (late_mispred || late_misfetch))) {
-        ic->off_path = TRUE;
-
-        if(FETCH_OFF_PATH_OPS) {
-          if(mispred || misfetch) {
-            DEBUG(ic->proc_id,
-                  "Cycle %llu: redirected frontend because of the "
-                  "early branch predictor to 0x%s\n",
-                  cycle_count, hexstr64s(ic->next_fetch_addr));
-            frontend_redirect(td->proc_id, op->inst_uid, ic->next_fetch_addr);
-          }
-
-          if(USE_LATE_BP) {
-            if((mispred || misfetch) && !late_mispred && !late_misfetch) {
-              bp_sched_recovery(bp_recovery_info, op, cycle_count,
-                                /*late_bp_recovery=*/TRUE,
-                                /*force_offpath=*/FALSE);
-              DEBUG(ic->proc_id,
-                    "Scheduled a recovery to correct addr for cycle %llu\n",
-                    cycle_count + LATE_BP_LATENCY);
-            } else if((late_mispred || late_misfetch) &&
-                      op->oracle_info.pred_npc !=
-                        op->oracle_info.late_pred_npc) {
-              bp_sched_recovery(bp_recovery_info, op, cycle_count,
-                                /*late_bp_recovery=*/TRUE,
-                                /*force_offpath=*/TRUE);
-              DEBUG(ic->proc_id,
-                    "Scheduled a recovery to wrong addr for cycle %llu\n",
-                    cycle_count + LATE_BP_LATENCY);
-            }
-          }
-        } else {
-          packet_break = PB_BREAK_AFTER;
-          *break_fetch = BREAK_OFFPATH;
+      else{
+        ic->next_fetch_addr = op->inst_info->addr;
+        ic->fetch_addr = ic->next_fetch_addr; 
+        //ASSERTM(ic->proc_id, ic->next_fetch_addr == op->inst_info->addr,
+        //        "Fetch address 0x%llx does not match op address 0x%llx\n",
+        //        ic->next_fetch_addr, op->inst_info->addr);
+        
+        packet_break = packet_build(ic_pb_data, break_fetch, op, 0);
+        if(packet_break == PB_BREAK_BEFORE) {
+          break;
         }
 
-        // pipeline gating
-        if(!op->off_path)
-          td->td_info.last_bp_miss_op = op;
-        ///////////////////////////////////////
+        ic->sd.ops[ic->sd.op_count] = op;
+        ic->sd.op_count++;
+
+        ASSERT(ic->proc_id, pop_fetch_queue(ic->proc_id));
+
+        if(packet_break == PB_BREAK_AFTER)
+          break;
+      }
+    }
+    else {
+      Op*        op   = alloc_op(ic->proc_id);
+      Inst_Info* inst = 0;
+      UNUSED(inst);
+
+      if(frontend_can_fetch_op(ic->proc_id)) {
+        frontend_fetch_op(ic->proc_id, op);
+        ASSERTM(ic->proc_id, ic->next_fetch_addr == op->inst_info->addr,
+                "Fetch address 0x%llx does not match op address 0x%llx\n",
+                ic->next_fetch_addr, op->inst_info->addr);
+        op->fetch_addr = ic->next_fetch_addr;
+        ASSERT_PROC_ID_IN_ADDR(ic->proc_id, op->fetch_addr)
+        op->off_path  = ic->off_path;
+        td->inst_addr = op->inst_info->addr;  // FIXME: BUG 54
+        ASSERT_PROC_ID_IN_ADDR(ic->proc_id, td->inst_addr);
+        if(!op->off_path) {
+          if(op->eom)
+            issued_real_inst++;
+          issued_uop++;
+        }
+        inst = op->inst_info;
+      } else {
+        free_op(op);
+        *break_fetch = BREAK_BARRIER;
+        return IC_FETCH;
       }
 
-
-      /* if it's a btb miss, quit fetching and wait for redirect */
-      if(op->oracle_info.btb_miss) {
-        *break_fetch = BREAK_BTB_MISS;
-        DEBUG(ic->proc_id, "Changed icache to wait for redirect %llu\n",
-              cycle_count);
-        return IC_WAIT_FOR_REDIRECT;
+      if(!op->off_path &&
+         (op->table_info->mem_type == MEM_LD ||
+          op->table_info->mem_type == MEM_ST) &&
+         op->oracle_info.va == 0) {
+        // don't care if the va is 0x0 if mem_type is MEM_PF(SW prefetch),
+        // MEM_WH(write hint), or MEM_EVICT(cache block eviction hint)
+        print_func_op(op);
+        FATAL_ERROR(ic->proc_id, "Access to 0x0\n");
       }
 
-      /* if it's a taken branch, wait for timer */
-      if(FETCH_BREAK_ON_TAKEN && op->oracle_info.pred &&
-         *break_fetch != BREAK_BARRIER) {
-        *break_fetch = BREAK_TAKEN;
-        if(FETCH_TAKEN_BUBBLE_CYCLES >= 1) {
-          ic->timer_cycle = cycle_count + FETCH_TAKEN_BUBBLE_CYCLES;
-          return IC_WAIT_FOR_TIMER;
-        } else
-          return IC_FETCH;
+      if(DUMP_TRACE && DEBUG_RANGE_COND(ic->proc_id))
+        print_func_op(op);
+
+      if(DIE_ON_CALLSYS && !op->off_path) {
+        ASSERT(ic->proc_id, op->table_info->cf_type != CF_SYS);
       }
-    } else {
-      if(op->eom) {
-        ic->next_fetch_addr = ADDR_PLUS_OFFSET(
-          ic->next_fetch_addr, op->inst_info->trace_info.inst_size);
+
+      packet_break = packet_build(ic_pb_data, break_fetch, op, 0);
+      if(packet_break == PB_BREAK_BEFORE) {
+        free_op(op);
+        break;
+      }
+
+      /* add to sequential op list */
+      add_to_seq_op_list(td, op);
+
+      ASSERT(ic->proc_id, td->seq_op_list.count <= op_pool_active_ops);
+
+      /* map the op based on true dependencies & set information in
+       * op->oracle_info */
+      /* num cycles since last group issued */
+      op->fetch_lag = fetch_lag;
+
+      thread_map_op(op);
+
+      STAT_EVENT(op->proc_id, FETCH_ALL_INST);
+      STAT_EVENT(op->proc_id, ORACLE_ON_PATH_INST + op->off_path);
+      STAT_EVENT(op->proc_id, ORACLE_ON_PATH_INST_MEM +
+                                (op->table_info->mem_type == NOT_MEM) +
+                                2 * op->off_path);
+
+      thread_map_mem_dep(op);
+      op->fetch_cycle = cycle_count;
+
+      ic->sd.ops[ic->sd.op_count] = op; /* put op in the exit list */
+      op_count[ic->proc_id]++;          /* increment instruction counters */
+      unique_count_per_core[ic->proc_id]++;
+      unique_count++;
+
+      /* check trigger */
+      if(op->inst_info->trigger_op_fetched_hook)
+        model->op_fetched_hook(op);
+
+      /* move on to next instruction in the cache line */
+      ic->sd.op_count++;
+      INC_STAT_EVENT(ic->proc_id, INST_LOST_FETCH + ic->off_path, 1);
+
+      DEBUG(ic->proc_id,
+            "Fetching op from Icache addr: %s off: %d inst_info: %p ii_addr: %s "
+            "dis: %s opnum: (%s:%s)\n",
+            hexstr64s(op->inst_info->addr), op->off_path, op->inst_info,
+            hexstr64s(op->inst_info->addr), disasm_op(op, TRUE),
+            unsstr64(op->op_num), unsstr64(op->unique_num));
+
+      /* figure out next address after current instruction */
+      if(op->table_info->cf_type) {
+        // For pipeline gating
+        if(op->table_info->cf_type == CF_CBR)
+          td->td_info.fetch_br_count++;
+
+        if(*break_fetch == BREAK_BARRIER) {
+          // for fetch barriers (including syscalls), we do not want to do
+          // redirect/recovery, BUT we still want to update the branch predictor.
+          bp_predict_op(g_bp_data, op, (*cf_num)++, ic->fetch_addr);
+          op->oracle_info.mispred   = 0;
+          op->oracle_info.misfetch  = 0;
+          op->oracle_info.btb_miss  = 0;
+          op->oracle_info.no_target = 0;
+          ic->next_fetch_addr       = ADDR_PLUS_OFFSET(
+            ic->next_fetch_addr, op->inst_info->trace_info.inst_size);
+          ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
+        } else {
+          //
+          ic->next_fetch_addr = bp_predict_op(g_bp_data, op, (*cf_num)++,
+                                              ic->fetch_addr);
+          // initially bp_predict_op can return a garbage, for multi core run,
+          // addr must follow cmp addr convention
+          ic->next_fetch_addr = convert_to_cmp_addr(ic->proc_id,
+                                                    ic->next_fetch_addr);
+          ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
+        }
+
+        ASSERT(ic->proc_id,
+               (op->oracle_info.mispred << 2 | op->oracle_info.misfetch << 1 |
+                op->oracle_info.btb_miss) <= 0x7);
+
+        const uns8 mispred       = op->oracle_info.mispred;
+        const uns8 late_mispred  = op->oracle_info.late_mispred;
+        const uns8 misfetch      = op->oracle_info.misfetch;
+        const uns8 late_misfetch = op->oracle_info.late_misfetch;
+
+        /* if it's a mispredict, kick the oracle off path */
+        if(mispred || misfetch ||
+           (USE_LATE_BP && (late_mispred || late_misfetch))) {
+          ic->off_path = TRUE;
+
+          if(FETCH_OFF_PATH_OPS) {
+            if(mispred || misfetch) {
+              DEBUG(ic->proc_id,
+                    "Cycle %llu: redirected frontend because of the "
+                    "early branch predictor to 0x%s\n",
+                    cycle_count, hexstr64s(ic->next_fetch_addr));
+              frontend_redirect(td->proc_id, op->inst_uid, ic->next_fetch_addr);
+            }
+
+            if(USE_LATE_BP) {
+              if((mispred || misfetch) && !late_mispred && !late_misfetch) {
+                bp_sched_recovery(bp_recovery_info, op, cycle_count,
+                                  /*late_bp_recovery=*/TRUE,
+                                  /*force_offpath=*/FALSE);
+                DEBUG(ic->proc_id,
+                      "Scheduled a recovery to correct addr for cycle %llu\n",
+                      cycle_count + LATE_BP_LATENCY);
+              } else if((late_mispred || late_misfetch) &&
+                        op->oracle_info.pred_npc !=
+                          op->oracle_info.late_pred_npc) {
+                bp_sched_recovery(bp_recovery_info, op, cycle_count,
+                                  /*late_bp_recovery=*/TRUE,
+                                  /*force_offpath=*/TRUE);
+                DEBUG(ic->proc_id,
+                      "Scheduled a recovery to wrong addr for cycle %llu\n",
+                      cycle_count + LATE_BP_LATENCY);
+              }
+            }
+          } else {
+            packet_break = PB_BREAK_AFTER;
+            *break_fetch = BREAK_OFFPATH;
+          }
+
+          // pipeline gating
+          if(!op->off_path)
+            td->td_info.last_bp_miss_op = op;
+          ///////////////////////////////////////
+        }
+
+
+        /* if it's a btb miss, quit fetching and wait for redirect */
+        if(op->oracle_info.btb_miss) {
+          *break_fetch = BREAK_BTB_MISS;
+          DEBUG(ic->proc_id, "Changed icache to wait for redirect %llu\n",
+                cycle_count);
+          return IC_WAIT_FOR_REDIRECT;
+        }
+
+        /* if it's a taken branch, wait for timer */
+        if(FETCH_BREAK_ON_TAKEN && op->oracle_info.pred &&
+           *break_fetch != BREAK_BARRIER) {
+          *break_fetch = BREAK_TAKEN;
+          if(FETCH_TAKEN_BUBBLE_CYCLES >= 1) {
+            ic->timer_cycle = cycle_count + FETCH_TAKEN_BUBBLE_CYCLES;
+            return IC_WAIT_FOR_TIMER;
+          } else
+            return IC_FETCH;
+        }
+      } else {
+        if(op->eom) {
+          ic->next_fetch_addr = ADDR_PLUS_OFFSET(
+            ic->next_fetch_addr, op->inst_info->trace_info.inst_size);
+          ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
+        }
+        // pass the global branch history to all the instructions
+        op->oracle_info.pred_global_hist = g_bp_data->global_hist;
         ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
       }
-      // pass the global branch history to all the instructions
-      op->oracle_info.pred_global_hist = g_bp_data->global_hist;
-      ASSERT_PROC_ID_IN_ADDR(ic->proc_id, ic->next_fetch_addr)
-    }
 
-    if(packet_break == PB_BREAK_AFTER)
-      break;
+      if(packet_break == PB_BREAK_AFTER)
+        break;
+    }
   }
 
   if(*break_fetch == BREAK_BARRIER) {

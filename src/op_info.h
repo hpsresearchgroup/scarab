@@ -97,7 +97,10 @@ struct Op_Info_struct {
   uns8 dir;        // true direction of branch, set by oracle
   Addr pred_npc;   // predicted next pc field
   Addr pred_addr;  // address used to predict branch (might be fetch_addr)
-  uns8 pred;       // predicted direction of branch, set by the branch predictor
+  uns8 pred;       // overall predicted direction of branch, set by the last branch predictor
+                   // note that this can change depending on which point of the pipeline it is in
+  uns8 early_pred; // predicted direction of branch, set by the early branch predictor
+  uns8 early_late_disagree;       // if the late predictor did not agree with the early predictor 
   Flag misfetch;   // true if target address is the ONLY thing that was wrong
   Flag mispred;  // true if the direction of the branch was mispredicted and the
                  // branch should cause a recovery, set by the branch predictor

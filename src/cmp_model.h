@@ -30,6 +30,7 @@
 #define __CMP_MODEL_H__
 
 #include "bp/bp.h"
+#include "bp/decoupled_bp.h"
 #include "cmp_model_support.h"
 #include "dcache_stage.h"
 #include "decode_stage.h"
@@ -63,6 +64,7 @@ typedef struct Cmp_Model_struct {
   Node_Stage*   node_stage;
   Exec_Stage*   exec_stage;
   Dcache_Stage* dcache_stage;
+  Decoupled_BP* bp_stage;
 
   uns window_size;
 
@@ -71,7 +73,6 @@ typedef struct Cmp_Model_struct {
 /**************************************************************************************/
 /* Global vars */
 
-Cmp_Model        cmp_model;
 extern Cmp_Model cmp_model;
 
 /**************************************************************************************/
